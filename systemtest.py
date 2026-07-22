@@ -145,6 +145,8 @@ def main():
         "Engine smoke test"
     )
 
+    Collision.init(WIDTH, HEIGHT)
+
     sprite = "assets/pacman.png"
 
     NUM_BOUNCERS = 250
@@ -206,6 +208,7 @@ def main():
 
         Assets.update()
         Actors.update(dt)
+        Collision.update()
         Renderer.render(World)
 
 

@@ -29,6 +29,7 @@ class RendererSubsystem:
         self.buffer_size = 0
         self.buffer_np = None        # numpy view over self.buffer, shape (height, line_size)
         self._buffer_cbuf = None     # cached ctypes buffer for memmove (built once, not per frame)
+        self._clear_view = None      # buffer reinterpreted as whole pixels, for one-shot clear()
 
         self._logger = Log.get("renderer")
         self._frame_count = 0
@@ -80,6 +81,17 @@ class RendererSubsystem:
         # Built once instead of re-wrapping self.buffer every render() call.
         self._buffer_cbuf = (ctypes.c_char * self.buffer_size).from_buffer(self.buffer)
 
+        # Reinterpret the buffer as whole pixels (not individual bytes) so
+        # clear() can assign a color to the entire framebuffer in one
+        # vectorized call instead of building/tiling a row per clear.
+        pixel_dtype = {1: np.uint8, 2: np.uint16, 4: np.uint32}.get(self.pixel_size)
+        if pixel_dtype is not None and self.line_size % self.pixel_size == 0:
+            self._clear_view = self.buffer_np.view(dtype=pixel_dtype)
+        else:
+            # Unusual pixel size (e.g. 3 bytes/pixel) — clear() falls back
+            # to the tiled-row approach below.
+            self._clear_view = None
+
         self._logger.debug(
             f"Framebuffer info: bpp={self.bpp}, line_size={self.line_size}, "
             f"format={self.format}, pixel_size={self.pixel_size}"
@@ -97,20 +109,29 @@ class RendererSubsystem:
         self.clear(0xFF000000)
 
     def clear(self, color: int = 0xFF000000):
-        """Clears the framebuffer before drawing the next frame."""
+        """Clears the framebuffer before drawing the next frame.
 
+        Single vectorized assignment — the buffer is viewed as an array
+        of whole pixels, so this is one C-level fill over the entire
+        framebuffer, not a per-pixel or per-row operation."""
+
+        if self._clear_view is not None:
+            pixel_value = color & ((1 << (self.pixel_size * 8)) - 1)
+            # Only fill the actual pixel columns (self.width), leaving any
+            # row padding between pixel data and line_size untouched.
+            self._clear_view[:, :self.width] = pixel_value
+            return
+
+        # Fallback for unusual pixel sizes that don't evenly divide
+        # line_size (see init()).
         pixel_bytes = np.frombuffer(
             color.to_bytes(self.pixel_size, "little"), dtype=np.uint8
         )
-
         row = np.tile(pixel_bytes, self.width)
         if len(row) < self.line_size:
             row = np.concatenate(
                 [row, np.zeros(self.line_size - len(row), dtype=np.uint8)]
             )
-
-        # One broadcasted assignment fills every row instead of a Python
-        # for-loop over self.height.
         self.buffer_np[:, :] = row
 
     def put_pixel(self, x: int, y: int, color: int):
