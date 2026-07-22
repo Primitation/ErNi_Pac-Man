@@ -1,4 +1,5 @@
 import ctypes
+import numpy as np
 from mlx import Mlx
 from .. import Assets
 from .. import Log
@@ -23,16 +24,18 @@ class RendererSubsystem:
         self.line_size = 0
         self.pixel_size = 0
         self.format = 0
-        
+
         self.buffer = None
         self.buffer_size = 0
+        self.buffer_np = None        # numpy view over self.buffer, shape (height, line_size)
+        self._buffer_cbuf = None     # cached ctypes buffer for memmove (built once, not per frame)
 
         self._logger = Log.get("renderer")
         self._frame_count = 0
 
     def init(self, width: int, height: int, title: str = "PrimiEngine"):
         """Call once, at startup, before anything else touches mlx."""
-        
+
         self.width = width
         self.height = height
 
@@ -62,12 +65,21 @@ class RendererSubsystem:
             self.line_size,
             self.format
         ) = self.mlx.mlx_get_data_addr(self.framebuffer)
-        
+
         self.pixel_size = self.bpp // 8
         self.framebuffer_ptr = ctypes.addressof(self.framebuffer_data.obj)
         self.buffer_size = self.height * self.line_size
         self.buffer = bytearray(self.buffer_size)
-        
+
+        # Zero-copy numpy view over self.buffer. Writes to buffer_np land
+        # directly in self.buffer's memory — no extra copy anywhere.
+        self.buffer_np = np.frombuffer(self.buffer, dtype=np.uint8).reshape(
+            self.height, self.line_size
+        )
+
+        # Built once instead of re-wrapping self.buffer every render() call.
+        self._buffer_cbuf = (ctypes.c_char * self.buffer_size).from_buffer(self.buffer)
+
         self._logger.debug(
             f"Framebuffer info: bpp={self.bpp}, line_size={self.line_size}, "
             f"format={self.format}, pixel_size={self.pixel_size}"
@@ -80,184 +92,174 @@ class RendererSubsystem:
         )
 
         self._logger.info(f'Window created: {width}x{height} "{title}"')
-        
+
         # Clear with FULLY OPAQUE BLACK
         self.clear(0xFF000000)
 
     def clear(self, color: int = 0xFF000000):
         """Clears the framebuffer before drawing the next frame."""
-        
-        pixel_bytes = color.to_bytes(self.pixel_size, "little")
-        
-        # Create a row pattern
-        row = pixel_bytes * self.width
+
+        pixel_bytes = np.frombuffer(
+            color.to_bytes(self.pixel_size, "little"), dtype=np.uint8
+        )
+
+        row = np.tile(pixel_bytes, self.width)
         if len(row) < self.line_size:
-            row = row + b'\x00' * (self.line_size - len(row))
-        
-        # Fill the entire buffer
-        for y in range(self.height):
-            offset = y * self.line_size
-            self.buffer[offset:offset + self.line_size] = row
+            row = np.concatenate(
+                [row, np.zeros(self.line_size - len(row), dtype=np.uint8)]
+            )
+
+        # One broadcasted assignment fills every row instead of a Python
+        # for-loop over self.height.
+        self.buffer_np[:, :] = row
 
     def put_pixel(self, x: int, y: int, color: int):
         """Writes a pixel directly into the framebuffer."""
-        
+
         if x < 0 or y < 0 or x >= self.width or y >= self.height:
             return
 
-        offset = y * self.line_size + x * self.pixel_size
-        self.buffer[offset:offset + self.pixel_size] = color.to_bytes(
-            self.pixel_size, "little"
+        offset = x * self.pixel_size
+        self.buffer_np[y, offset:offset + self.pixel_size] = np.frombuffer(
+            color.to_bytes(self.pixel_size, "little"), dtype=np.uint8
         )
 
     def draw_sprite(self, texture, position, scale):
         """Draws a texture into the framebuffer with scaling support."""
-        
-        # Extract scale components
+
         if hasattr(scale, 'x') and hasattr(scale, 'y'):
             scale_x = scale.x
             scale_y = scale.y
         else:
             scale_x = float(scale)
             scale_y = float(scale)
-        
+
         dest_x = int(position.x)
         dest_y = int(position.y)
-        
-        # Calculate scaled dimensions
-        scaled_width = int(texture.width * scale_x)
-        scaled_height = int(texture.height * scale_y)
-        
-        # If scale is 1.0, do direct copy (optimization)
-        if scale_x == 1.0 and scale_y == 1.0:
-            self._draw_sprite_direct(texture, dest_x, dest_y)
-            return
-        
-        # For each pixel in the scaled sprite
-        for dest_y_offset in range(scaled_height):
-            screen_y = dest_y + dest_y_offset
-            if screen_y < 0 or screen_y >= self.height:
-                continue
-            
-            # Calculate source Y
-            src_y = (dest_y_offset / scaled_height) * texture.height
-            src_y_int = int(src_y)
-            
-            if src_y_int >= texture.height:
-                continue
-            
-            dest_row_start = screen_y * self.line_size + dest_x * self.pixel_size
-            
-            for dest_x_offset in range(scaled_width):
-                screen_x = dest_x + dest_x_offset
-                if screen_x < 0 or screen_x >= self.width:
-                    continue
-                
-                # Calculate source X
-                src_x = (dest_x_offset / scaled_width) * texture.width
-                src_x_int = int(src_x)
-                
-                if src_x_int >= texture.width:
-                    continue
-                
-                src_offset = src_y_int * texture.line_size + src_x_int * texture.bytes_per_pixel
-                dest_offset = dest_row_start + dest_x_offset * self.pixel_size
-                
-                # Handle pixel with alpha (BGRA format)
-                if texture.bytes_per_pixel == 4:
-                    # BGRA format: B, G, R, A
-                    blue = texture.data[src_offset]
-                    green = texture.data[src_offset + 1]
-                    red = texture.data[src_offset + 2]
-                    alpha = texture.data[src_offset + 3]
-                    
-                    # Fully transparent - skip
-                    if alpha == 0:
-                        continue
-                    
-                    # Fully opaque - overwrite completely
-                    if alpha == 255:
-                        self.buffer[dest_offset:dest_offset + 4] = \
-                            texture.data[src_offset:src_offset + 4]
-                    else:
-                        # Semi-transparent - alpha blend with background
-                        # Background is also BGRA
-                        dest_b = self.buffer[dest_offset]
-                        dest_g = self.buffer[dest_offset + 1]
-                        dest_r = self.buffer[dest_offset + 2]
-                        dest_a = self.buffer[dest_offset + 3]  # Background alpha (should be 255)
-                        
-                        alpha_factor = alpha / 255.0
-                        new_b = int(blue * alpha_factor + dest_b * (1 - alpha_factor))
-                        new_g = int(green * alpha_factor + dest_g * (1 - alpha_factor))
-                        new_r = int(red * alpha_factor + dest_r * (1 - alpha_factor))
-                        
-                        # Alpha stays 255 (fully opaque background)
-                        self.buffer[dest_offset:dest_offset + 4] = \
-                            bytes([new_b, new_g, new_r, 255])
-                else:
-                    # No alpha channel - just copy
-                    self.buffer[dest_offset:dest_offset + texture.bytes_per_pixel] = \
-                        texture.data[src_offset:src_offset + texture.bytes_per_pixel]
 
-    def _draw_sprite_direct(self, texture, dest_x, dest_y):
-        """Optimized direct sprite drawing (no scaling)."""
-        
-        for y in range(texture.height):
-            screen_y = dest_y + y
-            if screen_y < 0 or screen_y >= self.height:
-                continue
-                
-            src_row_start = y * texture.line_size
-            dest_row_start = screen_y * self.line_size + dest_x * self.pixel_size
-            
-            for x in range(texture.width):
-                screen_x = dest_x + x
-                if screen_x < 0 or screen_x >= self.width:
-                    continue
-                    
-                src_offset = src_row_start + x * texture.bytes_per_pixel
-                dest_offset = dest_row_start + x * self.pixel_size
-                
-                # Handle pixel with alpha (BGRA format)
-                if texture.bytes_per_pixel == 4:
-                    # BGRA format: B, G, R, A
-                    blue = texture.data[src_offset]
-                    green = texture.data[src_offset + 1]
-                    red = texture.data[src_offset + 2]
-                    alpha = texture.data[src_offset + 3]
-                    
-                    # Fully transparent - skip
-                    if alpha == 0:
-                        continue
-                    
-                    # Fully opaque - overwrite completely
-                    if alpha == 255:
-                        self.buffer[dest_offset:dest_offset + 4] = \
-                            texture.data[src_offset:src_offset + 4]
-                    else:
-                        # Semi-transparent - alpha blend with background
-                        # Background is also BGRA
-                        dest_b = self.buffer[dest_offset]
-                        dest_g = self.buffer[dest_offset + 1]
-                        dest_r = self.buffer[dest_offset + 2]
-                        
-                        alpha_factor = alpha / 255.0
-                        new_b = int(blue * alpha_factor + dest_b * (1 - alpha_factor))
-                        new_g = int(green * alpha_factor + dest_g * (1 - alpha_factor))
-                        new_r = int(red * alpha_factor + dest_r * (1 - alpha_factor))
-                        
-                        # Alpha stays 255 (fully opaque background)
-                        self.buffer[dest_offset:dest_offset + 4] = \
-                            bytes([new_b, new_g, new_r, 255])
-                else:
-                    # No alpha channel - just copy
-                    self.buffer[dest_offset:dest_offset + texture.bytes_per_pixel] = \
-                        texture.data[src_offset:src_offset + texture.bytes_per_pixel]
+        if scale_x == 1.0 and scale_y == 1.0:
+            self._blit(texture, dest_x, dest_y)
+            return
+
+        scaled_width = max(1, int(texture.width * scale_x))
+        scaled_height = max(1, int(texture.height * scale_y))
+
+        if scaled_width <= 0 or scaled_height <= 0:
+            return
+
+        self._blit(texture, dest_x, dest_y, scaled_width, scaled_height)
+
+    @staticmethod
+    def _get_texture_array(texture):
+        """Returns a numpy (H, W, bpp) view over texture.data, cached on
+        the texture itself. Textures are immutable after load, so this
+        is safe to build once and reuse across every draw call/frame."""
+
+        cached = getattr(texture, "_np_cache", None)
+        if cached is not None:
+            return cached
+
+        raw = np.frombuffer(texture.data, dtype=np.uint8)
+        raw = raw[: texture.line_size * texture.height].reshape(
+            texture.height, texture.line_size
+        )
+        arr = raw[:, : texture.width * texture.bytes_per_pixel].reshape(
+            texture.height, texture.width, texture.bytes_per_pixel
+        )
+
+        try:
+            texture._np_cache = arr
+        except AttributeError:
+            pass
+
+        return arr
+
+    def _blit(self, texture, dest_x, dest_y, scaled_width=None, scaled_height=None):
+        """Vectorized blit — replaces the old per-pixel draw_sprite /
+        _draw_sprite_direct loops. Handles direct copy, nearest-neighbor
+        scaling, and BGRA alpha blending, all as array ops."""
+
+        tex = self._get_texture_array(texture)
+
+        if scaled_width is None:
+            region = tex
+        else:
+            # Nearest-neighbor resample, computed as index arrays instead
+            # of a per-pixel Python loop.
+            src_ys = (np.arange(scaled_height) * texture.height // scaled_height)
+            src_xs = (np.arange(scaled_width) * texture.width // scaled_width)
+            src_ys = src_ys.clip(0, texture.height - 1)
+            src_xs = src_xs.clip(0, texture.width - 1)
+            region = tex[np.ix_(src_ys, src_xs)]
+
+        src_h, src_w = region.shape[0], region.shape[1]
+
+        # Clip against screen bounds
+        clip_x0, clip_y0 = 0, 0
+        clip_x1, clip_y1 = src_w, src_h
+
+        if dest_x < 0:
+            clip_x0 = -dest_x
+            dest_x = 0
+        if dest_y < 0:
+            clip_y0 = -dest_y
+            dest_y = 0
+        if dest_x + (clip_x1 - clip_x0) > self.width:
+            clip_x1 = clip_x0 + (self.width - dest_x)
+        if dest_y + (clip_y1 - clip_y0) > self.height:
+            clip_y1 = clip_y0 + (self.height - dest_y)
+
+        if clip_x1 <= clip_x0 or clip_y1 <= clip_y0:
+            return  # fully off-screen
+
+        region = region[clip_y0:clip_y1, clip_x0:clip_x1]
+        dh, dw = region.shape[0], region.shape[1]
+
+        dest_view = self.buffer_np[
+            dest_y:dest_y + dh,
+            dest_x * self.pixel_size: (dest_x + dw) * self.pixel_size,
+        ].reshape(dh, dw, self.pixel_size)
+
+        if texture.bytes_per_pixel == 4 and self.pixel_size == 4:
+            alpha = region[:, :, 3]
+
+            opaque_mask = alpha == 255
+            transparent_mask = alpha == 0
+            fully_opaque = opaque_mask.all()
+            fully_transparent = transparent_mask.all()
+
+            # Fast paths cover the overwhelmingly common cases: sprites
+            # with hard-edged transparency (no soft/antialiased alpha).
+            if fully_transparent:
+                return
+            if fully_opaque:
+                dest_view[:, :, :] = region
+                return
+
+            blend_mask = ~(opaque_mask | transparent_mask)
+            if not blend_mask.any():
+                # Mixed opaque/transparent, but no partial-alpha pixels —
+                # skip the blend math entirely.
+                dest_view[opaque_mask] = region[opaque_mask]
+                return
+
+            # General path: real alpha blending where needed.
+            a = alpha.astype(np.uint16)[:, :, None]
+            blended = (
+                region[:, :, :4].astype(np.uint16) * a
+                + dest_view.astype(np.uint16) * (255 - a)
+            ) // 255
+            blended[:, :, 3] = 255
+
+            dest_view[~transparent_mask] = blended[~transparent_mask].astype(np.uint8)
+            dest_view[opaque_mask] = region[opaque_mask]
+        else:
+            # No alpha channel — straight copy.
+            dest_view[:, :, :] = region[:, :, :self.pixel_size]
 
     def render(self, world):
         """Render one frame."""
-        
+
         if self.win_ptr is None:
             raise RuntimeError("RendererSubsystem.render() called before .init().")
 
@@ -279,10 +281,11 @@ class RendererSubsystem:
             except Exception:
                 self._logger.exception(f"Failed to draw actor {actor!r}")
 
-        # Copy our buffer to the framebuffer
+        # Copy our buffer to the framebuffer (cached ctypes wrapper, no
+        # per-frame allocation)
         ctypes.memmove(
             self.framebuffer_ptr,
-            ctypes.addressof(ctypes.c_char.from_buffer(self.buffer)),
+            ctypes.addressof(self._buffer_cbuf),
             self.buffer_size
         )
 

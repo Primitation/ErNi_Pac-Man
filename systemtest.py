@@ -8,7 +8,7 @@ Smoke test for the mlx engine:
 - Actor ticking
 - Rendering
 """
-
+import random
 import os
 import sys
 import time
@@ -147,21 +147,25 @@ def main():
 
     sprite = "assets/pacman.png"
 
-    Actors.spawn(
-        Bouncer,
-        position=Vector2(100, 100),
-        velocity=Vector2(150, 80),
-        scale=Vector2(0.5, 0.5),
-        sprite_path=sprite,
-    )
+    NUM_BOUNCERS = 250
 
-    Actors.spawn(
-        Bouncer,
-        position=Vector2(300, 200),
-        velocity=Vector2(-120, 100),
-        scale=Vector2(0.5, 0.5),
-        sprite_path=sprite,
-    )
+    for _ in range(NUM_BOUNCERS):
+        speed = random.uniform(80, 220)
+        angle = random.uniform(0, 2 * 3.141592653589793)
+
+        Actors.spawn(
+            Bouncer,
+            position=Vector2(
+                random.uniform(0, WIDTH - 64),
+                random.uniform(0, HEIGHT - 64),
+            ),
+            velocity=Vector2(
+                speed * __import__("math").cos(angle),
+                speed * __import__("math").sin(angle),
+            ),
+            scale=Vector2(0.1, 0.1),
+            sprite_path=sprite,
+        )
 
 
     log.info(
@@ -170,25 +174,38 @@ def main():
 
 
     last_time = time.perf_counter()
-
+    fps_timer = 0.0
+    fps_frames = 0
+    fps = 0
 
     def frame(_param):
 
         nonlocal last_time
+        nonlocal fps_timer
+        nonlocal fps_frames
+        nonlocal fps
 
         now = time.perf_counter()
 
-        dt = (
-            now - last_time
-        ) * 1000
-
+        dt = (now - last_time) * 1000
         last_time = now
 
+        fps_timer += dt
+        fps_frames += 1
+
+        if fps_timer >= 1000:
+            fps = fps_frames
+
+            # Update once per second
+            Renderer._logger.info(
+                f"Engine smoke test | FPS: {fps} | Actors: {len(World)}"
+            )
+
+            fps_frames = 0
+            fps_timer -= 1000
 
         Assets.update()
-
         Actors.update(dt)
-
         Renderer.render(World)
 
 
