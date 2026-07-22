@@ -1,6 +1,6 @@
 import threading
 from typing import TypeVar, Type
-from primiengine import Log
+from ..LogSubsystem.logsubsystem import Log
 
 
 class Event:
