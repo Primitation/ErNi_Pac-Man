@@ -4,6 +4,7 @@ from typing import TypeVar, Type
 from .. import Log
 from .. import Assets
 from .. import Vector2
+from .. import World
 
 
 class Event:
@@ -47,33 +48,37 @@ class Actor:
     def __init__(
         self,
         position: Vector2 = None,
-        size: Vector2 = None,
+        scale: Vector2 = None,
     ):
 
         self.alive = True
-        self.position = position if position is not None else Vector2.zero()
-        self.size = size if size is not None else Vector2.zero()
 
-        self._sprite_name = None
+        self.position = (
+            position
+            if position is not None
+            else Vector2.zero()
+        )
 
+        self.scale = (
+            scale
+            if scale is not None
+            else Vector2(1, 1)
+        )
+
+        self._sprite_path = None
         self.logger = Log.get(self.__class__.__name__)
 
         Actors.add(self)
 
     @property
     def sprite(self):
-        if self._sprite_name is None:
+        if self._sprite_path is None:
             return None
-        return Assets.get(self._sprite_name)
+        return Assets.get(self._sprite_path)
 
-    def set_sprite(self, name: str, path: str):
-        """Queues the texture to load (piggybacks on an existing
-        load/cache entry if `path` — or `name` — is already
-        known, same as Assets.queue() always does) and remembers
-        `name` so `.sprite` can resolve it once it's ready."""
-
-        self._sprite_name = name
-        Assets.queue(name, path)
+    def set_sprite(self, path: str):
+        self._sprite_path = path
+        Assets.queue(path)
 
     def update(self, dt):
         pass
@@ -144,10 +149,15 @@ class ActorSubsystem:
         **kwargs
     ) -> T:
 
-        return actor_class(
+        actor = actor_class(
             *args,
             **kwargs
         )
+
+        self.add(actor)
+        World.add(actor)
+
+        return actor
 
 
 # Global actor system

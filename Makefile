@@ -148,7 +148,7 @@ run:
 	@printf "║         Entering the Maze...         ║\n"
 	@printf "╚══════════════════════════════════════╝\n"
 	@printf "$(RESET)"
-	@$(PYTHON) a_maze_ing.py config.txt
+	@$(PYTHON) main.py
 
 debug:
 	$(TITLE) "Debug mode"

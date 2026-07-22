@@ -65,23 +65,39 @@ Context = MlxContext()
 
 
 class Texture:
-    """Wraps a loaded mlx image with the width/height mlx hands back
-    as a separate tuple, so callers get one object instead of
-    juggling three values.
+    """Wraps a loaded mlx image with its dimensions and raw pixel data.
 
-    There's no `.surface` anymore — mlx has no Surface type — so
-    anything downstream that assumed a pygame.Surface (Sprite's
-    rotate/scale via pygame.transform, blit-based rendering, ...)
-    needs rewriting against `.img` + mlx_put_image_to_window instead.
-    mlx doesn't do image transforms itself; scaling/rotating an mlx
-    image means walking mlx_get_data_addr() pixels by hand, or
-    pre-baking the variants you need as separate PNG/XPM files.
+    The mlx image is kept for direct mlx rendering when needed, while
+    the raw pixel buffer is stored so the Renderer can sample pixels
+    itself for operations that mlx does not provide, such as scaling,
+    flipping, rotation or other software transforms.
+
+    Texture data is immutable after creation. Actors only reference
+    textures; they never modify them.
     """
 
-    def __init__(self, img, width, height):
+    def __init__(
+        self,
+        img,
+        width,
+        height,
+        data,
+        bpp,
+        line_size,
+        endian,
+    ):
+
         self.img = img
+
         self.width = width
         self.height = height
+
+        self.data = data
+        self.bpp = bpp
+        self.line_size = line_size
+        self.endian = endian
+
+        self.bytes_per_pixel = bpp // 8
 
 
 class TextureLoader(AssetLoader):
@@ -123,7 +139,22 @@ class TextureLoader(AssetLoader):
         if img is None:
             raise ValueError(f"mlx failed to load image: {path}")
 
-        return Texture(img, width, height)
+        (
+            data,
+            bpp,
+            line_size,
+            endian,
+        ) = Context.mlx.mlx_get_data_addr(img)
+
+        return Texture(
+            img,
+            width,
+            height,
+            data,
+            bpp,
+            line_size,
+            endian,
+        )
 
     def placeholder(self):
         """Classic magenta/black 'missing texture' checkerboard, built
@@ -155,7 +186,23 @@ class TextureLoader(AssetLoader):
                 offset = y * size_line + x * bytes_per_pixel
                 data[offset:offset + 4] = color.to_bytes(4, "little")
 
-        return Texture(img, size, size)
+        (
+            data,
+            bpp,
+            line_size,
+            endian,
+        ) = Context.mlx.mlx_get_data_addr(img)
+
+
+        return Texture(
+            img,
+            size,
+            size,
+            data,
+            bpp,
+            line_size,
+            endian,
+        )
 
 
 # --------------------------------------------------------------------
@@ -182,23 +229,27 @@ class AssetManager:
     def __init__(self):
 
         self._loaders = []
-        self._assets = {}
-        self._pending = set()
-        self._lock = threading.Lock()
 
-        self._cache = {}            # path -> finalized asset
-        self._path_pending = {}     # path -> list of names waiting on it
+        self._cache = {}          # path -> finalized asset
+        self._pending = set()     # paths currently loading
+
+        self._lock = threading.Lock()
 
         self._logger = Log.get("assets")
 
         self._in_queue = queue.Queue()
         self._out_queue = queue.Queue()
 
-        self._worker = threading.Thread(target=self._run, daemon=True)
+        self._worker = threading.Thread(
+            target=self._run,
+            daemon=True
+        )
         self._worker.start()
+
 
     def register(self, loader):
         self._loaders.append(loader)
+
 
     def _find_loader(self, path):
 
@@ -206,63 +257,74 @@ class AssetManager:
             if loader.can_load(path):
                 return loader
 
-        self._logger.error(f"No loader registered for: {path}")
-        raise ValueError(f"No loader registered for: {path}")
+        self._logger.error(
+            f"No loader registered for: {path}"
+        )
 
-    def load(self, name, path):
-        """Synchronous, blocking load. Fine for a loading screen or
-        startup assets. Reuses a cached asset if this path was
-        already loaded under any name."""
+        raise ValueError(
+            f"No loader registered for: {path}"
+        )
+
+
+    def load(self, path: str):
+        """Synchronous, blocking load.
+
+        The path is the asset identity. If the asset was already
+        loaded, the cached object is returned.
+        """
 
         with self._lock:
-            cached = self._cache.get(path)
+            if path in self._cache:
+                return self._cache[path]
 
-        if cached is not None:
-            with self._lock:
-                self._assets[name] = cached
-            return cached
 
         loader = self._find_loader(path)
 
         try:
-            asset = loader.finalize(loader.load(path))
+            asset = loader.finalize(
+                loader.load(path)
+            )
+
         except Exception as error:
             self._logger.error(
-                f"Failed to load {path}: {error}\n{traceback.format_exc()}"
+                f"Failed to load {path}: {error}\n"
+                f"{traceback.format_exc()}"
             )
+
             asset = loader.placeholder()
 
+
         with self._lock:
-            self._assets[name] = asset
             self._cache[path] = asset
+
 
         return asset
 
-    def queue(self, name, path):
-        """Queue a load to happen in the background. If this path is
-        already cached, or already loading under another name, this
-        just piggybacks on that instead of loading it again."""
+
+    def queue(self, path: str):
+        """Queue an asset load.
+
+        Multiple actors requesting the same path share the same
+        loading operation.
+        """
 
         with self._lock:
 
-            if name in self._assets or name in self._pending:
+            if path in self._cache:
                 return
 
-            cached = self._cache.get(path)
-            if cached is not None:
-                self._assets[name] = cached
+            if path in self._pending:
                 return
 
-            self._pending.add(name)
+            self._pending.add(path)
 
-            if path in self._path_pending:
-                self._path_pending[path].append(name)
-                return
-
-            self._path_pending[path] = [name]
 
         loader = self._find_loader(path)
-        self._in_queue.put((path, loader))
+
+        self._in_queue.put(
+            (path, loader)
+        )
+
 
     def _run(self):
 
@@ -272,63 +334,82 @@ class AssetManager:
 
             try:
                 raw = loader.load(path)
-                self._out_queue.put((path, loader, raw, None, None))
+
+                self._out_queue.put(
+                    (
+                        path,
+                        loader,
+                        raw,
+                        None,
+                        None,
+                    )
+                )
+
             except Exception as error:
-                self._out_queue.put((path, loader, None, error,
-                                     traceback.format_exc()))
+
+                self._out_queue.put(
+                    (
+                        path,
+                        loader,
+                        None,
+                        error,
+                        traceback.format_exc(),
+                    )
+                )
+
 
     def update(self):
-        """Call once per frame from the main thread. Finalizes
-        anything the worker thread has finished loading, and hands
-        the result to every name that was waiting on that path.
+        """Call once per frame from the main thread.
 
-        For mlx this is the ONLY place image creation actually
-        happens — finalize() is where the real mlx_*_to_image call
-        runs, on the main thread, which is what keeps this
-        thread-safe against mlx's single X11 connection."""
+        Finalizes completed loads and places them into the cache.
+        """
 
         while not self._out_queue.empty():
 
-            path, loader, raw, error, tb = self._out_queue.get()
-
-            with self._lock:
-                names = self._path_pending.pop(path, [])
-                for name in names:
-                    self._pending.discard(name)
+            path, loader, raw, error, tb = (
+                self._out_queue.get()
+            )
 
             if error is not None:
-                self._logger.error(f"Failed to load {path}: {error}\n{tb}")
-                asset = loader.placeholder()
 
-                with self._lock:
-                    self._cache[path] = asset
-                    for name in names:
-                        self._assets[name] = asset
-
-                continue
-
-            try:
-                asset = loader.finalize(raw)
-            except Exception as error:
                 self._logger.error(
-                    f"Failed to finalize {path}: {error}\n"
-                    f"{traceback.format_exc()}"
+                    f"Failed to load {path}: {error}\n{tb}"
                 )
+
                 asset = loader.placeholder()
+
+            else:
+
+                try:
+                    asset = loader.finalize(raw)
+
+                except Exception as error:
+
+                    self._logger.error(
+                        f"Failed to finalize {path}: {error}\n"
+                        f"{traceback.format_exc()}"
+                    )
+
+                    asset = loader.placeholder()
+
 
             with self._lock:
+
                 self._cache[path] = asset
-                for name in names:
-                    self._assets[name] = asset
+                self._pending.discard(path)
 
-    def get(self, name):
-        return self._assets.get(name)
 
-    def ready(self, name):
-        return name in self._assets
+    def get(self, path: str):
+        return self._cache.get(path)
 
-    def loading(self, name):
-        return name in self._pending
 
-    def cached(self, path):
+    def ready(self, path: str):
+        return path in self._cache
+
+
+    def loading(self, path: str):
+        return path in self._pending
+
+
+    def cached(self, path: str):
         return path in self._cache

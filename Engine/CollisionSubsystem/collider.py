@@ -4,6 +4,26 @@ from .. import Log
 from .. import Vector2
 
 
+def rect_collide_rect(rect1, rect2):
+    """Check if two rects (x, y, w, h) overlap."""
+    return not (rect1[0] + rect1[2] <= rect2[0] or
+                rect2[0] + rect2[2] <= rect1[0] or
+                rect1[1] + rect1[3] <= rect2[1] or
+                rect2[1] + rect2[3] <= rect1[1])
+
+
+def rect_overlap_amount(rect1, rect2):
+    """Return (overlap_x, overlap_y) between two rects."""
+    overlap_x = min(rect1[0] + rect1[2], rect2[0] + rect2[2]) - max(rect1[0], rect2[0])
+    overlap_y = min(rect1[1] + rect1[3], rect2[1] + rect2[3]) - max(rect1[1], rect2[1])
+    return overlap_x, overlap_y
+
+
+def rect_center(rect):
+    """Return center (x, y) of a rect."""
+    return (rect[0] + rect[2] / 2, rect[1] + rect[3] / 2)
+
+
 class Signal:
     """Minimal multicast delegate — the same idea as Unreal's
     dynamic multicast delegates (OnComponentBeginOverlap, etc).
@@ -39,14 +59,14 @@ class Signal:
 
 class Collider:
     """A collidable region tied to an owner. get_rect is a callable
-    returning the current pygame.Rect — pass e.g. sprite.get_rect
-    directly, so the collider always reflects the sprite's live
-    position/size with no manual syncing.
+    returning the current rect as (x, y, width, height) — pass e.g.
+    a lambda that returns a tuple, so the collider always reflects
+    the sprite's live position/size with no manual syncing.
 
     blocking: if True on BOTH colliders in a pair, overlap gets
     physically resolved each frame (pushed apart + bounced) instead
     of just firing overlap events. Needs owner.position (and
-    owner.velocity, for bounce) to exist — a plain pygame.Vector2
+    owner.velocity, for bounce) to exist — a plain Vector2
     attribute, same as Player already has.
 
     bounce: restitution, 0..1. 0 = velocity into the surface is
@@ -80,8 +100,13 @@ class Collider:
         self.on_end_overlap = Signal()
 
     def rect(self):
-
-        return self.get_rect()
+        """Returns the rect as (x, y, width, height)."""
+        rect = self.get_rect()
+        # If it's already a tuple/list, return it
+        if isinstance(rect, (tuple, list)):
+            return rect
+        # If it's some other object with x, y, width, height attributes
+        return (rect.x, rect.y, rect.width, rect.height)
 
     def can_collide_with(self, other):
 
@@ -138,49 +163,49 @@ class CollisionManager:
         }
 
     def update(self):
-        """Call once per frame. Checks every enabled pair for AABB
-        overlap, fires on_begin_overlap / on_end_overlap when
-        overlap state changes, and physically resolves (push apart
-        + bounce) any pair where both colliders are blocking."""
-
+        """Call once per frame."""
+        
+        # First, resolve boundaries for all colliders
+        self._resolve_boundaries()
+        
         current_overlaps = set()
-
         active = [collider for collider in self._colliders if collider.enabled]
-
+        
         for a, b in itertools.combinations(active, 2):
-
             if not (a.can_collide_with(b) and b.can_collide_with(a)):
                 continue
-
+                
             try:
-                overlapping = a.rect().colliderect(b.rect())
+                rect_a = a.rect()
+                rect_b = b.rect()
+                overlapping = rect_collide_rect(rect_a, rect_b)
             except Exception:
-                self._logger.exception(
-                    f"Collision check failed between "
-                    f"{a.owner!r} and {b.owner!r}"
-                )
+                self._logger.exception(f"Collision check failed between {a.owner!r} and {b.owner!r}")
                 continue
-
+                
             if not overlapping:
                 continue
-
+                
             pair = (a, b) if id(a) < id(b) else (b, a)
             current_overlaps.add(pair)
-
+            
             if a.blocking and b.blocking:
                 self._resolve_block(a, b)
-
+        
+        # Resolve boundaries again after object-object collisions
+        self._resolve_boundaries()
+        
         began = current_overlaps - self._active_overlaps
         ended = self._active_overlaps - current_overlaps
-
+        
         for a, b in began:
             a.on_begin_overlap.broadcast(a, b)
             b.on_begin_overlap.broadcast(b, a)
-
+            
         for a, b in ended:
             a.on_end_overlap.broadcast(a, b)
             b.on_end_overlap.broadcast(b, a)
-
+            
         self._active_overlaps = current_overlaps
 
     def _resolve_block(self, a, b):
@@ -200,21 +225,19 @@ class CollisionManager:
             )
             return
 
-        overlap_x = min(rect_a.right, rect_b.right) \
-            - max(rect_a.left, rect_b.left)
-        overlap_y = min(rect_a.bottom, rect_b.bottom) \
-            - max(rect_a.top, rect_b.top)
+        overlap_x, overlap_y = rect_overlap_amount(rect_a, rect_b)
 
         if overlap_x <= 0 or overlap_y <= 0:
             return
 
+        center_a = rect_center(rect_a)
+        center_b = rect_center(rect_b)
+
         if overlap_x < overlap_y:
-            normal = Vector2(1, 0) if rect_a.centerx \
-                    < rect_b.centerx else Vector2(-1, 0)
+            normal = Vector2(1, 0) if center_a[0] < center_b[0] else Vector2(-1, 0)
             penetration = overlap_x
         else:
-            normal = Vector2(0, 1) if rect_a.centery \
-                    < rect_b.centery else Vector2(0, -1)
+            normal = Vector2(0, 1) if center_a[1] < center_b[1] else Vector2(0, -1)
             penetration = overlap_y
 
         a_movable = not a.static and hasattr(a.owner, "position")
@@ -270,3 +293,33 @@ class CollisionManager:
 
         if into_surface < 0:
             velocity -= (1 + collider.bounce) * into_surface * normal
+
+    def _resolve_boundaries(self):
+        """Resolve all colliders against screen boundaries."""
+        for collider in self._colliders:
+            if not collider.enabled:
+                continue
+                
+            rect = collider.rect()
+            position = collider.owner.position
+            velocity = getattr(collider.owner, "velocity", None)
+            
+            # X boundary
+            if rect[0] < 0:
+                position.x = 0
+                if velocity is not None:
+                    velocity.x = abs(velocity.x)
+            elif rect[0] + rect[2] > WIDTH:
+                position.x = WIDTH - rect[2]
+                if velocity is not None:
+                    velocity.x = -abs(velocity.x)
+            
+            # Y boundary
+            if rect[1] < 0:
+                position.y = 0
+                if velocity is not None:
+                    velocity.y = abs(velocity.y)
+            elif rect[1] + rect[3] > HEIGHT:
+                position.y = HEIGHT - rect[3]
+                if velocity is not None:
+                    velocity.y = -abs(velocity.y)
