@@ -1,31 +1,16 @@
 """Level Generator."""
 
 import random
-from levelgen import LevelStructure
-from levelgen import LevelOptions
+from levelgen import LevelStructure, LevelOptions, MazeAnalyser
 from mazegen import MazeGenerator
 
 
 class LevelGenerator:
     """Generate a level with the options.
 
-    Attributes:
-        seed:
-            the generator generate the same level with the same options
-            in the same order.
-
     Do not use random.random() in another thread while generating.
     Do not use multiples LevelGenerator.generate() at the same time.
     """
-    def __init__(self, seed=0) -> None:
-        """Initialize a level generator.
-
-        Args:
-            seed: the generator seed.
-        """
-        self._random = random.Random(seed)
-        self._max_rand_range = 1 << 32
-
     def generate(self, level_options: LevelOptions) -> LevelStructure:
         """Generates a level from options.
 
@@ -45,7 +30,6 @@ class LevelGenerator:
             raise ValueError(f"Invalid width <= 0: {level_options.width}")
         if level_options.height <= 0: # TODO min size
             raise ValueError(f"Invalid width <= 0: {level_options.height}")
-        maze_generator_seed = self._random.randrange(stop=self._max_rand_range)
         try:
               start = (0, 0) # TODO pick good start
               end = (0, 1) # TODO pick good end close to start (faster useless path)
@@ -54,10 +38,25 @@ class LevelGenerator:
                                    perfect=False,
                                    entry_cell=start,
                                    exit_cell=end,
-                                   seed=maze_generator_seed)
+                                   seed=level_options.seed)
         except Exception as exception:
               # TODO what to do if mazegenerator fail ?
               raise ValueError(f"LevelGenerator: error from maze generator:"
                                f" {exception}")
-        # TODO: add pacman, ghosts, gums, special gums
-        return None # TODO
+        random.seed(level_options.seed) # TODO: random ?
+
+        pacman = (level_options.width, level_options.height)
+
+        ghosts = [(0, 0),
+                  (0, level_options.height - 1),
+                  (level_options.width - 1, 0),
+                  (level_options.width - 1, level_options.height - 1)]
+
+        super_pacgums = list(ghosts)
+
+        open_cells = MazeAnalyser.get_open_cells(maze)
+        random.shuffle(open_cells)
+        pacgums = open_cells[:min(len(open_cells), level_options.gums)]
+
+        return LevelStructure(maze=maze, pacman=pacman, ghosts=ghosts,
+                              super_pacgums=super_pacgums, pacgums=pacgums)
