@@ -3,9 +3,17 @@ from .collider import CollisionManager, Collider
 
 class CollisionSubsystem:
 
-    def __init__(self):
+    def __init__(self, cell_size=128):
 
-        self._manager = CollisionManager()
+        self._manager = CollisionManager(cell_size)
+
+    def init(self, width: int, height: int):
+        """Call once at startup (e.g. right alongside Renderer.init())
+        so boundary resolution knows the world size to clamp against.
+        Without this, boundary resolution is skipped rather than
+        crashing or clamping to a 0x0 world."""
+
+        self._manager.init(width, height)
 
     def register(
         self,
@@ -32,7 +40,8 @@ class CollisionSubsystem:
 
         bounce: restitution, 0..1 (0 = absorbs on impact, 1 = fully
         elastic). static: this collider never moves when resolving
-        a block (e.g. walls/floors)."""
+        a block (e.g. walls/floors), and is never clamped to the
+        world boundary either."""
 
         return self._manager.register(
             owner,

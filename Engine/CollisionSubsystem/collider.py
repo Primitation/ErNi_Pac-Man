@@ -116,14 +116,84 @@ class Collider:
         return other.tag in self.collides_with
 
 
+class SpatialGrid:
+    """Uniform spatial hash used as a broad phase. Colliders are
+    bucketed by the cell(s) their rect touches; only colliders
+    sharing a cell are ever checked against each other in the
+    narrow phase. This turns the naive O(n^2) all-pairs check into
+    roughly O(n) for scenes where actors aren't all crammed on top
+    of each other.
+
+    cell_size should be in the same ballpark as your typical actor
+    size — too small and actors span many cells (more insert work),
+    too large and cells degrade back toward the whole world being
+    one bucket (more candidate pairs)."""
+
+    def __init__(self, cell_size=128):
+        self.cell_size = cell_size
+        self._cells = {}
+
+    def clear(self):
+        self._cells.clear()
+
+    def _cell_range(self, rect):
+        x, y, w, h = rect
+        cs = self.cell_size
+        cx0 = int(x // cs)
+        cy0 = int(y // cs)
+        cx1 = int((x + w) // cs)
+        cy1 = int((y + h) // cs)
+        return cx0, cy0, cx1, cy1
+
+    def insert(self, collider, rect):
+        cx0, cy0, cx1, cy1 = self._cell_range(rect)
+        for cx in range(cx0, cx1 + 1):
+            for cy in range(cy0, cy1 + 1):
+                self._cells.setdefault((cx, cy), []).append(collider)
+
+    def candidate_pairs(self):
+        """Yields each unique pair of colliders that share at least
+        one cell. A pair spanning multiple shared cells is only
+        yielded once."""
+        seen = set()
+        for bucket in self._cells.values():
+            n = len(bucket)
+            if n < 2:
+                continue
+            for i in range(n):
+                a = bucket[i]
+                for j in range(i + 1, n):
+                    b = bucket[j]
+                    key = (a, b) if id(a) < id(b) else (b, a)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    yield key
+
+
 class CollisionManager:
 
-    def __init__(self):
+    def __init__(self, cell_size=128):
 
         self._colliders = []
         self._active_overlaps = set()  # set of (collider, collider) pairs
 
+        self.width = None
+        self.height = None
+
+        self._grid = SpatialGrid(cell_size)
+
         self._logger = Log.get("collision")
+        self._warned_no_bounds = False
+
+    def init(self, width, height):
+        """Call once at startup so boundary resolution has a world
+        size to clamp against. Without this, boundary resolution is
+        skipped entirely (colliders simply won't be clamped to any
+        edge)."""
+
+        self.width = width
+        self.height = height
 
     def register(
         self,
@@ -164,48 +234,84 @@ class CollisionManager:
 
     def update(self):
         """Call once per frame."""
-        
-        # First, resolve boundaries for all colliders
-        self._resolve_boundaries()
-        
-        current_overlaps = set()
-        active = [collider for collider in self._colliders if collider.enabled]
-        
-        for a, b in itertools.combinations(active, 2):
-            if not (a.can_collide_with(b) and b.can_collide_with(a)):
-                continue
-                
+
+        active = [c for c in self._colliders if c.enabled]
+
+        if len(active) < 1:
+            return
+
+        # Snapshot rects once up front (needed for the initial boundary
+        # pass and to seed the spatial grid). If a collider's rect()
+        # raises, log it once and drop it for this frame instead of
+        # letting it blow up every pair it would have participated in.
+        rects = {}
+        for c in active:
             try:
-                rect_a = a.rect()
-                rect_b = b.rect()
-                overlapping = rect_collide_rect(rect_a, rect_b)
+                rects[c] = c.rect()
             except Exception:
-                self._logger.exception(f"Collision check failed between {a.owner!r} and {b.owner!r}")
-                continue
-                
-            if not overlapping:
-                continue
-                
-            pair = (a, b) if id(a) < id(b) else (b, a)
-            current_overlaps.add(pair)
-            
-            if a.blocking and b.blocking:
-                self._resolve_block(a, b)
-        
+                self._logger.exception(
+                    f"rect() failed for {c.owner!r}, skipping this frame"
+                )
+
+        active = [c for c in active if c in rects]
+
+        self._resolve_boundaries(active, rects)
+
+        current_overlaps = set()
+
+        if len(active) >= 2:
+            # Refresh rects after boundary resolution may have moved things,
+            # then build the broad-phase grid from the current positions.
+            self._grid.clear()
+            for c in active:
+                rect = c.rect()
+                rects[c] = rect
+                self._grid.insert(c, rect)
+
+            for a, b in self._grid.candidate_pairs():
+                if not (a.enabled and b.enabled):
+                    continue
+
+                if not (a.can_collide_with(b) and b.can_collide_with(a)):
+                    continue
+
+                try:
+                    # Live calls here (not the cached snapshot) so that
+                    # resolving one pair earlier in this loop is reflected
+                    # when checking later pairs in the same frame — same
+                    # behavior as the original all-pairs version.
+                    rect_a = a.rect()
+                    rect_b = b.rect()
+                    overlapping = rect_collide_rect(rect_a, rect_b)
+                except Exception:
+                    self._logger.exception(
+                        f"Collision check failed between {a.owner!r} and {b.owner!r}"
+                    )
+                    continue
+
+                if not overlapping:
+                    continue
+
+                pair = (a, b) if id(a) < id(b) else (b, a)
+                current_overlaps.add(pair)
+
+                if a.blocking and b.blocking:
+                    self._resolve_block(a, b)
+
         # Resolve boundaries again after object-object collisions
-        self._resolve_boundaries()
-        
+        self._resolve_boundaries(active)
+
         began = current_overlaps - self._active_overlaps
         ended = self._active_overlaps - current_overlaps
-        
+
         for a, b in began:
             a.on_begin_overlap.broadcast(a, b)
             b.on_begin_overlap.broadcast(b, a)
-            
+
         for a, b in ended:
             a.on_end_overlap.broadcast(a, b)
             b.on_end_overlap.broadcast(b, a)
-            
+
         self._active_overlaps = current_overlaps
 
     def _resolve_block(self, a, b):
@@ -294,32 +400,53 @@ class CollisionManager:
         if into_surface < 0:
             velocity -= (1 + collider.bounce) * into_surface * normal
 
-    def _resolve_boundaries(self):
-        """Resolve all colliders against screen boundaries."""
-        for collider in self._colliders:
-            if not collider.enabled:
+    def _resolve_boundaries(self, colliders, rects=None):
+        """Resolve colliders against screen boundaries.
+
+        Skips: disabled colliders, static colliders (walls/floors
+        should never get clamped/moved), and colliders whose owner
+        has no .position. Does nothing at all if init(width, height)
+        was never called — better than silently clamping everything
+        to a 0x0 world.
+        """
+
+        if self.width is None or self.height is None:
+            if not self._warned_no_bounds:
+                self._logger.warning(
+                    "CollisionManager.update() called before init(width, height) — "
+                    "boundary resolution is disabled until init() is called."
+                )
+                self._warned_no_bounds = True
+            return
+
+        for collider in colliders:
+            if not collider.enabled or collider.static:
                 continue
-                
-            rect = collider.rect()
-            position = collider.owner.position
-            velocity = getattr(collider.owner, "velocity", None)
-            
+
+            owner = collider.owner
+            if not hasattr(owner, "position"):
+                continue
+
+            rect = rects[collider] if rects is not None and collider in rects else collider.rect()
+            position = owner.position
+            velocity = getattr(owner, "velocity", None)
+
             # X boundary
             if rect[0] < 0:
                 position.x = 0
                 if velocity is not None:
                     velocity.x = abs(velocity.x)
-            elif rect[0] + rect[2] > WIDTH:
-                position.x = WIDTH - rect[2]
+            elif rect[0] + rect[2] > self.width:
+                position.x = self.width - rect[2]
                 if velocity is not None:
                     velocity.x = -abs(velocity.x)
-            
+
             # Y boundary
             if rect[1] < 0:
                 position.y = 0
                 if velocity is not None:
                     velocity.y = abs(velocity.y)
-            elif rect[1] + rect[3] > HEIGHT:
-                position.y = HEIGHT - rect[3]
+            elif rect[1] + rect[3] > self.height:
+                position.y = self.height - rect[3]
                 if velocity is not None:
                     velocity.y = -abs(velocity.y)
