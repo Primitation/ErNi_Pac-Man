@@ -1,0 +1,185 @@
+# **************************************************************************** #
+#                                  COLORS                                      #
+# **************************************************************************** #
+
+RESET   := \033[0m
+BOLD    := \033[1m
+
+RED     := \033[31m
+GREEN   := \033[32m
+YELLOW  := \033[33m
+BLUE    := \033[34m
+MAGENTA := \033[35m
+CYAN    := \033[36m
+WHITE   := \033[37m
+
+SUCCESS = @printf "$(GREEN)✔$(RESET) %s\n"
+INFO    = @printf "$(CYAN)➜$(RESET) %s\n"
+WARN    = @printf "$(YELLOW)⚠$(RESET) %s\n"
+TITLE   = @printf "$(BOLD)$(MAGENTA)\n========== %s ==========\n$(RESET)"
+# **************************************************************************** #
+#                                   ASCII                                      #
+# **************************************************************************** #
+
+spinner = \
+( \
+WIDTH=40; \
+POS=0; \
+while true; do \
+    EATEN=$$(printf '%*s' "$$POS" ""); \
+    REMAIN=$$(printf '%*s' "$$((WIDTH - POS - 1))" "" | tr ' ' '.'); \
+    if [ $$((POS % 2)) -eq 0 ]; then \
+        MOUTH="C"; \
+    else \
+        MOUTH="c"; \
+    fi; \
+    printf "\r\033[K$(CYAN)%s $(YELLOW)[$$EATEN$$MOUTH$$REMAIN]$(RESET)" "$(1)"; \
+    sleep 0.1; \
+    POS=$$(( (POS + 1) % WIDTH )); \
+done \
+) & \
+SPIN_PID=$$!; \
+$(2); \
+EXIT_CODE=$$?; \
+kill $$SPIN_PID 2>/dev/null; \
+wait $$SPIN_PID 2>/dev/null; \
+if [ $$EXIT_CODE -eq 0 ]; then \
+    printf "\r\033[K$(GREEN)✓ %s complete.$(RESET)\n" "$(1)"; \
+else \
+    printf "\r\033[K$(RED)✗ %s failed.$(RESET)\n" "$(1)"; \
+fi; \
+exit $$EXIT_CODE
+
+BANNER = \
+printf "$(YELLOW)"; \
+printf "██████╗  █████╗  ██████╗      ███╗   ███╗ █████╗ ███╗   ██╗\n"; \
+printf "██╔══██╗██╔══██╗██╔════╝      ████╗ ████║██╔══██╗████╗  ██║\n"; \
+printf "██████╔╝███████║██║     █████╗██╔████╔██║███████║██╔██╗ ██║\n"; \
+printf "██╔═══╝ ██╔══██║██║     ╚════╝██║╚██╔╝██║██╔══██║██║╚██╗██║\n"; \
+printf "██║     ██║  ██║╚██████╗      ██║ ╚═╝ ██║██║  ██║██║ ╚████║\n"; \
+printf "╚═╝     ╚═╝  ╚═╝ ╚═════╝      ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝\n"; \
+printf "$(RESET)\n";
+
+MLXBANNER = \
+printf "$(BLUE)"; \
+printf "███╗   ███╗██╗     ██╗  ██╗\n"; \
+printf "████╗ ████║██║     ╚██╗██╔╝\n"; \
+printf "██╔████╔██║██║      ╚███╔╝ \n"; \
+printf "██║╚██╔╝██║██║      ██╔██╗ \n"; \
+printf "██║ ╚═╝ ██║███████╗██╔╝ ██╗\n"; \
+printf "╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝\n"; \
+printf "$(RESET)\n";
+
+
+# **************************************************************************** #
+#                                 Variables                                    #
+# **************************************************************************** #
+VENV := .venv
+PYTHON := $(VENV)/bin/python
+PIP := $(VENV)/bin/pip
+
+MLX_DIR := minilibx-linux
+MLX_REPO := https://github.com/42school/mlx_CLXV.git
+
+PACKAGE := mazegen
+
+# **************************************************************************** #
+#                                  Actions                                     #
+# **************************************************************************** #
+
+all: install
+
+install: banner mlx
+	@printf "$(CYAN)"
+	@printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+	@printf "        Preparing the environement\n"
+	@printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+	@printf "$(RESET)"
+	@test -d $(VENV) || python3 -m venv $(VENV)
+	@$(PIP) install --upgrade pip >/dev/null
+	@$(call spinner,Installing dependencies,$(PIP) install -e . >/dev/null)
+	@$(PIP) install flake8 mypy build >/dev/null
+	@$(call spinner,Installing MLX,$(PIP) install $(MLX_DIR)/*.whl >/dev/null)
+	
+	@printf "\n$(GREEN)🗝  The maze is ready. Good luck!$(RESET)\n"
+
+banner:
+	@$(BANNER)
+	@printf "$(CYAN)═══════════════════════════════════════════════$(RESET)\n"
+	@printf "$(GREEN)   Welcome to Pac-Man!$(RESET)\n"
+	@printf "$(YELLOW)   Every maze has an exit... find yours.$(RESET)\n"
+	@printf "$(CYAN)═══════════════════════════════════════════════$(RESET)\n\n"
+
+mlx:
+	@$(MLXBANNER)
+	@printf "$(CYAN)"
+	@printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+	@printf "        Preparing the graphics engine\n"
+	@printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+	@printf "$(RESET)"
+
+	@if [ ! -d "$(MLX_DIR)" ]; then \
+		printf "$(YELLOW)Summoning MiniLibX...$(RESET)\n"; \
+		git clone $(MLX_REPO) $(MLX_DIR) >/dev/null 2>&1; \
+	fi
+
+	@$(call spinner,Building MiniLibX,$(MAKE) -s -C $(MLX_DIR) >/dev/null 2>&1)
+
+	@printf "\n$(GREEN)"
+	@printf "MiniLibX is ready to render the maze.\n"
+	@printf "$(RESET)"
+
+build:
+	$(TITLE) "Building $(PACKAGE) package"
+	@$(call spinner,Building $(PACKAGE) package,$(PYTHON) -m build >/dev/null 2>&1)
+	@find dist -name "*.whl" -exec cp {} . \;
+	@find dist -name "*.tar.gz" -exec cp {} . \;
+
+package-install:
+	$(TITLE) "Installing built package"
+	@$(call spinner,Installing built package $(PACKAGE) package,$(PIP) install *.whl --force-reinstall >/dev/null 2>&1)
+
+run:
+	@printf "$(BLUE)"
+	@printf "╔══════════════════════════════════════╗\n"
+	@printf "║         Entering the Maze...         ║\n"
+	@printf "╚══════════════════════════════════════╝\n"
+	@printf "$(RESET)"
+	@$(PYTHON) a_maze_ing.py config.txt
+
+debug:
+	$(TITLE) "Debug mode"
+	$(PYTHON) -m pdb a_maze_ing.py config.txt
+
+lint:
+	$(TITLE) "Running lint checks"
+	-flake8 . --exclude .venv,minilibx-linux
+	mypy --warn-return-any --warn-unused-ignores --ignore-missing-imports \
+		--disallow-untyped-defs --check-untyped-defs .
+	$(SUCCESS) "Lint complete!"
+
+clean:
+	$(TITLE) "Cleaning project"
+	rm -rf */__pycache__
+	rm -rf .mypy_cache
+	rm -rf dist
+	rm -rf build
+	rm -rf *.egg-info
+	@if [ -d "$(MLX_DIR)" ]; then \
+		$(MAKE) -C $(MLX_DIR) clean; \
+	fi
+	rm -f maze.txt
+	$(SUCCESS) "Clean complete!"
+
+fclean: clean
+	$(TITLE) "Full clean"
+	rm -rf output.txt
+	rm -rf minilibx-linux
+	rm -f *.whl
+	rm -f *.tar.gz
+	rm -rf .venv
+	$(SUCCESS) "Everything removed!"
+
+re: fclean install
+
+.PHONY: all install mlx build run debug lint clean fclean
