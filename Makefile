@@ -21,21 +21,23 @@ TITLE   = @printf "$(BOLD)$(MAGENTA)\n========== %s ==========\n$(RESET)"
 #                                   ASCII                                      #
 # **************************************************************************** #
 
-spinner = \
+define spinner
 ( \
 WIDTH=40; \
 POS=0; \
+DIR=1; \
+DOTS=$$(printf '·%.0s' $$(seq 1 $$WIDTH)); \
+trap 'exit 0' INT TERM; \
 while true; do \
     EATEN=$$(printf '%*s' "$$POS" ""); \
-    REMAIN=$$(printf '%*s' "$$((WIDTH - POS - 1))" "" | tr ' ' '.'); \
-    if [ $$((POS % 2)) -eq 0 ]; then \
-        MOUTH="C"; \
-    else \
-        MOUTH="c"; \
-    fi; \
-    printf "\r\033[K$(CYAN)%s $(YELLOW)[$$EATEN$$MOUTH$$REMAIN]$(RESET)" "$(1)"; \
-    sleep 0.1; \
-    POS=$$(( (POS + 1) % WIDTH )); \
+    REMAIN=$${DOTS:$$((POS + 1))}; \
+    if [ $$((POS % 2)) -eq 0 ]; then MOUTH="C"; else MOUTH="c"; fi; \
+    printf "\r\033[K$(CYAN)%s <$(WHITE)%s$(YELLOW)%s$(WHITE)%s$(CYAN)>$(RESET)" \
+        "$(1)" "$$EATEN" "$$MOUTH" "$$REMAIN"; \
+    sleep 0.08; \
+    POS=$$((POS + DIR)); \
+    if [ $$POS -ge $$((WIDTH - 1)) ]; then DIR=-1; fi; \
+    if [ $$POS -le 0 ]; then DIR=1; fi; \
 done \
 ) & \
 SPIN_PID=$$!; \
@@ -49,6 +51,7 @@ else \
     printf "\r\033[K$(RED)✗ %s failed.$(RESET)\n" "$(1)"; \
 fi; \
 exit $$EXIT_CODE
+endef
 
 BANNER = \
 printf "$(YELLOW)"; \
