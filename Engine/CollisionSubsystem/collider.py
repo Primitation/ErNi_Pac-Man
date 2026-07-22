@@ -1,5 +1,4 @@
 import itertools
-import pygame
 
 from ..LogSubsystem.logsubsystem import Log
 
