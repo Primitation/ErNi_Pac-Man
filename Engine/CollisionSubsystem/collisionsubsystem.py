@@ -3,9 +3,9 @@ from .collider import CollisionManager, Collider
 
 class CollisionSubsystem:
 
-    def __init__(self, cell_size=128):
+    def __init__(self, cell_size=128, max_correction_per_frame=64.0):
 
-        self._manager = CollisionManager(cell_size)
+        self._manager = CollisionManager(cell_size, max_correction_per_frame)
 
     def init(self, width: int, height: int):
         """Call once at startup (e.g. right alongside Renderer.init())

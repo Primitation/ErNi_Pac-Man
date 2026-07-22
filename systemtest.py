@@ -9,6 +9,7 @@ Smoke test for the mlx engine:
 - Rendering
 """
 import random
+import math
 import os
 import sys
 import time
@@ -151,21 +152,55 @@ def main():
 
     NUM_BOUNCERS = 250
 
+    # Load once synchronously up front so we know the actual on-screen
+    # size (sprite pixels * scale) to use for spawn placement below.
+    scale = Vector2(0.1, 0.1)
+    texture = Assets.load(sprite)
+    sprite_w = texture.width * scale.x
+    sprite_h = texture.height * scale.y
+
+    spawned_rects = []
+
+    def rects_overlap(r1, r2):
+        return not (
+            r1[0] + r1[2] <= r2[0] or
+            r2[0] + r2[2] <= r1[0] or
+            r1[1] + r1[3] <= r2[1] or
+            r2[1] + r2[3] <= r1[1]
+        )
+
+    def find_spawn_position(width, height, existing, max_attempts=30):
+        """Rejection-sample a position that doesn't overlap any
+        already-spawned rect, so actors don't start on top of each
+        other. Falls back to the last sampled position (still
+        possibly overlapping) if it can't find a free spot in time —
+        better than spinning forever once the screen gets crowded."""
+
+        for _ in range(max_attempts):
+            x = random.uniform(0, WIDTH - width)
+            y = random.uniform(0, HEIGHT - height)
+            candidate = (x, y, width, height)
+
+            if not any(rects_overlap(candidate, r) for r in existing):
+                return x, y
+
+        return x, y
+
     for _ in range(NUM_BOUNCERS):
         speed = random.uniform(80, 220)
-        angle = random.uniform(0, 2 * 3.141592653589793)
+        angle = random.uniform(0, 2 * math.pi)
+
+        x, y = find_spawn_position(sprite_w, sprite_h, spawned_rects)
+        spawned_rects.append((x, y, sprite_w, sprite_h))
 
         Actors.spawn(
             Bouncer,
-            position=Vector2(
-                random.uniform(0, WIDTH - 64),
-                random.uniform(0, HEIGHT - 64),
-            ),
+            position=Vector2(x, y),
             velocity=Vector2(
-                speed * __import__("math").cos(angle),
-                speed * __import__("math").sin(angle),
+                speed * math.cos(angle),
+                speed * math.sin(angle),
             ),
-            scale=Vector2(0.1, 0.1),
+            scale=scale,
             sprite_path=sprite,
         )
 

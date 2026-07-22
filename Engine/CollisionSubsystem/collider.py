@@ -173,13 +173,15 @@ class SpatialGrid:
 
 class CollisionManager:
 
-    def __init__(self, cell_size=128):
+    def __init__(self, cell_size=128, max_correction_per_frame=64.0):
 
         self._colliders = []
         self._active_overlaps = set()  # set of (collider, collider) pairs
 
         self.width = None
         self.height = None
+
+        self.max_correction_per_frame = max_correction_per_frame
 
         self._grid = SpatialGrid(cell_size)
 
@@ -339,12 +341,36 @@ class CollisionManager:
         center_a = rect_center(rect_a)
         center_b = rect_center(rect_b)
 
+        dx = center_a[0] - center_b[0]
+        dy = center_a[1] - center_b[1]
+
+        if dx == 0 and dy == 0:
+            # Perfectly coincident centers — e.g. two actors spawned on
+            # the exact same position. There's no meaningful direction
+            # to separate along, so break the tie deterministically
+            # (based on identity, so it's stable frame to frame) rather
+            # than always picking the same axis for every coincident pair.
+            dx = 1.0 if (id(a) ^ id(b)) & 1 else -1.0
+
+        # normal points AWAY from b, toward a — i.e. the direction `a`
+        # needs to move to separate from `b`. Using > here (not <) is
+        # the fix: the previous version pointed the normal toward the
+        # other object instead of away from it, which pushed already-
+        # overlapping actors deeper into each other instead of apart —
+        # most visible when actors spawn stacked on the same position.
         if overlap_x < overlap_y:
-            normal = Vector2(1, 0) if center_a[0] < center_b[0] else Vector2(-1, 0)
+            normal = Vector2(1, 0) if dx > 0 else Vector2(-1, 0)
             penetration = overlap_x
         else:
-            normal = Vector2(0, 1) if center_a[1] < center_b[1] else Vector2(0, -1)
+            normal = Vector2(0, 1) if dy > 0 else Vector2(0, -1)
             penetration = overlap_y
+
+        if self.max_correction_per_frame is not None:
+            # Cap how much overlap gets resolved in a single frame. A
+            # large initial overlap (actors spawned on top of each
+            # other) then bleeds off over a few frames instead of
+            # snapping them apart in one violent jump.
+            penetration = min(penetration, self.max_correction_per_frame)
 
         a_movable = not a.static and hasattr(a.owner, "position")
         b_movable = not b.static and hasattr(b.owner, "position")
