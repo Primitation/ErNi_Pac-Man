@@ -1,6 +1,9 @@
 import threading
 from typing import TypeVar, Type
-from ..LogSubsystem.logsubsystem import Log
+
+from .. import Log
+from .. import Assets
+from .. import Vector2
 
 
 class Event:
@@ -24,16 +27,53 @@ class Event:
 
 
 class Actor:
-    """Base class for anything the ActorSubsystem manages. Override
-    update()."""
+    """Base class for anything the ActorSubsystem manages.
 
-    def __init__(self):
+    Every actor carries a position, a size, and a sprite right on
+    itself — so Renderer (and anything else, e.g. Collision) can
+    read them directly off the actor, without per-actor callables
+    like Collision.register()'s get_rect still uses.
+
+    `sprite` isn't set once and stored — it's a property that
+    resolves from AssetSubsystem's cache on every access.
+    set_sprite() only queues the load and remembers the name, so
+    `actor.sprite` naturally reads back None until the background
+    load finishes, then the loaded Texture from then on — the same
+    (cached, shared) object every other actor using that path gets.
+
+    Override update().
+    """
+
+    def __init__(
+        self,
+        position: Vector2 = None,
+        size: Vector2 = None,
+    ):
 
         self.alive = True
+        self.position = position if position is not None else Vector2.zero()
+        self.size = size if size is not None else Vector2.zero()
+
+        self._sprite_name = None
 
         self.logger = Log.get(self.__class__.__name__)
 
         Actors.add(self)
+
+    @property
+    def sprite(self):
+        if self._sprite_name is None:
+            return None
+        return Assets.get(self._sprite_name)
+
+    def set_sprite(self, name: str, path: str):
+        """Queues the texture to load (piggybacks on an existing
+        load/cache entry if `path` — or `name` — is already
+        known, same as Assets.queue() always does) and remembers
+        `name` so `.sprite` can resolve it once it's ready."""
+
+        self._sprite_name = name
+        Assets.queue(name, path)
 
     def update(self, dt):
         pass
@@ -44,10 +84,10 @@ T = TypeVar("T", bound=Actor)
 
 class ActorSubsystem:
     """Ticks every registered actor once per frame. Deliberately NOT
-    thread-driven: actors touch pygame-derived state (sprite
-    position, rects that Render/Collision read straight after),
-    so ticking has to happen on the main thread, in step with
-    everything else that reads that state."""
+    thread-driven: actors touch renderer-derived state (position,
+    sprite) that Render/Collision read straight after, so ticking
+    has to happen on the main thread, in step with everything else
+    that reads that state."""
 
     def __init__(self):
 
@@ -81,9 +121,9 @@ class ActorSubsystem:
 
     def update(self, dt):
         """Call once per frame from the main loop, passing the same
-        dt (in ms) you got from clock.tick(). Ticks every actor,
-        then cleans up anything that marked itself not alive during
-        this tick."""
+        dt (in ms) you got from your clock. Ticks every actor, then
+        cleans up anything that marked itself not alive during this
+        tick."""
 
         self.tick.emit(dt)
 

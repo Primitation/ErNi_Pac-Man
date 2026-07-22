@@ -1,6 +1,7 @@
 import itertools
 
-from ..LogSubsystem.logsubsystem import Log
+from .. import Log
+from .. import Vector2
 
 
 class Signal:
@@ -208,12 +209,12 @@ class CollisionManager:
             return
 
         if overlap_x < overlap_y:
-            normal = pygame.Vector2(1, 0) if rect_a.centerx \
-                    < rect_b.centerx else pygame.Vector2(-1, 0)
+            normal = Vector2(1, 0) if rect_a.centerx \
+                    < rect_b.centerx else Vector2(-1, 0)
             penetration = overlap_x
         else:
-            normal = pygame.Vector2(0, 1) if rect_a.centery \
-                    < rect_b.centery else pygame.Vector2(0, -1)
+            normal = Vector2(0, 1) if rect_a.centery \
+                    < rect_b.centery else Vector2(0, -1)
             penetration = overlap_y
 
         a_movable = not a.static and hasattr(a.owner, "position")

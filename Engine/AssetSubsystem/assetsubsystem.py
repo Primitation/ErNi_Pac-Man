@@ -1,4 +1,4 @@
-from .loader import AssetManager, TextureLoader, SoundLoader
+from .loader import AssetManager, TextureLoader, Context
 
 
 class AssetSubsystem:
@@ -8,7 +8,19 @@ class AssetSubsystem:
         self._manager = AssetManager()
 
         self._manager.register(TextureLoader())
-        self._manager.register(SoundLoader())
+
+    def init(self, mlx, mlx_ptr):
+        """Call once, right after mlx_init(), before loading or
+        queueing anything. Wires the shared Mlx() instance + mlx_ptr
+        into every loader that needs to call mlx_* functions.
+
+        Example:
+            m = Mlx()
+            mlx_ptr = m.mlx_init()
+            Assets.init(m, mlx_ptr)
+        """
+
+        Context.bind(mlx, mlx_ptr)
 
     def register(self, loader):
 

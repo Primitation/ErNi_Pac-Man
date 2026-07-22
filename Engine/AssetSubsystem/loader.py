@@ -3,7 +3,7 @@ import queue
 import traceback
 from abc import ABC, abstractmethod
 
-from ..LogSubsystem.logsubsystem import Log
+from .. import Log
 
 
 class AssetLoader(ABC):
