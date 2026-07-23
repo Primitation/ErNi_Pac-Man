@@ -1,6 +1,7 @@
 """Level LevelStructure."""
 
 from typing import List, Tuple
+from Engine import Vector2
 
 
 class LevelStructure:
@@ -19,10 +20,10 @@ class LevelStructure:
     def __init__(self,
                  width: int,
                  height: int,
-                 pacman: Tuple[int, int],
-                 ghosts: List[Tuple[int, int]],
-                 pacgums: List[Tuple[int, int]],
-                 super_pacgums: List[Tuple[int, int]],
+                 pacman: Vector2,
+                 ghosts: List[Vector2],
+                 pacgums: List[Vector2],
+                 super_pacgums: List[Vector2],
                  maze: List[List[int]]) -> None:
         """Initialize a level information.
 
@@ -55,22 +56,22 @@ class LevelStructure:
         return self._height
 
     @property
-    def pacman(self) -> Tuple[int, int]:
+    def pacman(self) -> Vector2:
         """The position of the pacman (width, height)."""
         return self._pacman
 
     @property
-    def ghosts(self) -> List[Tuple[int, int]]:
+    def ghosts(self) -> List[Vector2]:
         """The positions of the ghosts (width, height)."""
         return self._ghosts
 
     @property
-    def pacgums(self) -> List[Tuple[int, int]]:
+    def pacgums(self) -> List[Vector2]:
         """The positions of the pacgums (width, height)."""
         return self._pacgums
 
     @property
-    def super_pacgums(self) -> List[Tuple[int, int]]:
+    def super_pacgums(self) -> List[Vector2]:
         """The positions of the super pacgums (width, height)."""
         return self._super_pacgums
 

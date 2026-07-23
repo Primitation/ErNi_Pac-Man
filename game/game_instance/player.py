@@ -4,7 +4,7 @@ from game.game_instance.game_config import GameConfig
 from game.game_instance.score import Score
 
 
-class Player:
+class PlayerInformation:
     def __init__(self,
                  config: GameConfig,
                  lives: int=3,

@@ -5,6 +5,7 @@ from typing import List, Tuple
 from .level_structure import LevelStructure
 from .level_options import LevelOptions
 from .maze_analyzer import MazeAnalyzer
+from Engine import Vector2
 from mazegen import MazeGenerator
 
 
@@ -51,18 +52,20 @@ class LevelGenerator:
 
         random.seed(level_options.seed)
 
-        pacman = (level_options.width // 2, level_options.height // 2) # TODO: good position
+        pacman = Vector2(level_options.width // 2, level_options.height // 2) # TODO: good position
 
-        ghosts = [(0, 0),
+        corners = [(0, 0),
                   (0, level_options.height - 1),
                   (level_options.width - 1, 0),
                   (level_options.width - 1, level_options.height - 1)]
 
-        super_pacgums = list(ghosts)
+        ghosts = [Vector2(width, height) for width, height in corners]
 
-        open_cells: List[Tuple[int, int]] = MazeAnalyzer.get_open_cells(
+        super_pacgums = [Vector2(width, height) for width, height in corners]
+
+        open_cells: List[Vector2] = MazeAnalyzer.get_open_cells(
              maze=maze,
-             ignore_cells=set([pacman] + ghosts))
+             ignore_cells=set([pacman] + super_pacgums))
         random.shuffle(open_cells)
         pacgums = open_cells[:min(len(open_cells), level_options.gums)]
 
