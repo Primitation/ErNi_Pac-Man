@@ -7,7 +7,8 @@ class MazeAnalyzer:
     """Analyzes a maze.
     """
     @staticmethod
-    def extract_open_cells(maze: List[List[int]]) -> List[Tuple[int, int]]:
+    def extract_open_cells(maze: List[List[int]],
+                           ignore_cells=set()) -> List[Tuple[int, int]]:
         """Extract cells with at least a open cell.
 
         Args:
@@ -20,6 +21,7 @@ class MazeAnalyzer:
             (width_pos, height_pos)
             for height_pos in range(len(open_cells))
             for width_pos in range(len(open_cells[height_pos]))
-            if maze[height_pos][width_pos] != 0xF
+            if ((width_pos, height_pos) not in ignore_cells
+                and maze[height_pos][width_pos] != 0xF)
         ]
         return open_cells
