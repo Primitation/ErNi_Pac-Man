@@ -25,11 +25,6 @@ class Actor(AActor):
         # animation can freely push self.scale up and back down.
         self.base_scale = Vector2(scale.x, scale.y)
 
-        # Squash/pop animation state, triggered on collision.
-        self._punch_time = 0.0
-        self._punch_duration = 0.18
-        self._punch_strength = 0.6
-        self._punching = False
 
         # Register with collision system. get_rect is our own
         # override (below), not the ColliderComponent default, so
@@ -54,15 +49,9 @@ class Actor(AActor):
     def get_rect(self):
         """Return a rect as (x, y, width, height).
 
-        Uses base_scale rather than the animated self.scale — the
-        punch effect is purely visual, so the collider stays a
-        constant size and doesn't feed back into itself (a growing
-        collider would trigger more collisions, which would retrigger
-        more growth, etc.).
-
+        Uses base_scale rather than the animated self.scale
         Reads size off whatever sprite/animated-sprite component this
-        actor happens to have; falls back to base_scale itself if
-        there isn't one yet (or the sprite hasn't loaded)."""
+        actor happens to have;"""
 
         sprite_component = (
             self.get_component(SpriteComponent)
@@ -94,12 +83,11 @@ class Actor(AActor):
         pass
 
     def update(self, dt):
-        """Update bouncer position and handle wall bouncing."""
-
-        # Move the bouncer
-        self.position += (
-            self.velocity * (dt / 1000)
-        )
+        """Update position"""
+        if not self.static:
+            self.position += (
+                self.velocity * (dt / 1000)
+            )
 
     def destroy(self):
         """Clean up this bouncer. super().destroy() tears down every
