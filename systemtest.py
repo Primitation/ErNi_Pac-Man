@@ -14,7 +14,7 @@ import time
 
 from Engine import Renderer, Assets, Actors, Log, \
                    World, Collision, Input, Vector2
-from assets.code.player import Player
+from assets.code.actors.player import Player
 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

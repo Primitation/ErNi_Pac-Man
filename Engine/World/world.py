@@ -19,6 +19,31 @@ class WorldClass:
     def clear(self):
         self._actors.clear()
 
+    def find(self, actor_class):
+        """
+        Find the first actor matching the given class.
+
+        Example:
+            player = World.find(Player)
+        """
+        for actor in self._actors:
+            if isinstance(actor, actor_class):
+                return actor
+
+        return None
+
+    def find_all(self, actor_class):
+        """
+        Find all actors matching the given class.
+
+        Example:
+            ghosts = World.find_all(Ghost)
+        """
+        return [
+            actor for actor in self._actors
+            if isinstance(actor, actor_class)
+        ]
+
     def __iter__(self):
         return iter(self._actors)
 
