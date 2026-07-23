@@ -164,8 +164,8 @@ class ActorSubsystem:
 
             existing = [
                 a.get_rect()
-                for a in self.actors
-                if hasattr(a, "get_rect")
+                for a in self._actors
+                if hasattr(a, "get_rect") and a is not actor
             ]
 
             spawn_x, spawn_y = self.find_spawn_position(
@@ -177,7 +177,9 @@ class ActorSubsystem:
             actor.position.x = spawn_x
             actor.position.y = spawn_y
 
-        self.add(actor)
+        # AActor.__init__ already called Actors.add(self) above, when
+        # `actor_class(*args, **kwargs)` ran — registering again here
+        # would double-subscribe update() and duplicate it in _actors.
         World.add(actor)
 
         return actor
