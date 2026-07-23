@@ -1,7 +1,7 @@
 """Level Generator."""
 
 import random
-from typing import List, Tuple
+from typing import List
 from .level_structure import LevelStructure
 from .level_options import LevelOptions
 from .maze_analyzer import MazeAnalyzer
@@ -31,33 +31,34 @@ class LevelGenerator:
 
         Do not use multiples LevelGenerator.generate() at the same time.
         """
-        if level_options.width <= 0: # TODO min size
+        if level_options.width <= 0:  # TODO min size
             raise ValueError(f"Invalid width <= 0: {level_options.width}")
-        if level_options.height <= 0: # TODO min size
+        if level_options.height <= 0:  # TODO min size
             raise ValueError(f"Invalid width <= 0: {level_options.height}")
 
         try:
-              start = (0, 0) # TODO pick good start
-              end = (0, 1) # TODO pick good end close to start (faster useless path)
-              maze = MazeGenerator(size=(level_options.width,
-                                         level_options.height),
-                                   perfect=False,
-                                   entry_cell=start,
-                                   exit_cell=end,
-                                   seed=level_options.seed)
+            start = (0, 0)  # TODO pick good start
+            end = (0, 1)  # TODO pick good close s, e (faster useless path)
+            maze = MazeGenerator(
+                size=(level_options.width, level_options.height),
+                perfect=False,
+                entry_cell=start,
+                exit_cell=end,
+                seed=level_options.seed)
         except Exception as exception:
-              # TODO what to do if mazegenerator fail ?
-              raise ValueError(f"LevelGenerator: error from maze generator:"
-                               f" {exception}")
+            # TODO what to do if mazegenerator fail ?
+            raise ValueError(f"LevelGenerator: error from maze generator:"
+                             f" {exception}")
 
         random.seed(level_options.seed)
 
-        pacman = Vector2(level_options.width // 2, level_options.height // 2) # TODO: good position
+        # TODO: good position
+        pacman = Vector2(level_options.width // 2, level_options.height // 2)
 
         corners = [(0, 0),
-                  (0, level_options.height - 1),
-                  (level_options.width - 1, 0),
-                  (level_options.width - 1, level_options.height - 1)]
+                   (0, level_options.height - 1),
+                   (level_options.width - 1, 0),
+                   (level_options.width - 1, level_options.height - 1)]
 
         ghosts = [Vector2(width, height) for width, height in corners]
 

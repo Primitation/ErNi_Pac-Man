@@ -7,8 +7,8 @@ from game.game_instance.score import Score
 class PlayerInformation:
     def __init__(self,
                  config: GameConfig,
-                 lives: int=3,
-                 score: Score=None) -> None:
+                 lives: int = 3,
+                 score: Score = None) -> None:
         """Initialize a player with a score and lives."""
         self._lives = lives
         if self._lives < 1:
@@ -32,7 +32,7 @@ class PlayerInformation:
 
     def is_alive(self) -> bool:
         """Returns true if the player have live, False otherwise.
-        
+
         Returns:
             Returns true if the player have live, False otherwise.
         """
@@ -42,4 +42,3 @@ class PlayerInformation:
         """The player lose a live if possible."""
         if self._lives > 0:
             self._lives -= 1
-    

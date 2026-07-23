@@ -13,6 +13,7 @@ class GameModeLevels(ABC):
     def next_level(self) -> LevelInstance:
         pass
 
+
 class GameModeNormalLevels(GameModeLevels):
     """Generator of 10 levels."""
     def __init__(self, level_options: List[LevelOptions]) -> None:
@@ -26,13 +27,13 @@ class GameModeNormalLevels(GameModeLevels):
         # TODO: at least 10 levels ! (defaults ?)
 
     @property
-    def current_level(self) -> str: # TODO or int
+    def current_level(self) -> str:  # TODO or int
         """The current level."""
         return str(self._curr_level)
 
     def next_level(self) -> LevelInstance | None:
         """Returns a level untils no more level.
-        
+
         Returns:
             Returns a level instance untils no more level.
         """

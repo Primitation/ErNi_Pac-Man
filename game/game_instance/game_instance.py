@@ -9,7 +9,7 @@ class GameInstance:
     """Instance of the game."""
     def __init__(self, config: GameConfig) -> None:
         """Initialize the instance of the game.
-        
+
         Args:
             config: the configs for the game.
         """

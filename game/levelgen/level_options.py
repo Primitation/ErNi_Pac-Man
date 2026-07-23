@@ -2,6 +2,7 @@
 
 from time import time
 
+
 class LevelOptions:
     """Options for level generation.
 
@@ -16,7 +17,8 @@ class LevelOptions:
                  height: int,
                  pac_gum_count: int,
                  seed: int | None) -> None:
-        # TODO: width and height checking and modify with default min, same for pac_gum_count and seed
+        # TODO: width and height checking and modify with
+        # default min, same for pac_gum_count and seed
         self._width = width
         self._height = height
         self._pac_gum_count = pac_gum_count

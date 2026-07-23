@@ -1,12 +1,12 @@
 """Level LevelStructure."""
 
-from typing import List, Tuple
+from typing import List
 from Engine import Vector2
 
 
 class LevelStructure:
     """Structure of a level.
-    
+
     Attributes:
         width (int): the width of the maze.
         height (int): the height of the maze.
