@@ -33,23 +33,15 @@ def main():
     print("[DEBUG] Initializing Input...")
     Input.init(Renderer)
 
-    Input.enable_key_debug(True)
-
-    # Method 2: Add a simple test callback
-    def test_key_callback(keycode, state):
-        key_name = Input.get_key_name(keycode)
-        print(f"[TEST] Key event: {key_name} (code: {keycode}) - {state.name}")
-
-    Input.on_any_key(test_key_callback)
-
-    # Method 3: Print every frame what keys are held
-    # This will show if any keys are being detected at all
-
-    # Register a callback for movement actions
     def on_move_up():
         log.info("Moving UP!")
 
     Input.register_action_callback("up", on_move_up)
+
+    def on_w_released(state, keycode):
+        log.info("W released!")
+
+    Input.on_key_release(Input.KEYS["w"], on_w_released)
 
     log.info(
         f"World has {len(World)} actor(s)."
@@ -87,9 +79,11 @@ def main():
             fps_frames = 0
             fps_timer -= 1000
 
-        Input.update()
-        Input.process_actions()
         Assets.update()
+
+        Input.process_actions()
+        Input.update()
+
         Actors.update(dt)
         Collision.update()
         Renderer.render(World)

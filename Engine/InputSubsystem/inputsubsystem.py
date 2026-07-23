@@ -46,22 +46,70 @@ class InputSubsystem:
     EXPOSE = 12
     DESTROY_NOTIFY = 33
 
+    # X11 event masks (needed by the generic mlx_hook calls below —
+    # without the matching mask, XSelectInput never subscribes to
+    # that event and the hook simply never fires).
+    # Note: in this project's mlx wrapper, mlx_key_hook is documented
+    # as the KEY-RELEASE hook (not press, contrary to the usual
+    # 42-school convention) — see mlx.py. So KeyPress has to go
+    # through the generic mlx_hook below, and needs its own mask.
+    KEY_PRESS_MASK = 1 << 0         # 1
+    BUTTON_RELEASE_MASK = 1 << 3    # 8
+    POINTER_MOTION_MASK = 1 << 6    # 64
+
     # Key codes mapping (X11 keycodes)
     KEYS = {
-        'a': 38, 'b': 56, 'c': 54, 'd': 40, 'e': 26, 'f': 41, 'g': 42, 'h': 43,
-        'i': 31, 'j': 44, 'k': 45, 'l': 46, 'm': 58, 'n': 57, 'o': 32,
-        'p': 33, 'q': 24, 'r': 27, 's': 39, 't': 28, 'u': 30, 'v': 55,
-        'w': 25, 'x': 53, 'y': 29, 'z': 52,
-        '0': 19, '1': 10, '2': 11, '3': 12, '4': 13, '5': 14,
-        '6': 15, '7': 16, '8': 17, '9': 18,
-        'space': 65, 'escape': 9, 'enter': 36, 'tab': 23,
-        'backspace': 22, 'delete': 119, 'insert': 118,
-        'up': 111, 'down': 116, 'left': 113, 'right': 114,
-        'home': 110, 'end': 115, 'page_up': 112, 'page_down': 117,
-        'shift': 50, 'ctrl': 37, 'alt': 64, 'meta': 133,
-        'f1': 122, 'f2': 120, 'f3': 99, 'f4': 118,
-        'f5': 96, 'f6': 97, 'f7': 98, 'f8': 100,
-        'f9': 101, 'f10': 109, 'f11': 110, 'f12': 102,
+        # Letters (ASCII)
+        'a': 97,  'b': 98,  'c': 99,  'd': 100,
+        'e': 101, 'f': 102, 'g': 103, 'h': 104,
+        'i': 105, 'j': 106, 'k': 107, 'l': 108,
+        'm': 109, 'n': 110, 'o': 111, 'p': 112,
+        'q': 113, 'r': 114, 's': 115, 't': 116,
+        'u': 117, 'v': 118, 'w': 119, 'x': 120,
+        'y': 121, 'z': 122,
+
+        # Digits (ASCII)
+        '0': 48, '1': 49, '2': 50, '3': 51, '4': 52,
+        '5': 53, '6': 54, '7': 55, '8': 56, '9': 57,
+
+        # Common keys
+        'space': 32,
+        'tab': 65289,
+        'enter': 65293,
+        'escape': 65307,
+        'backspace': 65288,
+        'delete': 65535,
+        'insert': 65379,
+
+        # Navigation
+        'left': 65361,
+        'up': 65362,
+        'right': 65363,
+        'down': 65364,
+        'page_up': 65365,
+        'page_down': 65366,
+        'home': 65360,
+        'end': 65367,
+
+        # Modifiers
+        'shift': 65505,   # Left Shift
+        'ctrl': 65507,    # Left Ctrl
+        'alt': 65513,     # Left Alt
+        'meta': 65515,    # Left Super
+
+        # Function keys
+        'f1': 65470,
+        'f2': 65471,
+        'f3': 65472,
+        'f4': 65473,
+        'f5': 65474,
+        'f6': 65475,
+        'f7': 65476,
+        'f8': 65477,
+        'f9': 65478,
+        'f10': 65479,
+        'f11': 65480,
+        'f12': 65481,
     }
 
     # Reverse mapping for debug
@@ -89,21 +137,23 @@ class InputSubsystem:
         # Modifier keys
         self.modifiers: Set[str] = set()
         self.modifier_map = {
-            50: 'shift',   # Left Shift
-            62: 'shift',   # Right Shift
-            37: 'ctrl',    # Left Ctrl
-            105: 'ctrl',   # Right Ctrl
-            64: 'alt',     # Left Alt
-            108: 'alt',    # Right Alt
-            133: 'meta',   # Left Meta
-            134: 'meta',   # Right Meta
+            65505: 'shift',  # Left Shift  (XK_Shift_L)
+            65506: 'shift',  # Right Shift (XK_Shift_R)
+            65507: 'ctrl',   # Left Ctrl   (XK_Control_L)
+            65508: 'ctrl',   # Right Ctrl  (XK_Control_R)
+            65513: 'alt',    # Left Alt    (XK_Alt_L)
+            65514: 'alt',    # Right Alt   (XK_Alt_R)
+            65515: 'meta',   # Left Super  (XK_Super_L)
+            65516: 'meta',   # Right Super (XK_Super_R)
         }
 
         # Input mappings (action name -> list of keys)
         self.action_mappings: Dict[str, List[int]] = {}
+        self.combo_actions: Set[str] = set()
 
         # Callbacks
-        self.key_callbacks: Dict[int, List[Callable]] = {}
+        self.key_press_callbacks: Dict[int, List[Callable]] = {}
+        self.key_release_callbacks: Dict[int, List[Callable]] = {}
         self.mouse_callbacks: Dict[MouseButton, List[Callable]] = {}
         self.action_callbacks: Dict[str, List[Callable]] = {}
         self.any_key_callbacks: List[Callable] = []
@@ -132,28 +182,21 @@ class InputSubsystem:
         self.mlx_ptr = renderer.mlx_ptr
         self.win_ptr = renderer.win_ptr
 
-        print(f"[DEBUG] Input.init() - Got MLX from renderer: {self.mlx}")
-        print(f"[DEBUG] Input.init() - win_ptr: {self.win_ptr}")
-
         # Set up input handlers
         self._setup_input()
         self._register_mlx_hooks()
 
         self._initialized = True
         self._logger.info("Input subsystem initialized")
-        print("[DEBUG] Input initialized successfully")
 
     def _register_mlx_hooks(self):
         """Register MLX event hooks."""
-
-        print("[DEBUG] Registering MLX hooks...")
 
         # Keep references alive (important for ctypes callbacks)
         self._mlx_callbacks = {}
 
         # KEY PRESS
         def on_key_press(keycode, param):
-            print(f"[MLX] Key PRESS: {keycode}")
             self._handle_key_press(keycode, param)
 
         self._mlx_callbacks["key_press"] = on_key_press
@@ -161,15 +204,13 @@ class InputSubsystem:
         self.mlx.mlx_hook(
             self.win_ptr,
             self.KEY_PRESS,
-            0,
+            self.KEY_PRESS_MASK,
             on_key_press,
             self
         )
 
-
         # KEY RELEASE
         def on_key_release(keycode, param):
-            print(f"[MLX] Key RELEASE: {keycode}")
             self._handle_key_release(keycode, param)
 
         self._mlx_callbacks["key_release"] = on_key_release
@@ -180,14 +221,8 @@ class InputSubsystem:
             self
         )
 
-
         # MOUSE PRESS
         def on_mouse_press(button, x, y, param):
-            print(
-                f"[MLX] Mouse PRESS: "
-                f"button={button} x={x} y={y}"
-            )
-
             self._handle_mouse_press(
                 button,
                 x,
@@ -203,14 +238,8 @@ class InputSubsystem:
             self
         )
 
-
         # MOUSE RELEASE
         def on_mouse_release(button, x, y, param):
-            print(
-                f"[MLX] Mouse RELEASE: "
-                f"button={button} x={x} y={y}"
-            )
-
             self._handle_mouse_release(
                 button,
                 x,
@@ -223,11 +252,10 @@ class InputSubsystem:
         self.mlx.mlx_hook(
             self.win_ptr,
             self.BUTTON_RELEASE,
-            0,
+            self.BUTTON_RELEASE_MASK,
             on_mouse_release,
             self
         )
-
 
         # MOUSE MOTION
         def on_mouse_motion(x, y, param):
@@ -242,16 +270,13 @@ class InputSubsystem:
         self.mlx.mlx_hook(
             self.win_ptr,
             self.MOTION_NOTIFY,
-            0,
+            self.POINTER_MOTION_MASK,
             on_mouse_motion,
             self
         )
 
-
         # WINDOW CLOSE (X button)
         def on_destroy(param):
-            print("[MLX] Window destroyed")
-
             for callback in self.close_callbacks:
                 callback()
 
@@ -264,9 +289,6 @@ class InputSubsystem:
             on_destroy,
             self
         )
-
-
-        print("[DEBUG] All MLX hooks registered")
 
     def _setup_input(self):
         """Setup default input bindings and callbacks."""
@@ -323,21 +345,17 @@ class InputSubsystem:
 
     def _handle_key_press(self, keycode: int, param):
         """Handle key press event from MLX."""
-        print(f"[INPUT] Key PRESS: {keycode}")
         self._set_key_state(keycode, True)
 
         if self._debug_print_keys:
             key_name = self.get_key_name(keycode)
-            print(f"[KEY PRESS] {key_name} (code: {keycode})")
 
     def _handle_key_release(self, keycode: int, param):
         """Handle key release event from MLX."""
-        print(f"[INPUT] Key RELEASE: {keycode}")
         self._set_key_state(keycode, False)
 
         if self._debug_print_keys:
             key_name = self.get_key_name(keycode)
-            print(f"[KEY RELEASE] {key_name} (code: {keycode})")
 
     def _set_key_state(self, keycode: int, pressed: bool):
         """Set the state of a key."""
@@ -360,8 +378,8 @@ class InputSubsystem:
                         self.input_buffer.pop(0)
 
                 # Trigger callbacks
-                if keycode in self.key_callbacks:
-                    for callback in self.key_callbacks[keycode]:
+                if keycode in self.key_press_callbacks:
+                    for callback in self.key_press_callbacks[keycode]:
                         callback(KeyState.PRESSED, keycode)
 
                 for callback in self.any_key_callbacks:
@@ -374,8 +392,8 @@ class InputSubsystem:
                 if keycode in self.modifier_map:
                     self.modifiers.discard(self.modifier_map[keycode])
 
-                if keycode in self.key_callbacks:
-                    for callback in self.key_callbacks[keycode]:
+                if keycode in self.key_release_callbacks:
+                    for callback in self.key_release_callbacks[keycode]:
                         callback(KeyState.RELEASED, keycode)
 
                 for callback in self.any_key_callbacks:
@@ -503,13 +521,15 @@ class InputSubsystem:
     # ===== Action System =====
 
     def bind_action(self, action_name: str, keys: List[int]):
-        """Bind one or more keys to an action."""
+        """Bind one or more keys to an action (any one of them triggers it)."""
         self.action_mappings[action_name] = keys
+        self.combo_actions.discard(action_name)
         self._logger.debug(f"Bound action '{action_name}' to keys: {keys}")
 
     def bind_action_combo(self, action_name: str, combo: List[int]):
         """Bind a key combination to an action (all keys must be held)."""
         self.action_mappings[action_name] = combo
+        self.combo_actions.add(action_name)
         self._logger.debug(f"Bound combo action '{action_name}' to keys: {combo}")
 
     def is_action_triggered(self, action_name: str) -> bool:
@@ -519,14 +539,14 @@ class InputSubsystem:
 
         keys = self.action_mappings[action_name]
 
-        # Check if all keys in the combo are held
-        if len(keys) > 1:
+        if action_name in self.combo_actions and len(keys) > 1:
+            # All keys must be held, triggered on the last one landing
             if all(self.is_key_held(key) for key in keys):
                 return any(self.is_key_pressed(key) for key in keys)
             return False
 
-        # Single key
-        return self.is_key_pressed(keys[0])
+        # Any one of the bound keys triggers the action
+        return any(self.is_key_pressed(key) for key in keys)
 
     def is_action_held(self, action_name: str) -> bool:
         """Check if an action is currently being held."""
@@ -534,7 +554,11 @@ class InputSubsystem:
             return False
 
         keys = self.action_mappings[action_name]
-        return all(self.is_key_held(key) for key in keys)
+
+        if action_name in self.combo_actions:
+            return all(self.is_key_held(key) for key in keys)
+
+        return any(self.is_key_held(key) for key in keys)
 
     def is_action_released(self, action_name: str) -> bool:
         """Check if an action was just released."""
@@ -562,20 +586,19 @@ class InputSubsystem:
 
     def on_key_press(self, key: int, callback: Callable):
         """Register callback for key press."""
-        if key not in self.key_callbacks:
-            self.key_callbacks[key] = []
-        self.key_callbacks[key].append(callback)
+        if key not in self.key_press_callbacks:
+            self.key_press_callbacks[key] = []
+        self.key_press_callbacks[key].append(callback)
 
     def on_key_release(self, key: int, callback: Callable):
         """Register callback for key release."""
-        if key not in self.key_callbacks:
-            self.key_callbacks[key] = []
-        self.key_callbacks[key].append(callback)
+        if key not in self.key_release_callbacks:
+            self.key_release_callbacks[key] = []
+        self.key_release_callbacks[key].append(callback)
 
     def on_any_key(self, callback: Callable):
         """Register callback for any key press/release."""
         self.any_key_callbacks.append(callback)
-        print(f"[DEBUG] Registered any-key callback: {callback}")
 
     def on_mouse_click(self, button: MouseButton, callback: Callable):
         """Register callback for mouse click."""
@@ -640,36 +663,6 @@ class InputSubsystem:
                 f"Modifiers: {active_mods}\n"
                 f"Mouse: {mouse_pos}\n"
                 f"Mouse Buttons: {self.mouse_buttons}")
-
-    # ===== DEBUG FUNCTIONS =====
-
-    def enable_key_debug(self, enabled: bool = True):
-        """Enable or disable printing all key presses/releases."""
-        self._debug_print_keys = enabled
-        status = "enabled" if enabled else "disabled"
-        print(f"[DEBUG] Key printing {status}")
-        if enabled:
-            print("[DEBUG] Press any key to see its code and name")
-
-    def print_active_keys(self):
-        """Print all currently active (held) keys."""
-        if self.active_keys:
-            key_list = []
-            for keycode in sorted(self.active_keys):
-                key_name = self.get_key_name(keycode)
-                key_list.append(f"{key_name}({keycode})")
-            print(f"[ACTIVE KEYS] {', '.join(key_list)}")
-        else:
-            print("[ACTIVE KEYS] None")
-
-    def debug_key_logger(self):
-        """Register a callback that prints every key press/release."""
-        def log_key(keycode, state):
-            key_name = self.get_key_name(keycode)
-            print(f"[KEY EVENT] {key_name} (code: {keycode}) - {state.name}")
-
-        self.on_any_key(log_key)
-        print("[DEBUG] Key logger registered - all key events will be printed")
 
 
 # Global input system (must be initialized after Renderer)
