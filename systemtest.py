@@ -13,7 +13,8 @@ import sys
 import time
 
 from Engine import Renderer, Assets, Actors, Log, \
-                   World, Collision, Input
+                   World, Collision, Input, Vector2
+from assets.code.player import Player
 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -33,15 +34,19 @@ def main():
     print("[DEBUG] Initializing Input...")
     Input.init(Renderer)
 
-    def on_move_up():
-        log.info("Moving UP!")
+    Actors.spawn(
+        Player,
+        position=Vector2(0, 0),      # overwritten by find_spawn_position() if get_rect() works
+        velocity=Vector2(0, 0),
+        scale=Vector2(0.25, 0.25),
+        sprite_path="assets/texture/pacman.png",
+    )
 
-    Input.register_action_callback("up", on_move_up)
+    def on_pause():
+        paused = Actors.toggle_pause()
+        log.info(f"Game {'paused' if paused else 'resumed'}.")
 
-    def on_w_released(state, keycode):
-        log.info("W released!")
-
-    Input.on_key_release(Input.KEYS["w"], on_w_released)
+    Input.register_action_callback("pause", on_pause)
 
     log.info(
         f"World has {len(World)} actor(s)."
@@ -85,7 +90,8 @@ def main():
         Input.update()
 
         Actors.update(dt)
-        Collision.update()
+        if not Actors.paused:
+            Collision.update()
         Renderer.render(World)
 
     Renderer.hook_loop(frame)
@@ -96,6 +102,7 @@ def main():
 
     log.info("Window closed.")
 
+    Input.close()
     Renderer.close()
 
 
