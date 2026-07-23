@@ -102,6 +102,9 @@ class ActorSubsystem:
         self._lock = threading.Lock()
 
         self.tick = Event()
+        self.paused = False
+
+        self._logger = Log.get("actors")
 
     def init(self):
         """Call once, at startup. Kept for API symmetry with the
@@ -129,13 +132,33 @@ class ActorSubsystem:
 
         self.tick.unsubscribe(actor.update)
 
+    def pause(self):
+        """Freeze every actor's update() until resume()/toggle_pause()."""
+        self.paused = True
+        self._logger.info("Actors paused")
+
+    def resume(self):
+        """Resume ticking actors after pause()."""
+        self.paused = False
+        self._logger.info("Actors resumed")
+
+    def toggle_pause(self) -> bool:
+        """Flip paused state and return the new value."""
+        if self.paused:
+            self.resume()
+        else:
+            self.pause()
+        return self.paused
+
     def update(self, dt):
         """Call once per frame from the main loop, passing the same
-        dt (in ms) you got from your clock. Ticks every actor, then
-        cleans up anything that marked itself not alive during this
-        tick."""
+        dt (in ms) you got from your clock. Ticks every actor unless
+        paused, then cleans up anything that marked itself not alive
+        during this tick — cleanup still runs while paused so nothing
+        piles up waiting for a resume()."""
 
-        self.tick.emit(dt)
+        if not self.paused:
+            self.tick.emit(dt)
 
         with self._lock:
             dead = [actor for actor in self._actors if not actor.alive]
