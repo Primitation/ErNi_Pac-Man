@@ -115,6 +115,31 @@ class RendererSubsystem:
         # Clear with FULLY OPAQUE BLACK
         self.clear(0xFF000000)
 
+    def _sprite_for(self, actor):
+        """Find the actor's current sprite by checking its
+        components. Actors no longer carry a sprite directly —
+        SpriteComponent and AnimatedSpriteComponent (Engine.Components)
+        both expose a `.sprite` property, so this just looks for the
+        first component that has one and returns whatever it's
+        currently resolving to (None if that component's asset
+        hasn't finished loading yet).
+
+        Duck-typed on purpose (checks `hasattr(component, "sprite")`
+        rather than isinstance against SpriteComponent /
+        AnimatedSpriteComponent) so any future component that wants
+        to be drawn just needs to expose `.sprite` — no changes
+        needed here."""
+
+        components = getattr(actor, "components", None)
+        if not components:
+            return None
+
+        for component in components:
+            if hasattr(component, "sprite"):
+                return component.sprite
+
+        return None
+
     def _fill_solid(self, color: int):
         """One-shot solid color fill — the actual pixel-writing work.
         Used by clear() when there's no baked background, and by
@@ -182,7 +207,7 @@ class RendererSubsystem:
         static_actors = [a for a in world if getattr(a, "static", False)]
 
         for actor in static_actors:
-            sprite = actor.sprite
+            sprite = self._sprite_for(actor)
             if sprite is None:
                 continue
             try:
@@ -489,7 +514,7 @@ class RendererSubsystem:
             if self._baked and getattr(actor, "static", False):
                 continue
 
-            sprite = actor.sprite
+            sprite = self._sprite_for(actor)
             if sprite is None:
                 continue
 

@@ -1,6 +1,7 @@
 from .actor import Actor
 from Engine import on_end_of_anim
 from Engine import Vector2, Input
+from Engine import AnimatedSpriteComponent
 
 
 class Player(Actor):
@@ -23,21 +24,24 @@ class Player(Actor):
 
         # Units per second applied along whichever direction(s) are held.
         self.speed = speed
-        self.set_animation(
-            "assets/texture/spritesheets/pacman_hd/PacManAssets-PacMan.png",
-            frame_width=32, frame_height=32,
-            frame_count=4, fps=4, loop=True, start_frame=0
+
+        self.animation = self.add_component(
+            AnimatedSpriteComponent(
+                "assets/texture/spritesheets/pacman_hd/PacManAssets-PacMan.png",
+                frame_width=32, frame_height=32,
+                frame_count=4, fps=4, loop=True, start_frame=0
+            )
         )
 
+        Input.bind_action("dead", [Input.KEYS["t"]])
+
     @on_end_of_anim(lambda self: self.destroy())
-    def dead(self):
-        self.set_animation(
+    def dead(self, animation: AnimatedSpriteComponent):
+        animation.set_animation(
             "assets/texture/spritesheets/pacman_hd/PacManAssets-PacMan.png",
             frame_width=32, frame_height=32,
             frame_count=8, fps=4, loop=False, start_frame=4
         )
-
-    Input.bind_action("dead", [Input.KEYS["t"]])
 
     def update(self, dt):
         """Turn held movement actions into velocity, then move as usual."""
@@ -58,7 +62,7 @@ class Player(Actor):
             move_y += 1.0
             self.rotation = 90
         if Input.is_action_triggered("dead"):
-            self.dead()
+            self.dead(self.animation)
 
         # Normalize so diagonal movement isn't faster than cardinal movement.
         length = (move_x ** 2 + move_y ** 2) ** 0.5

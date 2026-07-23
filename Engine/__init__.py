@@ -5,6 +5,9 @@ from .AssetSubsystem.assetsubsystem import Assets
 from .AssetSubsystem.loader import SpriteSheetKey, Animation
 from .ActorSubsystem.actorsubsystem import Actors, AActor, on_end_of_anim
 from .CollisionSubsystem.collisionsubsystem import Collision
+from .ActorSubsystem.Components import (
+    SpriteComponent, AnimatedSpriteComponent,
+    ColliderComponent, Component)
 from .RendererSubsystem.renderersubsystem import Renderer
 from .InputSubsystem.inputsubsystem import Input
 
@@ -25,5 +28,9 @@ __all__ = [
     "Input",
     "SpriteSheetKey",
     "Animation",
-    "on_end_of_anim"
+    "on_end_of_anim",
+    "SpriteComponent",
+    "AnimatedSpriteComponent",
+    "ColliderComponent",
+    "Component"
 ]

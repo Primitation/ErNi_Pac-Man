@@ -1,5 +1,5 @@
-from Engine import AActor, Vector2, Collision
-from Engine.CollisionSubsystem.collider import Collider
+from Engine import AActor, Vector2
+from Engine import ColliderComponent, SpriteComponent, AnimatedSpriteComponent
 
 
 class Actor(AActor):
@@ -30,16 +30,21 @@ class Actor(AActor):
         self._punch_duration = 0.18
         self._punch_strength = 0.6
         self._punching = False
-        # Register with collision system
-        self._collider = Collision.register(
-            owner=self,
-            get_rect=self.get_rect,
-            tag="Actor",
-            collides_with=None,
-            blocking=False,
-            bounce=0.8,
-            static=False,
-            enabled=True
+
+        # Register with collision system. get_rect is our own
+        # override (below), not the ColliderComponent default, so
+        # the hitbox stays pinned to base_scale regardless of what a
+        # sprite/animation component on this actor is doing.
+        self._collider = self.add_component(
+            ColliderComponent(
+                get_rect=self.get_rect,
+                tag="Actor",
+                collides_with=None,
+                blocking=False,
+                bounce=0.8,
+                static=False,
+                enabled=True,
+            )
         )
 
         # Bind collision events for debugging
@@ -53,14 +58,23 @@ class Actor(AActor):
         punch effect is purely visual, so the collider stays a
         constant size and doesn't feed back into itself (a growing
         collider would trigger more collisions, which would retrigger
-        more growth, etc.)."""
+        more growth, etc.).
 
-        sprite = self.sprite
-        if sprite is not None:
-            width = sprite.width * self.base_scale.x
-            height = sprite.height * self.base_scale.y
+        Reads size off whatever sprite/animated-sprite component this
+        actor happens to have; falls back to base_scale itself if
+        there isn't one yet (or the sprite hasn't loaded)."""
+
+        sprite_component = (
+            self.get_component(SpriteComponent)
+            or self.get_component(AnimatedSpriteComponent)
+        )
+
+        if sprite_component is not None and sprite_component.sprite is not None:
+            width = sprite_component.width * self.base_scale.x
+            height = sprite_component.height * self.base_scale.y
         else:
-            # Fallback to scale if sprite not loaded yet
+            # Fallback if there's no sprite component yet, or its
+            # sprite hasn't finished loading.
             width = self.base_scale.x
             height = self.base_scale.y
 
@@ -88,12 +102,15 @@ class Actor(AActor):
         )
 
     def destroy(self):
-        """Clean up this bouncer."""
-        Collision.unregister(self._collider)
-        self.alive = False
+        """Clean up this bouncer. super().destroy() tears down every
+        component this actor owns — including this._collider, which
+        unregisters itself from Collision — so there's nothing left
+        to do here manually."""
         super().destroy()
 
-    def set_collider(self, _collider: Collider):
-        if self._collider:
-            Collision.unregister(self._collider)
-        self.set_collider = _collider
+    def set_collider(self, collider: ColliderComponent):
+        """Swap in a different ColliderComponent for this actor."""
+        self.remove_component(self._collider)
+        self._collider = self.add_component(collider)
+        self._collider.on_begin_overlap.bind(self._on_collision_begin)
+        self._collider.on_end_overlap.bind(self._on_collision_end)
