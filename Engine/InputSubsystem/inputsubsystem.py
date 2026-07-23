@@ -182,12 +182,25 @@ class InputSubsystem:
         self.mlx_ptr = renderer.mlx_ptr
         self.win_ptr = renderer.win_ptr
 
+        # Without this, X11 auto-repeats held keys by firing rapid
+        # KeyRelease/KeyPress pairs once the OS repeat-delay kicks in.
+        # Each of those reads as a genuine release to our state
+        # machine, which is what causes held input to flicker/jitter
+        # after a key's been held for a moment.
+        self.mlx.mlx_do_key_autorepeatoff(self.mlx_ptr)
+
         # Set up input handlers
         self._setup_input()
         self._register_mlx_hooks()
 
         self._initialized = True
         self._logger.info("Input subsystem initialized")
+
+    def close(self):
+        """Re-enable OS key auto-repeat. Call on shutdown so the
+        terminal/desktop isn't left with repeat disabled."""
+        if self._initialized and self.mlx_ptr is not None:
+            self.mlx.mlx_do_key_autorepeaton(self.mlx_ptr)
 
     def _register_mlx_hooks(self):
         """Register MLX event hooks."""
@@ -328,6 +341,11 @@ class InputSubsystem:
             [self.KEYS["right"], self.KEYS["d"]]
         )
 
+        self.bind_action(
+            "pause",
+            [self.KEYS["p"]]
+        )
+
         from .. import Renderer
 
         self.register_action_callback(
@@ -358,32 +376,45 @@ class InputSubsystem:
             key_name = self.get_key_name(keycode)
 
     def _set_key_state(self, keycode: int, pressed: bool):
-        """Set the state of a key."""
+        """Set the state of a key.
+
+        Every KeyPress we get here is treated as a fresh press, full
+        stop — no "already down" guard. With OS auto-repeat disabled
+        (see init()), X11 physically cannot send a second KeyPress
+        for a key without an intervening KeyRelease, so there's
+        nothing left to de-duplicate. The one case that used to slip
+        through here: if the window loses focus while a key is held
+        (alt-tab, clicking elsewhere), the eventual KeyRelease never
+        reaches us and the key gets stuck HELD in our state — the
+        old guard then silently ate the very next legitimate press,
+        so input only "came back" after an extra press+release cycle
+        happened to clear it. Treating every KeyPress as authoritative
+        fixes that: the next real press just resets the key cleanly.
+        """
         if pressed:
-            if keycode not in self.key_states or self.key_states[keycode] == KeyState.IDLE:
-                self.key_states[keycode] = KeyState.PRESSED
-                self.active_keys.add(keycode)
+            self.key_states[keycode] = KeyState.PRESSED
+            self.active_keys.add(keycode)
 
-                # Check for modifiers
-                if keycode in self.modifier_map:
-                    self.modifiers.add(self.modifier_map[keycode])
+            # Check for modifiers
+            if keycode in self.modifier_map:
+                self.modifiers.add(self.modifier_map[keycode])
 
-                # Record input
-                if self.recording:
-                    self.input_buffer.append(InputEvent(
-                        key=keycode,
-                        modifiers=list(self.modifiers)
-                    ))
-                    if len(self.input_buffer) > self.buffer_size:
-                        self.input_buffer.pop(0)
+            # Record input
+            if self.recording:
+                self.input_buffer.append(InputEvent(
+                    key=keycode,
+                    modifiers=list(self.modifiers)
+                ))
+                if len(self.input_buffer) > self.buffer_size:
+                    self.input_buffer.pop(0)
 
-                # Trigger callbacks
-                if keycode in self.key_press_callbacks:
-                    for callback in self.key_press_callbacks[keycode]:
-                        callback(KeyState.PRESSED, keycode)
+            # Trigger callbacks
+            if keycode in self.key_press_callbacks:
+                for callback in self.key_press_callbacks[keycode]:
+                    callback(KeyState.PRESSED, keycode)
 
-                for callback in self.any_key_callbacks:
-                    callback(keycode, KeyState.PRESSED)
+            for callback in self.any_key_callbacks:
+                callback(keycode, KeyState.PRESSED)
         else:
             if keycode in self.key_states:
                 self.key_states[keycode] = KeyState.RELEASED
