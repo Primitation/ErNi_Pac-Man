@@ -1,6 +1,9 @@
 from enum import Enum, auto
-from typing import Dict, Set, Optional, Callable, Any, List, Tuple
-from dataclasses import dataclass, field
+from typing import Dict, Set, Optional, Callable, List, Tuple
+from dataclasses import dataclass
+import queue
+import threading
+import os
 from .. import Log
 
 
@@ -170,6 +173,11 @@ class InputSubsystem:
 
         # Debug flag
         self._debug_print_keys = False
+        # Threaded input event queue
+        self._event_queue = queue.SimpleQueue()
+        self._input_thread = None
+        self._input_running = False
+        self._state_lock = threading.Lock()
 
     def init(self, renderer):
         """Initialize the input subsystem with the renderer's MLX instance."""
@@ -192,25 +200,135 @@ class InputSubsystem:
         # Set up input handlers
         self._setup_input()
         self._register_mlx_hooks()
+        self.start_input_thread()
 
         self._initialized = True
         self._logger.info("Input subsystem initialized")
 
+    def start_input_thread(self):
+        """Start asynchronous input processing thread."""
+
+        if self._input_running:
+            return
+
+        self._input_running = True
+
+        self._input_thread = threading.Thread(
+            target=self._input_worker,
+            name="InputThread",
+            daemon=True,
+        )
+
+        self._input_thread.start()
+
+        self._logger.info(
+            "Input thread started"
+        )
+
+    def stop_input_thread(self):
+        """Stop input processing thread."""
+
+        self._input_running = False
+
+        if self._input_thread:
+            self._input_thread.join(
+                timeout=1.0
+            )
+
+        self._logger.info(
+            "Input thread stopped"
+        )
+
+    def _input_worker(self):
+        """Background input event processor."""
+
+        try:
+            os.sched_setscheduler(
+                0,
+                os.SCHED_FIFO,
+                os.sched_param(50)
+            )
+
+            self._logger.info(
+                "Input thread priority boosted"
+            )
+
+        except PermissionError:
+            self._logger.debug(
+                "No realtime input priority permission"
+            )
+
+
+        while self._input_running:
+
+            event = self._event_queue.get()
+
+            event_type = event[0]
+
+            if event_type == "key_press":
+                self._set_key_state(
+                    event[1],
+                    True
+                )
+
+            elif event_type == "key_release":
+                self._set_key_state(
+                    event[1],
+                    False
+                )
+
+            elif event_type == "mouse_press":
+                self._handle_mouse_press(
+                    event[1],
+                    event[2],
+                    event[3],
+                    None
+                )
+
+            elif event_type == "mouse_release":
+                self._handle_mouse_release(
+                    event[1],
+                    event[2],
+                    event[3],
+                    None
+                )
+
+            elif event_type == "motion":
+                self._handle_motion(
+                    event[1],
+                    event[2],
+                    None
+                )
+
+            elif event_type == "close":
+                for callback in self.close_callbacks:
+                    callback()
+
     def close(self):
-        """Re-enable OS key auto-repeat. Call on shutdown so the
-        terminal/desktop isn't left with repeat disabled."""
+        self.stop_input_thread()
+
         if self._initialized and self.mlx_ptr is not None:
-            self.mlx.mlx_do_key_autorepeaton(self.mlx_ptr)
+            self.mlx.mlx_do_key_autorepeaton(
+                self.mlx_ptr
+            )
 
     def _register_mlx_hooks(self):
-        """Register MLX event hooks."""
+        """Register MLX event hooks using queued input events."""
 
         # Keep references alive (important for ctypes callbacks)
         self._mlx_callbacks = {}
 
+        # =========================
         # KEY PRESS
+        # =========================
+
         def on_key_press(keycode, param):
-            self._handle_key_press(keycode, param)
+            self._event_queue.put(
+                (
+                    "key_press",
+                    keycode
+                )
+            )
 
         self._mlx_callbacks["key_press"] = on_key_press
 
@@ -222,9 +340,18 @@ class InputSubsystem:
             self
         )
 
+
+        # =========================
         # KEY RELEASE
+        # =========================
+
         def on_key_release(keycode, param):
-            self._handle_key_release(keycode, param)
+            self._event_queue.put(
+                (
+                    "key_release",
+                    keycode
+                )
+            )
 
         self._mlx_callbacks["key_release"] = on_key_release
 
@@ -234,13 +361,19 @@ class InputSubsystem:
             self
         )
 
+
+        # =========================
         # MOUSE PRESS
+        # =========================
+
         def on_mouse_press(button, x, y, param):
-            self._handle_mouse_press(
-                button,
-                x,
-                y,
-                param
+            self._event_queue.put(
+                (
+                    "mouse_press",
+                    button,
+                    x,
+                    y
+                )
             )
 
         self._mlx_callbacks["mouse_press"] = on_mouse_press
@@ -251,13 +384,19 @@ class InputSubsystem:
             self
         )
 
+
+        # =========================
         # MOUSE RELEASE
+        # =========================
+
         def on_mouse_release(button, x, y, param):
-            self._handle_mouse_release(
-                button,
-                x,
-                y,
-                param
+            self._event_queue.put(
+                (
+                    "mouse_release",
+                    button,
+                    x,
+                    y
+                )
             )
 
         self._mlx_callbacks["mouse_release"] = on_mouse_release
@@ -270,12 +409,18 @@ class InputSubsystem:
             self
         )
 
+
+        # =========================
         # MOUSE MOTION
+        # =========================
+
         def on_mouse_motion(x, y, param):
-            self._handle_motion(
-                x,
-                y,
-                param
+            self._event_queue.put(
+                (
+                    "motion",
+                    x,
+                    y
+                )
             )
 
         self._mlx_callbacks["mouse_motion"] = on_mouse_motion
@@ -288,10 +433,18 @@ class InputSubsystem:
             self
         )
 
-        # WINDOW CLOSE (X button)
+
+        # =========================
+        # WINDOW CLOSE
+        # =========================
+
         def on_destroy(param):
-            for callback in self.close_callbacks:
-                callback()
+
+            self._event_queue.put(
+                (
+                    "close",
+                )
+            )
 
         self._mlx_callbacks["destroy"] = on_destroy
 
@@ -391,44 +544,45 @@ class InputSubsystem:
         happened to clear it. Treating every KeyPress as authoritative
         fixes that: the next real press just resets the key cleanly.
         """
-        if pressed:
-            self.key_states[keycode] = KeyState.PRESSED
-            self.active_keys.add(keycode)
+        with self._state_lock:
+            if pressed:
+                self.key_states[keycode] = KeyState.PRESSED
+                self.active_keys.add(keycode)
 
-            # Check for modifiers
-            if keycode in self.modifier_map:
-                self.modifiers.add(self.modifier_map[keycode])
-
-            # Record input
-            if self.recording:
-                self.input_buffer.append(InputEvent(
-                    key=keycode,
-                    modifiers=list(self.modifiers)
-                ))
-                if len(self.input_buffer) > self.buffer_size:
-                    self.input_buffer.pop(0)
-
-            # Trigger callbacks
-            if keycode in self.key_press_callbacks:
-                for callback in self.key_press_callbacks[keycode]:
-                    callback(KeyState.PRESSED, keycode)
-
-            for callback in self.any_key_callbacks:
-                callback(keycode, KeyState.PRESSED)
-        else:
-            if keycode in self.key_states:
-                self.key_states[keycode] = KeyState.RELEASED
-                self.active_keys.discard(keycode)
-
+                # Check for modifiers
                 if keycode in self.modifier_map:
-                    self.modifiers.discard(self.modifier_map[keycode])
+                    self.modifiers.add(self.modifier_map[keycode])
 
-                if keycode in self.key_release_callbacks:
-                    for callback in self.key_release_callbacks[keycode]:
-                        callback(KeyState.RELEASED, keycode)
+                # Record input
+                if self.recording:
+                    self.input_buffer.append(InputEvent(
+                        key=keycode,
+                        modifiers=list(self.modifiers)
+                    ))
+                    if len(self.input_buffer) > self.buffer_size:
+                        self.input_buffer.pop(0)
+
+                # Trigger callbacks
+                if keycode in self.key_press_callbacks:
+                    for callback in self.key_press_callbacks[keycode]:
+                        callback(KeyState.PRESSED, keycode)
 
                 for callback in self.any_key_callbacks:
-                    callback(keycode, KeyState.RELEASED)
+                    callback(keycode, KeyState.PRESSED)
+            else:
+                if keycode in self.key_states:
+                    self.key_states[keycode] = KeyState.RELEASED
+                    self.active_keys.discard(keycode)
+
+                    if keycode in self.modifier_map:
+                        self.modifiers.discard(self.modifier_map[keycode])
+
+                    if keycode in self.key_release_callbacks:
+                        for callback in self.key_release_callbacks[keycode]:
+                            callback(KeyState.RELEASED, keycode)
+
+                    for callback in self.any_key_callbacks:
+                        callback(keycode, KeyState.RELEASED)
 
     def _handle_mouse_press(self, button: int, x: int, y: int, param):
         """Handle mouse button press event from MLX."""
@@ -481,23 +635,80 @@ class InputSubsystem:
 
     def update(self):
         """Call this once per frame to update input states."""
-        self._frame_count += 1
 
-        # Reset pressed/released states
-        for key in list(self.key_states.keys()):
-            if self.key_states[key] == KeyState.PRESSED:
-                self.key_states[key] = KeyState.HELD
-            elif self.key_states[key] == KeyState.RELEASED:
-                self.key_states[key] = KeyState.IDLE
+        with self._state_lock:
+            self._frame_count += 1
 
-        for button in self.mouse_buttons:
-            if self.mouse_buttons[button] == KeyState.PRESSED:
-                self.mouse_buttons[button] = KeyState.HELD
-            elif self.mouse_buttons[button] == KeyState.RELEASED:
-                self.mouse_buttons[button] = KeyState.IDLE
+            # Reset pressed/released states
+            for key in list(self.key_states.keys()):
+                if self.key_states[key] == KeyState.PRESSED:
+                    self.key_states[key] = KeyState.HELD
+                elif self.key_states[key] == KeyState.RELEASED:
+                    self.key_states[key] = KeyState.IDLE
 
-        # Reset mouse wheel
-        self.mouse_wheel = 0
+            for button in self.mouse_buttons:
+                if self.mouse_buttons[button] == KeyState.PRESSED:
+                    self.mouse_buttons[button] = KeyState.HELD
+                elif self.mouse_buttons[button] == KeyState.RELEASED:
+                    self.mouse_buttons[button] = KeyState.IDLE
+
+            # Reset mouse wheel
+            self.mouse_wheel = 0
+
+    def process_events(self):
+        """
+        Process all pending MLX input events.
+
+        Call once per frame before process_actions().
+        """
+
+        while True:
+            try:
+                event = self._event_queue.get_nowait()
+
+            except queue.Empty:
+                break
+
+            event_type = event[0]
+
+            if event_type == "key_press":
+                self._handle_key_press(
+                    event[1],
+                    None
+                )
+
+            elif event_type == "key_release":
+                self._handle_key_release(
+                    event[1],
+                    None
+                )
+
+            elif event_type == "mouse_press":
+                self._handle_mouse_press(
+                    event[1],
+                    event[2],
+                    event[3],
+                    None
+                )
+
+            elif event_type == "mouse_release":
+                self._handle_mouse_release(
+                    event[1],
+                    event[2],
+                    event[3],
+                    None
+                )
+
+            elif event_type == "motion":
+                self._handle_motion(
+                    event[1],
+                    event[2],
+                    None
+                )
+
+            elif event_type == "close":
+                for callback in self.close_callbacks:
+                    callback()
 
     # ===== Query Methods =====
 
