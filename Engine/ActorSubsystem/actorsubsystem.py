@@ -27,7 +27,7 @@ class Event:
             callback(*args, **kwargs)
 
 
-class Actor:
+class AActor:
     """Base class for anything the ActorSubsystem manages.
 
     Every actor carries a position, a size, and a sprite right on
@@ -49,9 +49,11 @@ class Actor:
         self,
         position: Vector2 = None,
         scale: Vector2 = None,
+        static=False,
     ):
 
         self.alive = True
+        self.static = static
 
         self.position = (
             position
@@ -84,7 +86,7 @@ class Actor:
         pass
 
 
-T = TypeVar("T", bound=Actor)
+T = TypeVar("T", bound=AActor)
 
 
 class ActorSubsystem:
@@ -106,7 +108,7 @@ class ActorSubsystem:
         other subsystems — there's no thread to spin up anymore."""
         pass
 
-    def add(self, actor: Actor):
+    def add(self, actor: AActor):
         """Registers the actor and subscribes its update() to the
         tick event. Thread-safe on the registration itself, even
         though ticking happens on the main thread."""
@@ -116,8 +118,11 @@ class ActorSubsystem:
 
         self.tick.subscribe(actor.update)
 
-    def remove(self, actor: Actor):
+    def clear(self):
+        with self._lock:
+            self._actors.clear()
 
+    def remove(self, actor: AActor):
         with self._lock:
             if actor in self._actors:
                 self._actors.remove(actor)
@@ -148,16 +153,61 @@ class ActorSubsystem:
         *args,
         **kwargs
     ) -> T:
-
         actor = actor_class(
             *args,
             **kwargs
         )
 
+        # Find a free spawn position if actor supports get_rect()
+        if hasattr(actor, "get_rect"):
+            x, y, width, height = actor.get_rect()
+
+            existing = [
+                a.get_rect()
+                for a in self.actors
+                if hasattr(a, "get_rect")
+            ]
+
+            spawn_x, spawn_y = self.find_spawn_position(
+                width,
+                height,
+                existing
+            )
+
+            actor.position.x = spawn_x
+            actor.position.y = spawn_y
+
         self.add(actor)
         World.add(actor)
 
         return actor
+
+    def find_spawn_position(self, width, height, existing, max_attempts=30):
+        import random
+        from Engine import Renderer
+        """Rejection-sample a position that doesn't overlap any
+        already-spawned rect, so actors don't start on top of each
+        other. Falls back to the last sampled position (still
+        possibly overlapping) if it can't find a free spot in time —
+        better than spinning forever once the screen gets crowded."""
+
+        for _ in range(max_attempts):
+            x = random.uniform(0, Renderer.width - width)
+            y = random.uniform(0, Renderer.height - height)
+            candidate = (x, y, width, height)
+
+            if not any(self.rects_overlap(candidate, r) for r in existing):
+                return x, y
+
+        return x, y
+
+    def rects_overlap(self, r1, r2):
+        return not (
+            r1[0] + r1[2] <= r2[0] or
+            r2[0] + r2[2] <= r1[0] or
+            r1[1] + r1[3] <= r2[1] or
+            r2[1] + r2[3] <= r1[1]
+        )
 
 
 # Global actor system

@@ -2,7 +2,7 @@ import ctypes
 import numpy as np
 from mlx import Mlx
 from .. import Assets
-from .. import Log
+from .. import Log, log_timing
 
 
 class RendererSubsystem:
@@ -30,6 +30,12 @@ class RendererSubsystem:
         self.buffer_np = None        # numpy view over self.buffer, shape (height, line_size)
         self._buffer_cbuf = None     # cached ctypes buffer for memmove (built once, not per frame)
         self._clear_view = None      # buffer reinterpreted as whole pixels, for one-shot clear()
+
+        self.bake_buffer = None      # baked static-actor background, same layout as self.buffer
+        self.bake_np = None          # numpy view over bake_buffer
+        self._baked = False
+
+        self._scale_cache = {}       # (id(texture), scaled_w, scaled_h) -> resampled numpy array
 
         self._logger = Log.get("renderer")
         self._frame_count = 0
@@ -108,17 +114,14 @@ class RendererSubsystem:
         # Clear with FULLY OPAQUE BLACK
         self.clear(0xFF000000)
 
-    def clear(self, color: int = 0xFF000000):
-        """Clears the framebuffer before drawing the next frame.
-
-        Single vectorized assignment — the buffer is viewed as an array
-        of whole pixels, so this is one C-level fill over the entire
-        framebuffer, not a per-pixel or per-row operation."""
+    def _fill_solid(self, color: int):
+        """One-shot solid color fill — the actual pixel-writing work.
+        Used by clear() when there's no baked background, and by
+        bake() itself to paint the initial background before drawing
+        static actors onto it."""
 
         if self._clear_view is not None:
             pixel_value = color & ((1 << (self.pixel_size * 8)) - 1)
-            # Only fill the actual pixel columns (self.width), leaving any
-            # row padding between pixel data and line_size untouched.
             self._clear_view[:, :self.width] = pixel_value
             return
 
@@ -133,6 +136,78 @@ class RendererSubsystem:
                 [row, np.zeros(self.line_size - len(row), dtype=np.uint8)]
             )
         self.buffer_np[:, :] = row
+
+    def clear(self, color: int = 0xFF000000):
+        """Clears the framebuffer before drawing the next frame.
+
+        If bake() has been called, this copies the baked static-actor
+        background in one vectorized operation instead of filling a
+        solid color — `color` is ignored in that case, since the
+        baked image already has its own background baked in.
+
+        Without a bake, falls back to a single vectorized whole-pixel
+        fill (see _fill_solid)."""
+
+        if self._baked:
+            self.buffer_np[:, :] = self.bake_np
+            return
+
+        self._fill_solid(color)
+
+    def bake(self, world, background_color: int = 0xFF000000):
+        """Pre-renders every static actor once into an internal
+        background buffer. Call this after all static actors have
+        been spawned — typically right before entering the main loop.
+
+        From then on, clear() copies this baked image in a single
+        buffer copy instead of re-blitting every static actor's
+        sprite every single frame. render() also skips static actors
+        in its per-frame draw loop, since they're already part of the
+        baked background.
+
+        An actor counts as static if `getattr(actor, "static", False)`
+        is True — add a `static` attribute/flag to your Actor class
+        (or subclasses) to opt in.
+
+        Call bake() again (e.g. after spawning/removing static actors)
+        to rebuild the background; call unbake() to go back to a
+        plain solid-color clear()."""
+
+        # Build directly into the main buffer as scratch — bypass the
+        # baked shortcut in clear() while we're constructing the bake.
+        self._baked = False
+        self._fill_solid(background_color)
+
+        static_actors = [a for a in world if getattr(a, "static", False)]
+
+        for actor in static_actors:
+            sprite = actor.sprite
+            if sprite is None:
+                continue
+            try:
+                self.draw_sprite(sprite, actor.position, actor.scale)
+            except Exception:
+                self._logger.exception(f"Failed to bake actor {actor!r}")
+
+        if self.bake_buffer is None:
+            self.bake_buffer = bytearray(self.buffer_size)
+            self.bake_np = np.frombuffer(self.bake_buffer, dtype=np.uint8).reshape(
+                self.height, self.line_size
+            )
+
+        self.bake_np[:, :] = self.buffer_np
+        self._baked = True
+
+        self._logger.info(
+            f"Baked {len(static_actors)} static actor(s) into background."
+        )
+
+    def unbake(self):
+        """Reverts to a plain solid-color clear() instead of the
+        baked background. The baked buffer itself is kept around
+        (not freed) so a later bake() call is cheap to redo."""
+
+        self._baked = False
 
     def put_pixel(self, x: int, y: int, color: int):
         """Writes a pixel directly into the framebuffer."""
@@ -205,13 +280,21 @@ class RendererSubsystem:
         if scaled_width is None:
             region = tex
         else:
-            # Nearest-neighbor resample, computed as index arrays instead
-            # of a per-pixel Python loop.
-            src_ys = (np.arange(scaled_height) * texture.height // scaled_height)
-            src_xs = (np.arange(scaled_width) * texture.width // scaled_width)
-            src_ys = src_ys.clip(0, texture.height - 1)
-            src_xs = src_xs.clip(0, texture.width - 1)
-            region = tex[np.ix_(src_ys, src_xs)]
+            # Same texture drawn at the same target size every frame
+            # (the overwhelmingly common case — e.g. an actor with a
+            # fixed scale) reuses the resampled array instead of
+            # re-gathering it every call. Only actually re-resamples
+            # the first time a given (texture, size) combo is seen.
+            cache_key = (id(texture), scaled_width, scaled_height)
+            region = self._scale_cache.get(cache_key)
+
+            if region is None:
+                src_ys = (np.arange(scaled_height) * texture.height // scaled_height)
+                src_xs = (np.arange(scaled_width) * texture.width // scaled_width)
+                src_ys = src_ys.clip(0, texture.height - 1)
+                src_xs = src_xs.clip(0, texture.width - 1)
+                region = tex[np.ix_(src_ys, src_xs)]
+                self._scale_cache[cache_key] = region
 
         src_h, src_w = region.shape[0], region.shape[1]
 
@@ -278,17 +361,25 @@ class RendererSubsystem:
             # No alpha channel — straight copy.
             dest_view[:, :, :] = region[:, :, :self.pixel_size]
 
+    @log_timing()
     def render(self, world):
         """Render one frame."""
 
         if self.win_ptr is None:
             raise RuntimeError("RendererSubsystem.render() called before .init().")
 
-        # Clear with FULLY OPAQUE BLACK
+        # Clear with FULLY OPAQUE BLACK — or, if bake() has been called,
+        # copies the baked static-actor background instead (color is
+        # ignored in that case).
         self.clear(0xFFAAAAAA)
 
-        # Draw all actors in order (later actors will overwrite earlier ones)
+        # Draw all actors in order (later actors will overwrite earlier
+        # ones). Static actors are skipped once baked — they're already
+        # part of the background clear() just laid down.
         for actor in world:
+            if self._baked and getattr(actor, "static", False):
+                continue
+
             sprite = actor.sprite
             if sprite is None:
                 continue
@@ -343,6 +434,16 @@ class RendererSubsystem:
         if self.win_ptr is not None:
             self.mlx.mlx_destroy_window(self.mlx_ptr, self.win_ptr)
             self.win_ptr = None
+
+    def close_request(self):
+        """Request the MLX loop to exit."""
+
+        self._logger.info("Quit requested.")
+
+        if self.mlx_ptr is not None:
+            self.mlx.mlx_loop_exit(
+                self.mlx_ptr
+            )
 
 
 # Global renderer system

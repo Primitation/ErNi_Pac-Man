@@ -1,11 +1,12 @@
 from .collider import CollisionManager, Collider
-
+from .. import log_timing, Log
 
 class CollisionSubsystem:
 
     def __init__(self, cell_size=128, max_correction_per_frame=64.0):
 
         self._manager = CollisionManager(cell_size, max_correction_per_frame)
+        self._logger = Log.get("collision")
 
     def init(self, width: int, height: int):
         """Call once at startup (e.g. right alongside Renderer.init())
@@ -57,7 +58,8 @@ class CollisionSubsystem:
     def unregister(self, collider: Collider):
 
         self._manager.unregister(collider)
-
+    
+    @log_timing()
     def update(self):
         """Call once per frame. Fires on_begin_overlap /
         on_end_overlap on affected colliders."""
