@@ -1,10 +1,12 @@
 import threading
-from typing import TypeVar, Type
+from functools import wraps
+from typing import TypeVar, Type, Callable
 
 from .. import Log
 from .. import Assets
 from .. import Vector2
 from .. import World
+from .. import SpriteSheetKey, Animation
 
 
 class Event:
@@ -68,22 +70,135 @@ class AActor:
         )
 
         self._sprite_path = None
+
+        # Sprite-sheet animation state — see set_animation()
+        self._animation_key = None
+        self._animation = None
+        self._animation_fps = 10.0
+        self._animation_loop = True
+        self._animation_time = 0.0
+        self._animation_on_complete = None
+        self._animation_complete_fired = False
+
         self.logger = Log.get(self.__class__.__name__)
 
         Actors.add(self)
 
     @property
     def sprite(self):
+        if self._animation_key is not None:
+            if self._animation is None:
+                frames = Assets.get(self._animation_key)
+                if frames is None:
+                    return None
+                self._animation = Animation(
+                    frames,
+                    fps=self._animation_fps,
+                    loop=self._animation_loop,
+                )
+            return self._animation.frame_at(self._animation_time)
+
         if self._sprite_path is None:
             return None
         return Assets.get(self._sprite_path)
 
     def set_sprite(self, path: str):
+        self._animation_key = None
+        self._animation = None
         self._sprite_path = path
         Assets.queue(path)
 
+    def set_animation(
+        self,
+        path: str,
+        frame_width: int,
+        frame_height: int,
+        frame_count: int = None,
+        columns: int = None,
+        start_frame: int = 0,
+        fps: float = 10.0,
+        loop: bool = True,
+        on_complete=None,
+    ):
+        """Switch this actor to a sprite-sheet animation — walking,
+        spawning, dying, whatever. Frames are sliced once per unique
+        (path, frame_width, frame_height, frame_count, columns,
+        start_frame) combo and shared across every actor using the
+        same sheet + slicing, same caching model as set_sprite().
+
+        start_frame lets several animations (e.g. walk vs. death) or
+        several characters (e.g. each ghost color) share one sheet —
+        it's the row-major index of the first frame to slice, so a
+        death animation starting right after 4 walk frames would use
+        start_frame=4.
+
+        loop=False plays through once and holds on the last frame —
+        use on_complete for a one-shot spawn/death animation to fire
+        a callback (e.g. switch to the walk animation, or
+        self.destroy()) the moment it finishes.
+        """
+        self._sprite_path = None
+
+        self._animation_key = SpriteSheetKey(
+            path, frame_width, frame_height, frame_count, columns, start_frame
+        )
+        self._animation = None
+        self._animation_fps = fps
+        self._animation_loop = loop
+        self._animation_time = 0.0
+        self._animation_on_complete = on_complete
+        self._animation_complete_fired = False
+
+        Assets.queue(self._animation_key)
+
+    @property
+    def rotation(self):
+        """Rotation in degrees around the sprite's center."""
+        return getattr(self, '_rotation', 0.0)
+
+    @rotation.setter
+    def rotation(self, value):
+        self._rotation = float(value)
+
+    # Also add a pivot point if you want off-center rotation
+    @property
+    def pivot(self):
+        """Pivot point for rotation (as fraction of sprite size).
+        Default: (0.5, 0.5) = center."""
+        return getattr(self, '_pivot', (0.5, 0.5))
+
+    @pivot.setter
+    def pivot(self, value):
+        self._pivot = value
+
+    def _tick(self, dt):
+        if self._animation_key is not None:
+            self._animation_time += dt
+
+            if (
+                self._animation is not None
+                and not self._animation_complete_fired
+                and self._animation.finished(self._animation_time)
+            ):
+                self._animation_complete_fired = True
+
+                self.logger.info(
+                    f"Animation complete on {self.__class__.__name__}"
+                )
+
+                if self._animation_on_complete:
+                    self.logger.info(
+                        "Calling animation on_complete callback"
+                    )
+                    self._animation_on_complete()
+
+        self.update(dt)
+
     def update(self, dt):
         pass
+
+    def destroy(self):
+        self.alive = False
 
 
 T = TypeVar("T", bound=AActor)
@@ -119,7 +234,7 @@ class ActorSubsystem:
         with self._lock:
             self._actors.append(actor)
 
-        self.tick.subscribe(actor.update)
+        self.tick.subscribe(actor._tick)
 
     def clear(self):
         with self._lock:
@@ -129,8 +244,9 @@ class ActorSubsystem:
         with self._lock:
             if actor in self._actors:
                 self._actors.remove(actor)
+                World.remove(actor)
 
-        self.tick.unsubscribe(actor.update)
+        self.tick.unsubscribe(actor._tick)
 
     def pause(self):
         """Freeze every actor's update() until resume()/toggle_pause()."""
@@ -176,13 +292,16 @@ class ActorSubsystem:
         *args,
         **kwargs
     ) -> T:
+
+        random_spawn = kwargs.pop("random_spawn", False)
+
         actor = actor_class(
             *args,
             **kwargs
         )
 
-        # Find a free spawn position if actor supports get_rect()
-        if hasattr(actor, "get_rect"):
+        if random_spawn and hasattr(actor, "get_rect"):
+
             x, y, width, height = actor.get_rect()
 
             existing = [
@@ -200,9 +319,6 @@ class ActorSubsystem:
             actor.position.x = spawn_x
             actor.position.y = spawn_y
 
-        # AActor.__init__ already called Actors.add(self) above, when
-        # `actor_class(*args, **kwargs)` ran — registering again here
-        # would double-subscribe update() and duplicate it in _actors.
         World.add(actor)
 
         return actor
@@ -233,6 +349,70 @@ class ActorSubsystem:
             r1[1] + r1[3] <= r2[1] or
             r2[1] + r2[3] <= r1[1]
         )
+
+
+def on_end_of_anim(callback: Callable) -> Callable:
+    """
+    Decorator that automatically attaches a callback to the next
+    set_animation() call made inside the decorated function.
+    """
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+
+            logger = Log.get(self.__class__.__name__)
+
+            original_set_animation = self.set_animation
+
+            if hasattr(callback, "__self__"):
+                cb = callback
+            else:
+                cb = lambda: callback(self)
+
+            def intercepted_set_animation(*args, **kwargs):
+
+                logger.debug(
+                    f"Intercepted set_animation for {self.__class__.__name__}"
+                )
+
+                existing = kwargs.get("on_complete")
+
+                def chained_callback():
+                    logger.info(
+                        f"Animation complete callback fired on "
+                        f"{self.__class__.__name__}"
+                    )
+
+                    if existing:
+                        logger.debug("Calling existing animation callback")
+                        existing()
+
+                    logger.debug("Calling decorator callback")
+                    cb()
+
+                kwargs["on_complete"] = chained_callback
+
+                logger.debug(
+                    "Injected on_complete callback into animation"
+                )
+
+                return original_set_animation(*args, **kwargs)
+
+            self.set_animation = intercepted_set_animation
+
+            try:
+                return func(self, *args, **kwargs)
+
+            finally:
+                self.set_animation = original_set_animation
+                logger.debug(
+                    "Restored original set_animation"
+                )
+
+        return wrapper
+
+    return decorator
 
 
 # Global actor system

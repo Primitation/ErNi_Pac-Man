@@ -2,6 +2,8 @@ import threading
 import queue
 import traceback
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import List, Optional
 
 from .. import Log
 
@@ -107,7 +109,7 @@ class TextureLoader(AssetLoader):
     needs a separate decoder before it can become an mlx image."""
 
     def can_load(self, path):
-        return path.lower().endswith((".png", ".xpm"))
+        return isinstance(path, str) and path.lower().endswith((".png", ".xpm"))
 
     def load(self, path):
         """Nothing to decode off-thread: mlx does its own decoding
@@ -203,6 +205,194 @@ class TextureLoader(AssetLoader):
             line_size,
             endian,
         )
+
+
+@dataclass(frozen=True)
+class SpriteSheetKey:
+    """Identifies one way of slicing a sheet into frames — the cache
+    key used for sprite-sheet assets. Frozen/hashable so it drops
+    straight into AssetSubsystem/AssetManager's existing path-keyed
+    cache/pending/loading dicts and sets without any changes to them:
+    wherever those expect a `path: str`, a SpriteSheetKey works too.
+
+    Two AActor.set_animation() calls with identical fields share the
+    same sliced frames — same "path is the cache key" rule TextureLoader
+    already follows, just extended with the slicing parameters.
+    """
+    path: str
+    frame_width: int
+    frame_height: int
+    frame_count: Optional[int] = None   # None = every frame in the sheet
+    columns: Optional[int] = None       # None = derive from sheet width
+    start_frame: int = 0                # index (row-major) of the first frame
+                                         # to slice — lets several animations
+                                         # (walk/death) or characters (ghosts)
+                                         # share one sheet at different offsets
+
+
+class Animation:
+    """Plays back a list of frame Textures at a fixed rate.
+
+    Frames are shared, cached data (see SpriteSheetLoader) — Animation
+    itself is cheap and actor-owned, so each actor can play the same
+    frame list at its own speed/loop setting without re-slicing
+    anything.
+    """
+
+    def __init__(self, frames: List[Texture], fps: float = 10.0, loop: bool = True):
+        self.frames = frames
+        self.fps = fps
+        self.loop = loop
+        self.frame_duration = (1000.0 / fps) if fps > 0 else 0.0
+
+    def frame_at(self, elapsed_ms: float) -> Optional[Texture]:
+        if not self.frames:
+            return None
+
+        if self.frame_duration <= 0:
+            return self.frames[0]
+
+        index = int(elapsed_ms // self.frame_duration)
+
+        if self.loop:
+            index %= len(self.frames)
+        else:
+            index = min(index, len(self.frames) - 1)
+
+        return self.frames[index]
+
+    def finished(self, elapsed_ms: float) -> bool:
+        """Only meaningful for non-looping animations (spawn/death
+        one-shots) — always False for a looping one."""
+        if self.loop or not self.frames:
+            return False
+        return elapsed_ms >= self.frame_duration * len(self.frames)
+
+
+class SpriteSheetLoader(AssetLoader):
+    """Slices one sprite-sheet image into a list of individual frame
+    Textures (left-to-right, top-to-bottom), each with its own cropped
+    copy of the pixel buffer. Because every frame ends up as a plain,
+    ordinary Texture, the Renderer draws animated sprites exactly like
+    any other sprite — nothing about rendering needs to change to
+    support this.
+    """
+
+    def can_load(self, key):
+        return isinstance(key, SpriteSheetKey)
+
+    def load(self, key: SpriteSheetKey):
+        """Nothing to decode off-thread — same reasoning as
+        TextureLoader: the mlx decode call itself has to happen on
+        the main thread, so this just passes the key through."""
+        return key
+
+    def finalize(self, key: SpriteSheetKey) -> List[Texture]:
+        if not Context.ready:
+            raise RuntimeError(
+                "MLX asset loading used before Context.bind(mlx, mlx_ptr) "
+                "was called — call Assets.init(mlx, mlx_ptr) right after "
+                "mlx_init()."
+            )
+
+        path = key.path
+
+        if path.lower().endswith(".xpm"):
+            img, sheet_w, sheet_h = Context.mlx.mlx_xpm_file_to_image(
+                Context.mlx_ptr, path
+            )
+        else:
+            img, sheet_w, sheet_h = Context.mlx.mlx_png_file_to_image(
+                Context.mlx_ptr, path
+            )
+
+        if img is None:
+            raise ValueError(f"mlx failed to load sprite sheet: {path}")
+
+        (
+            sheet_data,
+            bpp,
+            sheet_line_size,
+            endian,
+        ) = Context.mlx.mlx_get_data_addr(img)
+
+        bytes_per_pixel = bpp // 8
+
+        columns = key.columns or max(1, sheet_w // key.frame_width)
+        rows = max(1, sheet_h // key.frame_height)
+
+        available = columns * rows
+        start = min(max(key.start_frame, 0), available)
+        remaining = available - start
+
+        frame_count = key.frame_count if key.frame_count is not None else remaining
+        frame_count = min(frame_count, remaining)
+
+        frame_line_size = key.frame_width * bytes_per_pixel
+        frames = []
+
+        for i in range(frame_count):
+            idx = start + i
+            col = idx % columns
+            row = idx // columns
+
+            src_x = col * key.frame_width
+            src_y = row * key.frame_height
+
+            frame_data = bytearray(frame_line_size * key.frame_height)
+
+            for y in range(key.frame_height):
+                src_offset = (
+                    (src_y + y) * sheet_line_size
+                    + src_x * bytes_per_pixel
+                )
+                dst_offset = y * frame_line_size
+
+                frame_data[dst_offset:dst_offset + frame_line_size] = (
+                    sheet_data[src_offset:src_offset + frame_line_size]
+                )
+
+            frames.append(Texture(
+                img=None,  # only the source sheet owns an mlx image —
+                           # each sliced frame is pixel-data-only, same
+                           # as how the Renderer already reads .data
+                width=key.frame_width,
+                height=key.frame_height,
+                data=frame_data,
+                bpp=bpp,
+                line_size=frame_line_size,
+                endian=endian,
+            ))
+
+        return frames
+
+    def placeholder(self):
+        """A single-frame magenta/black placeholder list, so a bad
+        sheet path degrades to the same visible "missing" cue a bad
+        static sprite path gets, instead of crashing or leaving the
+        actor stuck with no sprite at all."""
+        if not Context.ready:
+            return None
+
+        size = 64
+        tile = 8
+        magenta = 0xFFFF00FF
+        black = 0xFF000000
+
+        img = Context.mlx.mlx_new_image(Context.mlx_ptr, size, size)
+        if img is None:
+            return None
+
+        data, bpp, size_line, endian = Context.mlx.mlx_get_data_addr(img)
+        bytes_per_pixel = bpp // 8
+
+        for y in range(size):
+            for x in range(size):
+                color = magenta if (x // tile + y // tile) % 2 == 0 else black
+                offset = y * size_line + x * bytes_per_pixel
+                data[offset:offset + 4] = color.to_bytes(4, "little")
+
+        return [Texture(None, size, size, data, bpp, size_line, endian)]
 
 
 # --------------------------------------------------------------------

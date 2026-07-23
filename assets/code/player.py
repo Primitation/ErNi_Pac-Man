@@ -1,4 +1,5 @@
 from .actor import Actor
+from Engine import on_end_of_anim
 from Engine import Vector2, Input
 
 
@@ -10,7 +11,6 @@ class Player(Actor):
         position: Vector2,
         velocity: Vector2,
         scale: Vector2,
-        sprite_path: str,
         tag: str = "Actor",
         speed: float = 200.0,
     ):
@@ -18,12 +18,26 @@ class Player(Actor):
             position=position,
             scale=scale,
             velocity=velocity,
-            sprite_path=sprite_path,
             tag=tag,
         )
 
         # Units per second applied along whichever direction(s) are held.
         self.speed = speed
+        self.set_animation(
+            "assets/texture/spritesheets/pacman_hd/PacManAssets-PacMan.png",
+            frame_width=32, frame_height=32,
+            frame_count=4, fps=4, loop=True, start_frame=0
+        )
+
+    @on_end_of_anim(lambda self: self.destroy())
+    def dead(self):
+        self.set_animation(
+            "assets/texture/spritesheets/pacman_hd/PacManAssets-PacMan.png",
+            frame_width=32, frame_height=32,
+            frame_count=8, fps=4, loop=False, start_frame=4
+        )
+
+    Input.bind_action("dead", [Input.KEYS["t"]])
 
     def update(self, dt):
         """Turn held movement actions into velocity, then move as usual."""
@@ -33,12 +47,18 @@ class Player(Actor):
 
         if Input.is_action_held("left"):
             move_x -= 1.0
+            self.rotation = 180
         if Input.is_action_held("right"):
             move_x += 1.0
+            self.rotation = 0
         if Input.is_action_held("up"):
             move_y -= 1.0
+            self.rotation = 270
         if Input.is_action_held("down"):
             move_y += 1.0
+            self.rotation = 90
+        if Input.is_action_triggered("dead"):
+            self.dead()
 
         # Normalize so diagonal movement isn't faster than cardinal movement.
         length = (move_x ** 2 + move_y ** 2) ** 0.5
@@ -50,3 +70,7 @@ class Player(Actor):
 
         # Actor.update() applies self.velocity * (dt / 1000) to position.
         super().update(dt)
+
+    def destroy(self):
+        self.logger.debug("destroy")
+        super().destroy()
