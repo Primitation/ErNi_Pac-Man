@@ -14,7 +14,8 @@ class LevelGenerator:
     Do not use random.random() in another thread while generating.
     Do not use multiples LevelGenerator.generate() at the same time.
     """
-    def generate(self, level_options: LevelOptions) -> LevelStructure:
+    @staticmethod
+    def generate(level_options: LevelOptions) -> LevelStructure:
         """Generates a level from options.
 
         Args:
