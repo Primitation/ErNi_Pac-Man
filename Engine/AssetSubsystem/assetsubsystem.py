@@ -1,4 +1,4 @@
-from .loader import AssetManager, TextureLoader, Context
+from .loader import AssetManager, TextureLoader, SpriteSheetLoader, Context
 
 
 class AssetSubsystem:
@@ -17,6 +17,7 @@ class AssetSubsystem:
         self._manager = AssetManager()
 
         self._manager.register(TextureLoader())
+        self._manager.register(SpriteSheetLoader())
 
         self._cache = {}
         self._loading = set()

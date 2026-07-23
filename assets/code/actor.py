@@ -10,7 +10,6 @@ class Actor(AActor):
         position: Vector2,
         velocity: Vector2,
         scale: Vector2,
-        sprite_path: str,
         tag: str = "Actor",
 
     ):
@@ -20,7 +19,6 @@ class Actor(AActor):
         )
 
         self.velocity = velocity
-        self.set_sprite(sprite_path)
 
         # The "resting" scale to animate around. Kept separate from
         # self.scale (which the renderer actually reads) so the punch
@@ -93,6 +91,7 @@ class Actor(AActor):
         """Clean up this bouncer."""
         Collision.unregister(self._collider)
         self.alive = False
+        super().destroy()
 
     def set_collider(self, _collider: Collider):
         if self._collider:

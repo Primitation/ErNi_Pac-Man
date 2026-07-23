@@ -1,6 +1,7 @@
 import ctypes
 import numpy as np
 from mlx import Mlx
+import math
 from .. import Assets
 from .. import Log, log_timing
 
@@ -185,7 +186,9 @@ class RendererSubsystem:
             if sprite is None:
                 continue
             try:
-                self.draw_sprite(sprite, actor.position, actor.scale)
+                rotation = getattr(actor, 'rotation', 0.0)
+                pivot = getattr(actor, 'pivot', (0.5, 0.5))
+                self.draw_sprite(sprite, actor.position, actor.scale, rotation, pivot)
             except Exception:
                 self._logger.exception(f"Failed to bake actor {actor!r}")
 
@@ -220,8 +223,8 @@ class RendererSubsystem:
             color.to_bytes(self.pixel_size, "little"), dtype=np.uint8
         )
 
-    def draw_sprite(self, texture, position, scale):
-        """Draws a texture into the framebuffer with scaling support."""
+    def draw_sprite(self, texture, position, scale, rotation=0.0, pivot=(0.5, 0.5)):
+        """Draws a texture into the framebuffer with scaling and rotation support."""
 
         if hasattr(scale, 'x') and hasattr(scale, 'y'):
             scale_x = scale.x
@@ -233,17 +236,20 @@ class RendererSubsystem:
         dest_x = int(position.x)
         dest_y = int(position.y)
 
-        if scale_x == 1.0 and scale_y == 1.0:
-            self._blit(texture, dest_x, dest_y)
-            return
-
         scaled_width = max(1, int(texture.width * scale_x))
         scaled_height = max(1, int(texture.height * scale_y))
 
         if scaled_width <= 0 or scaled_height <= 0:
             return
 
-        self._blit(texture, dest_x, dest_y, scaled_width, scaled_height)
+        # Use rotation if specified (with small epsilon to avoid unnecessary work)
+        if abs(rotation) > 0.001:
+            self._blit_rotated(texture, dest_x, dest_y, rotation,
+                            pivot[0], pivot[1], scaled_width, scaled_height)
+        elif scale_x == 1.0 and scale_y == 1.0:
+            self._blit(texture, dest_x, dest_y)
+        else:
+            self._blit(texture, dest_x, dest_y, scaled_width, scaled_height)
 
     @staticmethod
     def _get_texture_array(texture):
@@ -361,6 +367,109 @@ class RendererSubsystem:
             # No alpha channel — straight copy.
             dest_view[:, :, :] = region[:, :, :self.pixel_size]
 
+    def _blit_rotated(self, texture, dest_x, dest_y, angle_degrees,
+                      pivot_x=0.5, pivot_y=0.5, scaled_width=None, scaled_height=None):
+        """Vectorized blit with rotation support using nearest-neighbor rotation."""
+
+        tex = self._get_texture_array(texture)
+        src_h, src_w = tex.shape[0], tex.shape[1]
+
+        # Determine target size
+        if scaled_width is None:
+            scaled_width = src_w
+        if scaled_height is None:
+            scaled_height = src_h
+
+        # Pre-compute cos/sin once
+        angle_rad = math.radians(angle_degrees)
+        cos_a = math.cos(angle_rad)
+        sin_a = math.sin(angle_rad)
+
+        # Create output grid
+        y_coords, x_coords = np.mgrid[0:scaled_height, 0:scaled_width]
+
+        # Translate to pivot space (center of rotation)
+        pivot_x = pivot_x * scaled_width
+        pivot_y = pivot_y * scaled_height
+
+        # Rotate coordinates around pivot
+        x_rel = x_coords - pivot_x
+        y_rel = y_coords - pivot_y
+
+        src_x = (x_rel * cos_a + y_rel * sin_a + pivot_x) * (src_w / scaled_width)
+        src_y = (-x_rel * sin_a + y_rel * cos_a + pivot_y) * (src_h / scaled_height)
+
+        # Clip to texture bounds
+        src_x = np.clip(src_x, 0, src_w - 1).astype(np.int32)
+        src_y = np.clip(src_y, 0, src_h - 1).astype(np.int32)
+
+        # Sample the texture
+        region = tex[src_y, src_x]
+
+        # Now blit this region like in _blit
+        return self._blit_region(region, dest_x, dest_y,
+                                scaled_width, scaled_height, texture.bytes_per_pixel)
+
+    def _blit_region(self, region, dest_x, dest_y, region_w, region_h, bpp):
+        """Internal method to blit a pre-processed region."""
+        # Similar to the clipping/alpha blending code from _blit
+        clip_x0, clip_y0 = 0, 0
+        clip_x1, clip_y1 = region_w, region_h
+
+        if dest_x < 0:
+            clip_x0 = -dest_x
+            dest_x = 0
+        if dest_y < 0:
+            clip_y0 = -dest_y
+            dest_y = 0
+        if dest_x + (clip_x1 - clip_x0) > self.width:
+            clip_x1 = clip_x0 + (self.width - dest_x)
+        if dest_y + (clip_y1 - clip_y0) > self.height:
+            clip_y1 = clip_y0 + (self.height - dest_y)
+
+        if clip_x1 <= clip_x0 or clip_y1 <= clip_y0:
+            return
+
+        region = region[clip_y0:clip_y1, clip_x0:clip_x1]
+        dh, dw = region.shape[0], region.shape[1]
+
+        dest_view = self.buffer_np[
+            dest_y:dest_y + dh,
+            dest_x * self.pixel_size: (dest_x + dw) * self.pixel_size,
+        ].reshape(dh, dw, self.pixel_size)
+
+        # Alpha blending (same as _blit)
+        if bpp == 4 and self.pixel_size == 4:
+            alpha = region[:, :, 3]
+
+            opaque_mask = alpha == 255
+            transparent_mask = alpha == 0
+            fully_opaque = opaque_mask.all()
+            fully_transparent = transparent_mask.all()
+
+            if fully_transparent:
+                return
+            if fully_opaque:
+                dest_view[:, :, :] = region
+                return
+
+            blend_mask = ~(opaque_mask | transparent_mask)
+            if not blend_mask.any():
+                dest_view[opaque_mask] = region[opaque_mask]
+                return
+
+            a = alpha.astype(np.uint16)[:, :, None]
+            blended = (
+                region[:, :, :4].astype(np.uint16) * a
+                + dest_view.astype(np.uint16) * (255 - a)
+            ) // 255
+            blended[:, :, 3] = 255
+
+            dest_view[~transparent_mask] = blended[~transparent_mask].astype(np.uint8)
+            dest_view[opaque_mask] = region[opaque_mask]
+        else:
+            dest_view[:, :, :] = region[:, :, :self.pixel_size]
+
     @log_timing()
     def render(self, world):
         """Render one frame."""
@@ -385,10 +494,16 @@ class RendererSubsystem:
                 continue
 
             try:
+                # Get rotation and pivot from actor if available
+                rotation = getattr(actor, 'rotation', 0.0)
+                pivot = getattr(actor, 'pivot', (0.5, 0.5))
+
                 self.draw_sprite(
                     sprite,
                     actor.position,
                     actor.scale,
+                    rotation,
+                    pivot
                 )
             except Exception:
                 self._logger.exception(f"Failed to draw actor {actor!r}")

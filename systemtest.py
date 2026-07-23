@@ -36,10 +36,9 @@ def main():
 
     Actors.spawn(
         Player,
-        position=Vector2(0, 0),      # overwritten by find_spawn_position() if get_rect() works
+        position=Vector2(150, 150),
         velocity=Vector2(0, 0),
-        scale=Vector2(0.25, 0.25),
-        sprite_path="assets/texture/pacman.png",
+        scale=Vector2(2, 2),
     )
 
     def on_pause():
@@ -84,15 +83,21 @@ def main():
             fps_frames = 0
             fps_timer -= 1000
 
-        Assets.update()
+        Input.process_events()
 
         Input.process_actions()
-        Input.update()
+
+        Assets.update()
 
         Actors.update(dt)
         if not Actors.paused:
             Collision.update()
         Renderer.render(World)
+
+        # Runs last: downgrades PRESSED -> HELD and RELEASED -> IDLE only
+        # after everything this frame (process_actions, actor updates,
+        # collision, render) has had a chance to see the fresh state.
+        Input.update()
 
     Renderer.hook_loop(frame)
 
