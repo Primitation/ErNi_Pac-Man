@@ -6,7 +6,7 @@ from .level_structure import LevelStructure
 from .level_options import LevelOptions
 from .maze_analyzer import MazeAnalyzer
 from Engine import Vector2
-from mazegen import MazeGenerator
+from mazegenerator import MazeGenerator
 
 
 class LevelGenerator:
@@ -39,12 +39,13 @@ class LevelGenerator:
         try:
             start = (0, 0)  # TODO pick good start
             end = (0, 1)  # TODO pick good close s, e (faster useless path)
-            maze = MazeGenerator(
+            maze_generated = MazeGenerator(
                 size=(level_options.width, level_options.height),
                 perfect=False,
                 entry_cell=start,
                 exit_cell=end,
                 seed=level_options.seed)
+            maze = maze_generated.maze
         except Exception as exception:
             # TODO what to do if mazegenerator fail ?
             raise ValueError(f"LevelGenerator: error from maze generator:"
@@ -64,11 +65,13 @@ class LevelGenerator:
 
         super_pacgums = [Vector2(width, height) for width, height in corners]
 
-        open_cells: List[Vector2] = MazeAnalyzer.get_open_cells(
+        open_cells: List[Vector2] = MazeAnalyzer.extract_open_cells(
              maze=maze,
-             ignore_cells=set([pacman] + super_pacgums))
+             ignore_cells=[pacman] + super_pacgums)
         random.shuffle(open_cells)
-        pacgums = open_cells[:min(len(open_cells), level_options.gums)]
+        pacgums = open_cells[:min(len(open_cells), level_options.pac_gum_count)]
 
-        return LevelStructure(maze=maze, pacman=pacman, ghosts=ghosts,
+        return LevelStructure(width=level_options.width,
+                              height=level_options.height,
+                              maze=maze, pacman=pacman, ghosts=ghosts,
                               super_pacgums=super_pacgums, pacgums=pacgums)

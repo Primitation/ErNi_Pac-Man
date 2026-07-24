@@ -9,7 +9,7 @@ class MazeAnalyzer:
     """
     @staticmethod
     def extract_open_cells(maze: List[List[int]],
-                           ignore_cells: List[Vector2] = set()
+                           ignore_cells: List[Vector2] = []
                            ) -> List[Vector2]:
         """Extract cells with at least a open cell.
 
