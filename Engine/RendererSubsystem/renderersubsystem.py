@@ -115,6 +115,16 @@ class RendererSubsystem:
         # Clear with FULLY OPAQUE BLACK
         self.clear(0xFF000000)
 
+    def _get_component_position(self, component):
+        """Get the world position of a component (actor position + local offset)."""
+        if hasattr(component, 'get_world_position'):
+            return component.get_world_position()
+        # Fallback for components without local offset support
+        actor = getattr(component, 'actor', None)
+        if actor is not None:
+            return (actor.position.x, actor.position.y)
+        return (0.0, 0.0)
+
     def _sprite_for(self, actor):
         """Find the actor's current sprite by checking its
         components. Actors no longer carry a sprite directly —
@@ -136,7 +146,7 @@ class RendererSubsystem:
 
         for component in components:
             if hasattr(component, "sprite"):
-                return component.sprite
+                return component
 
         return None
 
@@ -207,13 +217,19 @@ class RendererSubsystem:
         static_actors = [a for a in world if getattr(a, "static", False)]
 
         for actor in static_actors:
-            sprite = self._sprite_for(actor)
+            component = self._sprite_for(actor)
+            if component is None:
+                continue
+            sprite = getattr(component, 'sprite', None)
             if sprite is None:
                 continue
             try:
                 rotation = getattr(actor, 'rotation', 0.0)
                 pivot = getattr(actor, 'pivot', (0.5, 0.5))
-                self.draw_sprite(sprite, actor.position, actor.scale, rotation, pivot)
+                position = self._get_component_position(component)
+                # Create a position object with x,y attributes
+                pos = type('Position', (), {'x': position[0], 'y': position[1]})()
+                self.draw_sprite(sprite, pos, actor.scale, rotation, pivot)
             except Exception:
                 self._logger.exception(f"Failed to bake actor {actor!r}")
 
@@ -560,17 +576,22 @@ class RendererSubsystem:
             if self._baked and getattr(actor, "static", False):
                 continue
 
-            sprite = self._sprite_for(actor)
+            component = self._sprite_for(actor)
+            if component is None:
+                continue
+            sprite = getattr(component, 'sprite', None)
             if sprite is None:
                 continue
 
             try:
                 rotation = getattr(actor, 'rotation', 0.0)
                 pivot = getattr(actor, 'pivot', (0.5, 0.5))
-
+                position = self._get_component_position(component)
+                # Create a position object with x,y attributes
+                pos = type('Position', (), {'x': position[0], 'y': position[1]})()
                 self.draw_sprite(
                     sprite,
-                    actor.position,
+                    pos,
                     actor.scale,
                     rotation,
                     pivot

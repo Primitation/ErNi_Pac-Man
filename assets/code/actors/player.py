@@ -5,6 +5,7 @@ from Engine import AnimatedSpriteComponent
 from ..components.movement_components import (
     MovementComponent, PlayerMovementInput, FaceDirectionComponent)
 from ..components.particle_component import ParticleTrailComponent
+from ..components.origin_marker_component import OriginMarkerComponent
 
 
 class Player(Actor):
@@ -29,22 +30,36 @@ class Player(Actor):
             AnimatedSpriteComponent(
                 "assets/texture/spritesheets/pacman_hd/PacManAssets-PacMan.png",
                 frame_width=32, frame_height=32,
-                frame_count=4, fps=4, loop=True, start_frame=0
+                frame_count=4, fps=4, loop=True, start_frame=0,
+                center=True,  # box is centered on actor.position, unrotated
             )
         )
 
-        # Movement is now delegated to generic components:
-        # MovementComponent handles the physics (direction -> velocity),
-        # PlayerMovementInput reads Input and feeds it a direction,
-        # FaceDirectionComponent turns velocity into a facing rotation.
+        # Movement components
         self.movement = self.add_component(MovementComponent(speed=speed))
         self.add_component(PlayerMovementInput())
         self.add_component(FaceDirectionComponent())
 
-        # Added last so it reads this frame's already-updated
-        # velocity/rotation, not last frame's — see
-        # ParticleTrailComponent's docstring.
-        self.add_component(ParticleTrailComponent())
+        # Particle trail with rotation
+        self.add_component(ParticleTrailComponent(
+            local_offset=(-16, 0),    # Offset to the left of the actor center
+            offset_rotates=True,      # Rotate with the actor
+            interval=0.02,
+            count=3,
+            color=0xFFFF8800,         # Orange
+            speed=(20, 50),
+            size=(3, 6),
+            life=(0.2, 10),
+            spread=45.0,
+            min_speed=10.0,
+            emit_direction="backward"  # Emit behind the actor
+        ))
+
+        # Debug: red dot at the actor's raw origin (actor.position),
+        # so we can see whether the sprite is actually centered on it
+        # or drawn with its top-left corner there. Remove once
+        # confirmed.
+        # self.add_component(OriginMarkerComponent(color=0xFFFF0000, size=6.0))
 
         Input.bind_action("dead", [Input.KEYS["t"]])
 
@@ -60,10 +75,6 @@ class Player(Actor):
         if Input.is_action_triggered("dead"):
             self.dead(self.animation)
 
-        # Components (added above) handle movement/rotation/trail
-        # each frame via their own update() calls, so Player.update
-        # just needs to check its own state and defer to Actor for
-        # position integration.
         super().update(dt)
 
     def destroy(self):

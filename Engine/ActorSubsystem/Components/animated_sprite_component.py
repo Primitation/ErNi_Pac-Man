@@ -34,6 +34,9 @@ class AnimatedSpriteComponent(Component):
         loop: bool = True,
         on_complete=None,
         enabled: bool = True,
+        local_offset=(0.0, 0.0),
+        offset_rotates=True,
+        center: bool = False,
     ):
         super().__init__(enabled)
 
@@ -44,6 +47,9 @@ class AnimatedSpriteComponent(Component):
         self._loop = loop
         self._on_complete = on_complete
         self._complete_fired = False
+        self.local_position = local_offset
+        self.offset_rotates = offset_rotates
+        self.center = center
 
         self.set_animation(
             path, frame_width, frame_height, frame_count, columns,
@@ -95,13 +101,34 @@ class AnimatedSpriteComponent(Component):
         sprite = self.sprite
         return sprite.height if sprite is not None else 0
 
+    def get_world_position(self):
+        """Same centering behavior as SpriteComponent.get_world_position —
+        see that docstring. Component.get_world_position() gives the
+        actor position plus any rotate-with-actor local_offset; if
+        center=True this then applies an ADDITIONAL, deliberately
+        UNROTATED shift by half this frame's scaled width/height, so
+        the sprite's own draw_sprite rotation (around its box center)
+        doesn't get compounded with a second, spurious rotation of
+        the centering shift itself."""
+
+        x, y = super().get_world_position()
+
+        if self.center and self.actor is not None:
+            width = self.width * self.actor.scale.x
+            height = self.height * self.actor.scale.y
+            x -= width / 2
+            y -= height / 2
+
+        return (x, y)
+
     def get_rect(self):
         """Rect (x, y, width, height) from the actor's position and
         scale — same convenience as SpriteComponent.get_rect()."""
         actor = self.actor
+        world_pos = self.get_world_position()
         width = self.width * actor.scale.x
         height = self.height * actor.scale.y
-        return (actor.position.x, actor.position.y, width, height)
+        return (world_pos[0], world_pos[1], width, height)
 
     def update(self, dt):
         self._time += dt
