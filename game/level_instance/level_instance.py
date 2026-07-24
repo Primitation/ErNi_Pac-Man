@@ -8,6 +8,7 @@ from Engine import Input
 from Engine import Log
 from Engine import Renderer
 from Engine import World
+from game.game_instance.player import PlayerInformation
 from game.levelgen import LevelGenerator
 from game.levelgen import LevelOptions
 from Engine import Vector2
@@ -20,13 +21,16 @@ class LevelInstance:
 
     TODO
     """
-    def __init__(self, level_options: LevelOptions) -> None:
+    def __init__(self,
+                 level_options: LevelOptions,
+                 player_information: PlayerInformation) -> None:
         """Initializes a level instance.
 
         Args:
             level_options: options for the current level
         """
         self._level_options = level_options
+        self._player_information = player_information
         self._level_structure = None
 
     def load(self) -> None:
@@ -47,7 +51,7 @@ class LevelInstance:
         """
         Log.get("level").info("Level instance start init")
         if self._level_structure is None:
-            Log.get("fatal").fatal("LevelInstance: Need to load before start !")
+            Log.get("info").info("LevelInstance: Need to load or no level")
             return
         World.clear()
         Actors.clear()
