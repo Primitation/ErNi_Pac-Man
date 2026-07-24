@@ -248,6 +248,57 @@ class RendererSubsystem:
             color.to_bytes(self.pixel_size, "little"), dtype=np.uint8
         )
 
+    def draw_rect(self, x, y, width, height, color: int):
+        """Fill an axis-aligned rect with a solid 0xAARRGGBB color,
+        alpha-blending against whatever's already in the framebuffer
+        when color isn't fully opaque (same blend math as sprite
+        drawing, just for a flat color instead of a texture).
+
+        Meant for cheap effects that don't need a real texture — see
+        ParticleSubsystem, which draws every particle this way
+        instead of loading/blitting a sprite per particle."""
+
+        x, y = int(x), int(y)
+        width, height = int(width), int(height)
+
+        if width <= 0 or height <= 0:
+            return
+
+        clip_x0 = max(0, -x)
+        clip_y0 = max(0, -y)
+        x = max(0, x)
+        y = max(0, y)
+
+        dw = min(width - clip_x0, self.width - x)
+        dh = min(height - clip_y0, self.height - y)
+
+        if dw <= 0 or dh <= 0:
+            return
+
+        dest_view = self.buffer_np[
+            y:y + dh,
+            x * self.pixel_size: (x + dw) * self.pixel_size,
+        ].reshape(dh, dw, self.pixel_size)
+
+        pixel_bytes = np.frombuffer(
+            color.to_bytes(self.pixel_size, "little"), dtype=np.uint8
+        )
+
+        alpha = (color >> 24) & 0xFF if self.pixel_size == 4 else 255
+
+        if alpha == 0:
+            return
+
+        if alpha == 255:
+            dest_view[:, :, :] = pixel_bytes
+            return
+
+        a = np.uint16(alpha)
+        src = pixel_bytes.astype(np.uint16)
+        blended = (src * a + dest_view.astype(np.uint16) * (255 - a)) // 255
+        blended[..., 3] = 255
+        dest_view[:, :, :] = blended.astype(np.uint8)
+
     def draw_sprite(self, texture, position, scale, rotation=0.0, pivot=(0.5, 0.5)):
         """Draws a texture into the framebuffer with scaling and rotation support."""
 
@@ -495,21 +546,16 @@ class RendererSubsystem:
         else:
             dest_view[:, :, :] = region[:, :, :self.pixel_size]
 
-    @log_timing()
-    def render(self, world):
-        """Render one frame."""
-
+    def render_draw(self, world):
+        """Draw all actors into the framebuffer (no presentation)."""
         if self.win_ptr is None:
-            raise RuntimeError("RendererSubsystem.render() called before .init().")
+            raise RuntimeError("RendererSubsystem.render_draw() called before .init().")
 
         # Clear with FULLY OPAQUE BLACK — or, if bake() has been called,
-        # copies the baked static-actor background instead (color is
-        # ignored in that case).
+        # copies the baked static-actor background instead.
         self.clear(0xFFAAAAAA)
 
-        # Draw all actors in order (later actors will overwrite earlier
-        # ones). Static actors are skipped once baked — they're already
-        # part of the background clear() just laid down.
+        # Draw all actors in order (later actors will overwrite earlier ones)
         for actor in world:
             if self._baked and getattr(actor, "static", False):
                 continue
@@ -519,7 +565,6 @@ class RendererSubsystem:
                 continue
 
             try:
-                # Get rotation and pivot from actor if available
                 rotation = getattr(actor, 'rotation', 0.0)
                 pivot = getattr(actor, 'pivot', (0.5, 0.5))
 
@@ -533,8 +578,12 @@ class RendererSubsystem:
             except Exception:
                 self._logger.exception(f"Failed to draw actor {actor!r}")
 
-        # Copy our buffer to the framebuffer (cached ctypes wrapper, no
-        # per-frame allocation)
+    def render_present(self):
+        """Present the framebuffer to the screen."""
+        if self.win_ptr is None:
+            raise RuntimeError("RendererSubsystem.render_present() called before .init().")
+
+        # Copy our buffer to the framebuffer (cached ctypes wrapper, no per-frame allocation)
         ctypes.memmove(
             self.framebuffer_ptr,
             ctypes.addressof(self._buffer_cbuf),
@@ -549,6 +598,11 @@ class RendererSubsystem:
             0,
             0,
         )
+
+    def render(self, world):
+        """Legacy method - draws and presents in one call."""
+        self.render_draw(world)
+        self.render_present()
 
     def hook_loop(self, callback, param=None):
         """Registers `callback` to run once per mlx event-loop tick."""

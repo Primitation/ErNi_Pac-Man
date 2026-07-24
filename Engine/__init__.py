@@ -8,6 +8,8 @@ from .CollisionSubsystem.collisionsubsystem import Collision
 from .ActorSubsystem.Components import (
     SpriteComponent, AnimatedSpriteComponent,
     ColliderComponent, Component)
+from .ParticlesSubsystem.particlessubsystem import (
+    ParticleSubsystem, Particle, Particles)
 from .RendererSubsystem.renderersubsystem import Renderer
 from .InputSubsystem.inputsubsystem import Input
 
@@ -32,5 +34,8 @@ __all__ = [
     "SpriteComponent",
     "AnimatedSpriteComponent",
     "ColliderComponent",
-    "Component"
+    "Component",
+    "ParticleSubsystem",
+    "Particle",
+    "Particles"
 ]

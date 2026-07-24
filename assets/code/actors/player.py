@@ -4,6 +4,7 @@ from Engine import Vector2, Input
 from Engine import AnimatedSpriteComponent
 from ..components.movement_components import (
     MovementComponent, PlayerMovementInput, FaceDirectionComponent)
+from ..components.particle_component import ParticleTrailComponent
 
 
 class Player(Actor):
@@ -40,6 +41,11 @@ class Player(Actor):
         self.add_component(PlayerMovementInput())
         self.add_component(FaceDirectionComponent())
 
+        # Added last so it reads this frame's already-updated
+        # velocity/rotation, not last frame's — see
+        # ParticleTrailComponent's docstring.
+        self.add_component(ParticleTrailComponent())
+
         Input.bind_action("dead", [Input.KEYS["t"]])
 
     @on_end_of_anim(lambda self: self.destroy())
@@ -54,9 +60,10 @@ class Player(Actor):
         if Input.is_action_triggered("dead"):
             self.dead(self.animation)
 
-        # Components (added above) handle movement/rotation each frame
-        # via their own update() calls, so Player.update just needs to
-        # check its own state and defer to Actor for position integration.
+        # Components (added above) handle movement/rotation/trail
+        # each frame via their own update() calls, so Player.update
+        # just needs to check its own state and defer to Actor for
+        # position integration.
         super().update(dt)
 
     def destroy(self):
