@@ -3,10 +3,8 @@ from functools import wraps
 from typing import TypeVar, Type, Callable
 
 from .. import Log
-from .. import Assets
 from .. import Vector2
 from .. import World
-from .. import SpriteSheetKey, Animation
 
 
 class Event:
@@ -32,17 +30,20 @@ class Event:
 class AActor:
     """Base class for anything the ActorSubsystem manages.
 
-    Every actor carries a position, a size, and a sprite right on
-    itself — so Renderer (and anything else, e.g. Collision) can
-    read them directly off the actor, without per-actor callables
-    like Collision.register()'s get_rect still uses.
+    An actor is a position, a scale, and an ordered list of
+    Components — nothing else lives on it directly anymore. Sprites
+    and colliders used to be built into AActor itself; now they're
+    just components (SpriteComponent / AnimatedSpriteComponent /
+    ColliderComponent, see Engine.Components) that you attach with
+    add_component(), same as any future gameplay component (Health,
+    etc). Renderer/Collision/etc. read whatever components an actor
+    happens to carry instead of assuming every actor has a sprite.
 
-    `sprite` isn't set once and stored — it's a property that
-    resolves from AssetSubsystem's cache on every access.
-    set_sprite() only queues the load and remembers the name, so
-    `actor.sprite` naturally reads back None until the background
-    load finishes, then the loaded Texture from then on — the same
-    (cached, shared) object every other actor using that path gets.
+    Every frame, _tick() calls update(dt) on each enabled/alive
+    component (in the order they were added), then calls this
+    actor's own update(dt) — so a component like
+    AnimatedSpriteComponent has already advanced before the actor's
+    update() runs.
 
     Override update().
     """
@@ -69,87 +70,46 @@ class AActor:
             else Vector2(1, 1)
         )
 
-        self._sprite_path = None
-
-        # Sprite-sheet animation state — see set_animation()
-        self._animation_key = None
-        self._animation = None
-        self._animation_fps = 10.0
-        self._animation_loop = True
-        self._animation_time = 0.0
-        self._animation_on_complete = None
-        self._animation_complete_fired = False
+        self.components = []
 
         self.logger = Log.get(self.__class__.__name__)
 
         Actors.add(self)
 
-    @property
-    def sprite(self):
-        if self._animation_key is not None:
-            if self._animation is None:
-                frames = Assets.get(self._animation_key)
-                if frames is None:
-                    return None
-                self._animation = Animation(
-                    frames,
-                    fps=self._animation_fps,
-                    loop=self._animation_loop,
-                )
-            return self._animation.frame_at(self._animation_time)
-
-        if self._sprite_path is None:
-            return None
-        return Assets.get(self._sprite_path)
-
-    def set_sprite(self, path: str):
-        self._animation_key = None
-        self._animation = None
-        self._sprite_path = path
-        Assets.queue(path)
-
-    def set_animation(
-        self,
-        path: str,
-        frame_width: int,
-        frame_height: int,
-        frame_count: int = None,
-        columns: int = None,
-        start_frame: int = 0,
-        fps: float = 10.0,
-        loop: bool = True,
-        on_complete=None,
-    ):
-        """Switch this actor to a sprite-sheet animation — walking,
-        spawning, dying, whatever. Frames are sliced once per unique
-        (path, frame_width, frame_height, frame_count, columns,
-        start_frame) combo and shared across every actor using the
-        same sheet + slicing, same caching model as set_sprite().
-
-        start_frame lets several animations (e.g. walk vs. death) or
-        several characters (e.g. each ghost color) share one sheet —
-        it's the row-major index of the first frame to slice, so a
-        death animation starting right after 4 walk frames would use
-        start_frame=4.
-
-        loop=False plays through once and holds on the last frame —
-        use on_complete for a one-shot spawn/death animation to fire
-        a callback (e.g. switch to the walk animation, or
-        self.destroy()) the moment it finishes.
+    def add_component(self, component):
+        """Attach a component: appends it to self.components and
+        fires its on_added(self) hook. Returns the component, so you
+        can do e.g.
+        `self.collider = self.add_component(ColliderComponent(...))`.
         """
-        self._sprite_path = None
+        self.components.append(component)
+        component.on_added(self)
+        return component
 
-        self._animation_key = SpriteSheetKey(
-            path, frame_width, frame_height, frame_count, columns, start_frame
-        )
-        self._animation = None
-        self._animation_fps = fps
-        self._animation_loop = loop
-        self._animation_time = 0.0
-        self._animation_on_complete = on_complete
-        self._animation_complete_fired = False
+    def remove_component(self, component):
+        """Detach a component and destroy() it (unregistering it
+        from whatever external system it hooked into, e.g.
+        Collision)."""
+        if component in self.components:
+            self.components.remove(component)
+        component.destroy()
 
-        Assets.queue(self._animation_key)
+    def get_component(self, component_type):
+        """First attached component that is an instance of
+        component_type, or None. E.g.
+        actor.get_component(ColliderComponent)."""
+        for component in self.components:
+            if isinstance(component, component_type):
+                return component
+        return None
+
+    def get_components(self, component_type):
+        """Every attached component that is an instance of
+        component_type."""
+        return [
+            component for component in self.components
+            if isinstance(component, component_type)
+        ]
 
     @property
     def rotation(self):
@@ -172,25 +132,9 @@ class AActor:
         self._pivot = value
 
     def _tick(self, dt):
-        if self._animation_key is not None:
-            self._animation_time += dt
-
-            if (
-                self._animation is not None
-                and not self._animation_complete_fired
-                and self._animation.finished(self._animation_time)
-            ):
-                self._animation_complete_fired = True
-
-                self.logger.info(
-                    f"Animation complete on {self.__class__.__name__}"
-                )
-
-                if self._animation_on_complete:
-                    self.logger.info(
-                        "Calling animation on_complete callback"
-                    )
-                    self._animation_on_complete()
+        for component in list(self.components):
+            if component.enabled and component.alive:
+                component.update(dt)
 
         self.update(dt)
 
@@ -198,6 +142,10 @@ class AActor:
         pass
 
     def destroy(self):
+        for component in list(self.components):
+            component.destroy()
+        self.components.clear()
+
         self.alive = False
 
 
@@ -353,17 +301,24 @@ class ActorSubsystem:
 
 def on_end_of_anim(callback: Callable) -> Callable:
     """
-    Decorator that automatically attaches a callback to the next
-    set_animation() call made inside the decorated function.
+    Decorator for a method whose first argument (after self) is an
+    AnimatedSpriteComponent. Automatically chains `callback` onto the
+    on_complete of the next set_animation() call the decorated
+    method makes on that component — without disturbing any
+    on_complete the method itself passed in.
+
+    Usage: @on_end_of_anim(MyActor.some_handler)
+           def play_death(self, anim: AnimatedSpriteComponent):
+               anim.set_animation("death.png", 32, 32, ...)
     """
 
     def decorator(func):
         @wraps(func)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self, component, *args, **kwargs):
 
             logger = Log.get(self.__class__.__name__)
 
-            original_set_animation = self.set_animation
+            original_set_animation = component.set_animation
 
             if hasattr(callback, "__self__"):
                 cb = callback
@@ -399,13 +354,13 @@ def on_end_of_anim(callback: Callable) -> Callable:
 
                 return original_set_animation(*args, **kwargs)
 
-            self.set_animation = intercepted_set_animation
+            component.set_animation = intercepted_set_animation
 
             try:
-                return func(self, *args, **kwargs)
+                return func(self, component, *args, **kwargs)
 
             finally:
-                self.set_animation = original_set_animation
+                component.set_animation = original_set_animation
                 logger.debug(
                     "Restored original set_animation"
                 )

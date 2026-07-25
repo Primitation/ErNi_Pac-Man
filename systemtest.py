@@ -13,8 +13,8 @@ import sys
 import time
 
 from Engine import Renderer, Assets, Actors, Log, \
-                   World, Collision, Input, Vector2
-from assets.code.player import Player
+                   World, Collision, Input, Vector2, Particles
+from assets.code.actors.player import Player
 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -92,7 +92,10 @@ def main():
         Actors.update(dt)
         if not Actors.paused:
             Collision.update()
-        Renderer.render(World)
+            Particles.update(dt)
+        Renderer.render_draw(World)
+        Particles.render(Renderer)
+        Renderer.render_present()
 
         # Runs last: downgrades PRESSED -> HELD and RELEASED -> IDLE only
         # after everything this frame (process_actions, actor updates,
