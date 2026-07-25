@@ -3,8 +3,8 @@
 from abc import ABC, abstractmethod
 from typing import List
 
-from game.level_instance.level_instance import LevelInstance
-from game.levelgen.level_options import LevelOptions
+from game.level_instance import LevelInstance
+from game.levelgen import LevelOptions
 
 
 class GameModeLevels(ABC):
@@ -12,20 +12,36 @@ class GameModeLevels(ABC):
 
     @abstractmethod
     def current_level(self) -> int:
+        """The current level.
+
+        Returns:
+            Returns the current level.
+        """
         pass
 
     @abstractmethod
-    def next_level(self) -> LevelInstance:
+    def next_level(self) -> LevelInstance | None:
+        """Returns a level untils no more level.
+
+        Returns:
+            Returns a level instance untils no more level.
+        """
         pass
 
     @abstractmethod
     def reset(self) -> None:
+        """Reset the current level."""
         pass
+
 
 class GameModeNormalLevels(GameModeLevels):
     """Generator of 10 levels."""
     def __init__(self, level_options: List[LevelOptions]) -> None:
-        """Initialize a level generator of 10."""
+        """Initialize a level generator of 10.
+
+        Args:
+            level_options: options for each level.
+        """
         self._curr_level = 0
         self._pregenerated_levels = [
             LevelInstance(level_option)
@@ -53,4 +69,5 @@ class GameModeNormalLevels(GameModeLevels):
         return curr_level_instance
 
     def reset(self) -> None:
+        """Reset the current level."""
         self._curr_level = 0

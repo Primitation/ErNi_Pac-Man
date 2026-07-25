@@ -10,16 +10,10 @@ Smoke test for the mlx engine:
 """
 import os
 import sys
-import time
 
-from Engine import Renderer, Assets, Actors, Log, \
-                   World, Collision, Input, Vector2
-from assets.code.player import Player
+from Engine import Renderer, Input
 from game.game_instance.game_config import GameConfig
 from game.game_instance.game_instance import GameInstance
-from game.game_instance.player import PlayerInformation
-from game.level_instance.level_instance import LevelInstance
-from game.levelgen.level_options import LevelOptions
 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

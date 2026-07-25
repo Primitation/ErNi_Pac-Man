@@ -1,9 +1,9 @@
 """Game instance."""
 
 from Engine.LogSubsystem.logsubsystem import Log
-from game.game_instance.player import PlayerInformation
-from game.game_instance.game_config import GameConfig
-from game.game_instance.game_mode import GameModeNormalLevels
+from .player_information import PlayerInformation
+from .game_config import GameConfig
+from .game_mode import GameModeNormalLevels
 
 
 class GameInstance:
@@ -27,10 +27,8 @@ class GameInstance:
 
         # TODO: example game 10 only
 
-
     def _start_normal_levels(self) -> None:
-        """Initialize the game and start.
-        """
+        """Initialize the game and start."""
         self._current_player.reset()
         self._game_mode_normal.reset()
         """TODO: this is an example of loop with levels."""
@@ -107,7 +105,7 @@ class GameInstance:
 
     def page_player_name_for_score(self) -> None:
         """Player score + ask name. (and victory text if wins)
-        
+
         Access:
             None
         Out:

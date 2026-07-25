@@ -1,7 +1,7 @@
 """Current player."""
 
-from game.game_instance.game_config import GameConfig
-from game.game_instance.score import Score
+from .game_config import GameConfig
+from .score import Score
 
 
 class PlayerInformation:
@@ -10,7 +10,13 @@ class PlayerInformation:
                  config: GameConfig,
                  lives: int = 3,
                  score: Score = None) -> None:
-        """Initialize a player with a score and lives."""
+        """Initialize a player with a score and lives.
+
+        Args:
+            config: the game config.
+            lives: the number of lives (> 0) for the player.
+            score: the player score.
+        """
         self._lives = lives
         if self._lives < 1:
             # TODO: Log default lives
@@ -25,11 +31,7 @@ class PlayerInformation:
 
     @property
     def lives(self) -> int:
-        """The number of lives.
-
-        Returns:
-            Returns the number of lives >= 0.
-        """
+        """The number of lives."""
         return self._lives
 
     def is_alive(self) -> bool:

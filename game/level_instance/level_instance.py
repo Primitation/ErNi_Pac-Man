@@ -1,19 +1,11 @@
 """Level instance"""
 
 import time
-
-from Engine import Assets
-from Engine import Collision
-from Engine import Input
-from Engine import Log
-from Engine import Renderer
-from Engine import World
-from game.game_instance.player import PlayerInformation
-from game.levelgen import LevelGenerator
-from game.levelgen import LevelOptions
-from Engine import Vector2
-from assets.code.player import Player
-from Engine import Actors
+from Engine import (Assets, Collision, Input, Log, Renderer, World,
+                    Vector2, Actors)
+from game.game_instance.player_information import PlayerInformation
+from game.levelgen import LevelGenerator, LevelOptions
+from assets.code.actors.player import Player
 
 
 class LevelInstance:
@@ -25,7 +17,7 @@ class LevelInstance:
         """Initializes a level instance.
 
         Args:
-            level_options: options for the current level
+            level_options: options for the current level.
         """
         self._level_options = level_options
         self._level_structure = None
@@ -33,7 +25,7 @@ class LevelInstance:
     def load(self) -> None:
         """Load the world structure.
 
-        Load before start
+        Load before start.
         """
         if self._level_structure is not None:
             Log.get("level").info("Level instance already loaded")
@@ -46,11 +38,15 @@ class LevelInstance:
     def _scaling(self, vector: Vector2) -> Vector2:
         return vector  # TODO rescaling rule ?
 
-    def start(self, player_information : PlayerInformation) -> None:
-        """Start the level.
+    def start(self, player_information: PlayerInformation) -> None:
+        """Initialize and start the level.
+
+        Args:
+            player_information: the player.
         """
 
-        # TODO: SCORES + LIVES
+        # TODO: SCORES + LIVES (player)
+        player_information.reset()  # TODO: DELETE !!!
 
         Log.get("level").info("Level instance start init")
         if self._level_structure is None:
@@ -62,15 +58,16 @@ class LevelInstance:
         # TODO: set world map: f(self._level_structure.maze)
         Collision.init(self._level_structure.width,
                        self._level_structure.height)
-        def tmp_put_wall_collision(): # TODO DELETE / OPTIMIZE
+
+        def tmp_put_wall_collision():  # TODO DELETE / OPTIMIZE
             tmp_maze = self._level_structure.maze
             for w in range(self._level_structure.width):
                 for h in range(self._level_structure.height):
                     if self._level_structure.maze[h][w] & 8:  # West
-                        #TODO: Collision: add a wall w-1 h
+                        # TODO: Collision: add a wall w-1 h
                         pass
                     if self._level_structure.maze[h][w] & 1:  # West
-                        #TODO: Collision: add a wall w h+1
+                        # TODO: Collision: add a wall w h+1
                         pass
         tmp_put_wall_collision()
         Log.get("level").info("Level instance walls ready")
@@ -140,6 +137,7 @@ class LevelInstance:
 
         # TODO start the game
         Log.get("level").info("Level instance start")
+
         # TODO: this is an example temporary example:
         if 1:
             log = Log.get("main")
@@ -175,7 +173,8 @@ class LevelInstance:
 
                     # Update once per second
                     Renderer._logger.info(
-                        f"Engine smoke test | FPS: {fps} | Actors: {len(World)}"
+                        f"Engine smoke test | FPS: {fps} | "
+                        f"Actors: {len(World)}"
                     )
 
                     fps_frames = 0
@@ -192,7 +191,8 @@ class LevelInstance:
                     Collision.update()
                 Renderer.render(World)
 
-                # Runs last: downgrades PRESSED -> HELD and RELEASED -> IDLE only
+                # Runs last: downgrades PRESSED -> HELD and RELEASED
+                #                                                -> IDLE only
                 # after everything this frame (process_actions, actor updates,
                 # collision, render) has had a chance to see the fresh state.
                 Input.update()

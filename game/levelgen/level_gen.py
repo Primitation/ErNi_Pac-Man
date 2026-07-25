@@ -69,7 +69,8 @@ class LevelGenerator:
              maze=maze,
              ignore_cells=[pacman] + super_pacgums)
         random.shuffle(open_cells)
-        pacgums = open_cells[:min(len(open_cells), level_options.pac_gum_count)]
+        pacgums = open_cells[:min(len(open_cells),
+                                  level_options.pac_gum_count)]
 
         return LevelStructure(width=level_options.width,
                               height=level_options.height,

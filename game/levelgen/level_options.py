@@ -17,6 +17,14 @@ class LevelOptions:
                  height: int,
                  pac_gum_count: int,
                  seed: int | None = None) -> None:
+        """Initilize a level options.
+
+        Args:
+            width: the width of the maze.
+            height: the height of the maze.
+            pac_gum_count: the maximum number of pacgums ion the maze.
+            seed: the seed for the maze generation.
+        """
         # TODO: width and height checking and modify with
         # default min, same for pac_gum_count and seed
         self._width = width
