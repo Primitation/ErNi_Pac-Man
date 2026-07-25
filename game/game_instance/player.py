@@ -5,6 +5,7 @@ from game.game_instance.score import Score
 
 
 class PlayerInformation:
+    """Player information in the game."""
     def __init__(self,
                  config: GameConfig,
                  lives: int = 3,
@@ -14,6 +15,7 @@ class PlayerInformation:
         if self._lives < 1:
             # TODO: Log default lives
             self._lives = 3
+        self._base_lives = self._lives
         self._score = score if score is not None else Score(config)
 
     @property
@@ -42,3 +44,8 @@ class PlayerInformation:
         """The player lose a live if possible."""
         if self._lives > 0:
             self._lives -= 1
+
+    def reset(self) -> None:
+        """Reset the player to starting values."""
+        self._lives = self._base_lives
+        self._score.reset()

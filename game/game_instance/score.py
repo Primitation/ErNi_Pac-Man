@@ -25,3 +25,7 @@ class Score:
 
     def eat_ghost(self) -> None:
         self._score += self._points_per_ghost
+
+    def reset(self) -> None:
+        """Reset the points to 0."""
+        self._score = 0

@@ -19,7 +19,8 @@ class GameConfig:
             LevelOptions(100, 150, 6),
             LevelOptions(170, 100, 12),
             LevelOptions(200, 170, 3),
-            LevelOptions(100, 100, 11)
+            LevelOptions(100, 100, 11),
+            LevelOptions(50, 50, 11)
         ]
 
     @property

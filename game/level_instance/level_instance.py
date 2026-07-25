@@ -21,16 +21,13 @@ class LevelInstance:
 
     TODO
     """
-    def __init__(self,
-                 level_options: LevelOptions,
-                 player_information: PlayerInformation) -> None:
+    def __init__(self, level_options: LevelOptions) -> None:
         """Initializes a level instance.
 
         Args:
             level_options: options for the current level
         """
         self._level_options = level_options
-        self._player_information = player_information
         self._level_structure = None
 
     def load(self) -> None:
@@ -38,6 +35,9 @@ class LevelInstance:
 
         Load before start
         """
+        if self._level_structure is not None:
+            Log.get("level").info("Level instance already loaded")
+            return
         Log.get("level").info("Level instance start load structure")
         self._level_structure = LevelGenerator.generate(self._level_options)
         Log.get("level").info("Level instance load ready")
@@ -46,13 +46,16 @@ class LevelInstance:
     def _scaling(self, vector: Vector2) -> Vector2:
         return vector  # TODO rescaling rule ?
 
-    def start(self) -> None:
+    def start(self, player_information : PlayerInformation) -> None:
         """Start the level.
         """
+
+        # TODO: SCORES + LIVES
+
         Log.get("level").info("Level instance start init")
         if self._level_structure is None:
-            Log.get("info").info("LevelInstance: Need to load or no level")
-            return
+            Log.get("info").info("LevelInstance: Start need to load structure")
+            self.load()
         World.clear()
         Actors.clear()
 

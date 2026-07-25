@@ -16,7 +16,7 @@ class LevelOptions:
                  width: int,
                  height: int,
                  pac_gum_count: int,
-                 seed: int | None) -> None:
+                 seed: int | None = None) -> None:
         # TODO: width and height checking and modify with
         # default min, same for pac_gum_count and seed
         self._width = width
