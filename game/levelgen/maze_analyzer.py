@@ -1,0 +1,29 @@
+"""Maze analyzer"""
+
+from typing import List
+from Engine import Vector2
+
+
+class MazeAnalyzer:
+    """Analyzes a maze.
+    """
+    @staticmethod
+    def extract_open_cells(maze: List[List[int]],
+                           ignore_cells: List[Vector2] = []
+                           ) -> List[Vector2]:
+        """Extract cells with at least a open cell.
+
+        Args:
+            maze: maze wall format as bits 0 open and 1 closed of (W S E N).
+
+        Returns:
+            Returns the cells with at least a wall open.
+        """
+        open_cells: List[Vector2] = [
+            Vector2(width_pos, height_pos)
+            for height_pos in range(len(maze))
+            for width_pos in range(len(maze[height_pos]))
+            if ((width_pos, height_pos) not in ignore_cells
+                and maze[height_pos][width_pos] != 0xF)
+        ]
+        return open_cells

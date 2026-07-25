@@ -1,0 +1,41 @@
+"""
+Smoke test for the mlx engine:
+- RendererSubsystem
+- AssetSubsystem
+- ActorSubsystem
+- World
+- Sprite loading
+- Actor ticking
+- Rendering
+"""
+import os
+import sys
+
+from Engine import Renderer, Input
+from game.game_instance.game_config import GameConfig
+from game.game_instance.game_instance import GameInstance
+
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+
+WIDTH, HEIGHT = 300, 200
+
+
+def main():
+
+    Renderer.init(WIDTH*1, HEIGHT*1, "Engine smoke test")
+    Input.init(Renderer)
+
+    game_config = GameConfig()
+    game_instance = GameInstance(game_config)
+    game_instance.page_menu()
+    # simulate input start game
+    game_instance._start_normal_levels()
+
+    Input.close()
+    Renderer.close()
+
+
+if __name__ == "__main__":
+    main()
