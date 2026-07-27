@@ -36,16 +36,16 @@ class GameModeLevels(ABC):
 
 class GameModeNormalLevels(GameModeLevels):
     """Generator of 10 levels."""
-    def __init__(self, level_options: List[LevelOptions]) -> None:
+    def __init__(self, levels_options: List[LevelOptions]) -> None:
         """Initialize a level generator of 10.
 
         Args:
-            level_options: options for each level.
+            levels_options: options for each level.
         """
         self._curr_level = 0
         self._pregenerated_levels = [
             LevelInstance(level_option)
-            for level_option in level_options
+            for level_option in levels_options
         ]
         # TODO: load now ? or thread ? or etc
         # TODO: at least 10 levels ! (defaults ?)

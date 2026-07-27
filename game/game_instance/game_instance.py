@@ -15,7 +15,7 @@ class GameInstance:
             config: the configs for the game.
         """
         self._current_player = PlayerInformation(config)
-        self._game_mode_normal = GameModeNormalLevels(config.level_options)
+        self._game_mode_normal = GameModeNormalLevels(config.levels_options)
 
         # TODO load here ? or not ?
         self._game_mode_normal.reset()
