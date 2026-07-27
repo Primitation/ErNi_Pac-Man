@@ -11,7 +11,7 @@ Smoke test for the mlx engine:
 import os
 import sys
 
-from Engine import Renderer, Input
+from Engine import Renderer, Input, Log
 from game.game_instance.game_config import GameConfig, GameConfigParser
 from game.game_instance.game_instance import GameInstance
 
@@ -23,7 +23,6 @@ WIDTH, HEIGHT = 300, 200
 
 
 def main():
-
     Renderer.init(WIDTH*1, HEIGHT*1, "Engine smoke test")
     Input.init(Renderer)
 
@@ -35,6 +34,7 @@ def main():
 
     Input.close()
     Renderer.close()
+    Log.close()
 
 
 def main_parser():
@@ -46,5 +46,5 @@ def main_parser():
 
 
 if __name__ == "__main__":
-    main_parser()
-    # main()
+    # main_parser()
+    main()

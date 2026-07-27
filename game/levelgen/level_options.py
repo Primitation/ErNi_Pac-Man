@@ -1,7 +1,7 @@
 """Level options for generation."""
 
 from time import time
-from random import randint
+from random import randrange
 
 
 class LevelOptions:
@@ -58,7 +58,7 @@ class LevelOptions:
         """The random seed."""
         return (self._seed
                 if self._seed is not None
-                else randint(int(time() * 1000000)))
+                else randrange(int(time() * 1000000)))
 
     @seed.setter
     def seed(self, seed: int | None) -> None:

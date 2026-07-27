@@ -53,7 +53,7 @@ class GameModeNormalLevels(GameModeLevels):
     @property
     def current_level(self) -> int:
         """The current level."""
-        return self._curr_level + 1
+        return self._curr_level
 
     def next_level(self) -> LevelInstance | None:
         """Returns a level untils no more level.
@@ -61,7 +61,7 @@ class GameModeNormalLevels(GameModeLevels):
         Returns:
             Returns a level instance untils no more level.
         """
-        if self._curr_level + 1 >= len(self._pregenerated_levels):
+        if self._curr_level >= len(self._pregenerated_levels):
             return None
 
         curr_level_instance = self._pregenerated_levels[self._curr_level]
