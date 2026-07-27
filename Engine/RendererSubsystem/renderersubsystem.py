@@ -41,7 +41,7 @@ class RendererSubsystem:
         self._logger = Log.get("renderer")
         self._frame_count = 0
 
-    def init(self, width: int, height: int, title: str = "PrimiEngine"):
+    def init(self, width: int, height: int, title: str = "PacEngine"):
         """Call once, at startup, before anything else touches mlx."""
 
         self.width = width
