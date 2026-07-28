@@ -244,5 +244,7 @@ class LevelInstance:
             log.info("Entering mlx loop.")
             Renderer.loop()
 
+        World.clear()
+        Actors.clear()
         # TODO: end example
         Log.get("level").info("Level instance end")
