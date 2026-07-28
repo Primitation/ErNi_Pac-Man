@@ -60,27 +60,27 @@ class LevelInstance:
         # TODO: SCORES + LIVES (player) to link !
         player_information.reset()  # TODO: DELETE !!!
 
-        def full_scalling() -> None:  # TODO DELETE AFTER SCALING IN WORLD
-            self._level_structure._pacman = self._scaling_position(
-                self._level_structure.pacman)
-            self._level_structure._ghosts = [
-                self._scaling_position(ghost_pos)
-                for ghost_pos in self._level_structure.ghosts
-            ]
-            self._level_structure._pacgums = [
-                self._scaling_position(ghost_pos)
-                for ghost_pos in self._level_structure.pacgums
-            ]
-            self._level_structure._super_pacgums = [
-                self._scaling_position(ghost_pos)
-                for ghost_pos in self._level_structure.super_pacgums
-            ]
-            size_vector = self._scaling_position(Vector2(
-                self._level_structure.width,
-                self._level_structure.height))
-            self._level_structure._width = size_vector.x
-            self._level_structure._height = size_vector.y
-        full_scalling()
+        # TODO: FULL SCALING (CHANGE OR DELETE)
+        curr_pacman_data = self._scaling_position(
+            self._level_structure.pacman)
+        curr_ghosts_data = [
+            self._scaling_position(ghost_pos)
+            for ghost_pos in self._level_structure.ghosts
+        ]
+        curr_pacgums_data = [
+            self._scaling_position(ghost_pos)
+            for ghost_pos in self._level_structure.pacgums
+        ]
+        curr_super_pacgums_data = [
+            self._scaling_position(ghost_pos)
+            for ghost_pos in self._level_structure.super_pacgums
+        ]
+        size_vector = self._scaling_position(Vector2(
+            self._level_structure.width,
+            self._level_structure.height))
+        curr__width = size_vector.x
+        curr_height = size_vector.y
+        # END FULL SCALING
 
         Log.get("level").info("Level instance start init")
         if self._level_structure is None:
@@ -90,8 +90,7 @@ class LevelInstance:
         Actors.clear()
 
         # TODO: set world map: f(self._level_structure.maze)
-        Collision.init(self._level_structure.width,
-                       self._level_structure.height)
+        Collision.init(curr__width, curr_height)
 
         def put_wall_texture() -> None:  # TODO DELETE / OPTIMIZE
             maze = self._level_structure.maze
@@ -117,7 +116,7 @@ class LevelInstance:
 
         pacman_actor = Actors.spawn(
             Player,
-            position=self._level_structure.pacman,
+            position=curr_pacman_data,
             velocity=Vector2(0, 0),
             scale=self._scaling(Vector2(1, 1))  # TODO size
         )
@@ -131,7 +130,7 @@ class LevelInstance:
             )
             for ghost_class, ghost_position in zip(
                 [RedGhost, BlueGhost, YellowGhost, PinkGhost],
-                self._level_structure.ghosts)
+                curr_ghosts_data)
         ]
 
         pacgum_actors = [
@@ -141,7 +140,7 @@ class LevelInstance:
                 velocity=Vector2(0, 0),
                 scale=self._scaling(Vector2(1.5, 1.5))  # TODO size
             )
-            for pacgum_position in self._level_structure.pacgums
+            for pacgum_position in curr_pacgums_data
         ]
 
         super_pacgum_actors = [
@@ -151,7 +150,7 @@ class LevelInstance:
                 velocity=Vector2(0, 0),
                 scale=self._scaling(Vector2(1.5, 1.5))  # TODO size
             )
-            for super_pacgum_position in self._level_structure.super_pacgums
+            for super_pacgum_position in curr_super_pacgums_data
         ]
 
         Log.get("level").info("Level instance actors ready")
