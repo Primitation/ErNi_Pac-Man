@@ -347,7 +347,7 @@ class Logger:
 
         return (
             f"[{time}] "
-            f"[{msg.type.name:—^9}] "
+            f"[{msg.type.name: ^9}] "
             f"[{msg.logger}] "
             f"{msg.message}"
         )

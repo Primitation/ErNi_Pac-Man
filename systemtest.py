@@ -32,7 +32,7 @@ def main():
     Collision.init(WIDTH, HEIGHT)
 
     print("[DEBUG] Initializing Input...")
-    Input.init(Renderer)
+    Input.init()
 
     Actors.spawn(
         Player,
