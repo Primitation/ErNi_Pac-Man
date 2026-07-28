@@ -18,9 +18,6 @@ class PlayerInformation:
             score: the player score.
         """
         self._lives = lives
-        if self._lives < 1:
-            # TODO: Log default lives
-            self._lives = 3
         self._base_lives = self._lives
         self._score = score if score is not None else Score(config)
 

@@ -31,9 +31,9 @@ class LevelGenerator:
 
         Do not use multiples LevelGenerator.generate() at the same time.
         """
-        if level_options.width <= 0:  # TODO min size
+        if level_options.width <= 0:
             raise ValueError(f"Invalid width <= 0: {level_options.width}")
-        if level_options.height <= 0:  # TODO min size
+        if level_options.height <= 0:
             raise ValueError(f"Invalid width <= 0: {level_options.height}")
 
         try:
@@ -53,7 +53,7 @@ class LevelGenerator:
 
         random.seed(level_options.seed)
 
-        # TODO: good position
+        # TODO: good position: right now 20x20 or 10x10 is inside the 42
         pacman = Vector2(level_options.width // 2, level_options.height // 2)
 
         corners = [(0, 0),

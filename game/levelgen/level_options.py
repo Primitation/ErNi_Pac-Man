@@ -8,10 +8,10 @@ class LevelOptions:
     """Options for level generation.
 
     Attributes:
-        width: TODO: log <= 0 and set to default=?
-        height: TODO: log <= 0 and set to default=?
-        pac_gum_count: TODO
-        seed (int | None): TODO
+        width: the width of the level
+        height: the height of the level
+        pac_gum_count: the maximum number of pacgums in the maze
+        seed (int | None): the maze generator seed (None mean random)
     """
     def __init__(self,
                  width: int,
@@ -23,11 +23,9 @@ class LevelOptions:
         Args:
             width: the width of the maze.
             height: the height of the maze.
-            pac_gum_count: the maximum number of pacgums ion the maze.
+            pac_gum_count: the maximum number of pacgums in the maze.
             seed: the seed for the maze generation.
         """
-        # TODO: width and height checking and modify with
-        # default min, same for pac_gum_count and seed
         self._width = width
         self._height = height
         self._pac_gum_count = pac_gum_count

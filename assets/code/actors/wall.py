@@ -1,14 +1,11 @@
 from typing import Tuple
 
 from .actor import Actor
-from Engine import on_end_of_anim
-from Engine import Vector2, Input
-from Engine import AnimatedSpriteComponent, SpriteComponent
-from ..components.movement_components import (
-    MovementComponent, PlayerMovementInput, FaceDirectionComponent)
-from ..components.particle_component import ParticleTrailComponent
+from Engine import Vector2
+from Engine import AnimatedSpriteComponent
 from ..components.origin_marker_component import OriginMarkerComponent
 import sys
+
 
 class Wall(Actor):
     """A wall Actor."""
@@ -28,13 +25,14 @@ class Wall(Actor):
             position=position,
             scale=scale,
             velocity=velocity,
-            static=False if len(sys.argv) == 1 else True, # TODO: put to true
+            static=False if len(sys.argv) == 1 else True,  # TODO: put to true
             tag=tag,
         )
 
         self.animation = self.add_component(
             AnimatedSpriteComponent(
-                "assets/texture/spritesheets/pacman_hd/PacManAssets_Map_TileSet.png",
+                "assets/texture/spritesheets/pacman_hd/"
+                "PacManAssets_Map_TileSet.png",
                 frame_width=frame_width, frame_height=frame_height,
                 local_offset=local_offset,
                 frame_count=1, start_frame=0, loop=False,

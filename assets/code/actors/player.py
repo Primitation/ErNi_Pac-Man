@@ -1,7 +1,7 @@
 from .actor import Actor
 from Engine import on_end_of_anim
 from Engine import Vector2, Input
-from Engine import AnimatedSpriteComponent, SpriteComponent
+from Engine import AnimatedSpriteComponent
 from ..components.movement_components import (
     MovementComponent, PlayerMovementInput, FaceDirectionComponent)
 from ..components.particle_component import ParticleTrailComponent
@@ -30,7 +30,8 @@ class Player(Actor):
 
         self.animation = self.add_component(
             AnimatedSpriteComponent(
-                "assets/texture/spritesheets/pacman_hd/PacManAssets-PacMan.png",
+                "assets/texture/spritesheets/pacman_hd"
+                "/PacManAssets-PacMan.png",
                 frame_width=32, frame_height=32,
                 frame_count=4, fps=4, loop=True, start_frame=0,
                 center=True,  # box is centered on actor.position, unrotated

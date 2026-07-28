@@ -30,9 +30,6 @@ def main():
     game_config = GameConfigParser.parse("config.json")
     game_instance = GameInstance(game_config)
     game_instance.page_menu()
-    # simulate input start game
-    game_instance._start_normal_levels()
-
     Input.close()
     Renderer.close()
     Log.close()

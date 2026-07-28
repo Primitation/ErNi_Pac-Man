@@ -1,10 +1,9 @@
+from Engine.ActorSubsystem.Components.animated_sprite_component import (
+    AnimatedSpriteComponent)
 from .actor import Actor
-from Engine import on_end_of_anim
 from Engine import Vector2, Input
-from Engine import AnimatedSpriteComponent, SpriteComponent
 from ..components.movement_components import (
-    MovementComponent, PlayerMovementInput, FaceDirectionComponent)
-from ..components.particle_component import ParticleTrailComponent
+    MovementComponent, FaceDirectionComponent)
 from ..components.origin_marker_component import OriginMarkerComponent
 
 
@@ -28,7 +27,7 @@ class BasicGhost(Actor):
 
         # Movement components
         self.movement = self.add_component(MovementComponent(speed=speed))
-        self.add_component(FaceDirectionComponent()) # TODO: for ghosts only
+        self.add_component(FaceDirectionComponent())  # TODO: for ghosts only
 
         self.add_component(OriginMarkerComponent(color=0xFFFF0000, size=6.0))
 
@@ -60,7 +59,8 @@ class RedGhost(BasicGhost):
 
         self.animation = self.add_component(
             AnimatedSpriteComponent(
-                "assets/texture/spritesheets/pacman_hd/PacManAssets-Ghosts.png",
+                "assets/texture/spritesheets"
+                "/pacman_hd/PacManAssets-Ghosts.png",
                 frame_width=32, frame_height=32,
                 frame_count=4, fps=4, loop=True, start_frame=0,
                 center=True,  # box is centered on actor.position, unrotated
@@ -86,7 +86,8 @@ class BlueGhost(BasicGhost):
 
         self.animation = self.add_component(
             AnimatedSpriteComponent(
-                "assets/texture/spritesheets/pacman_hd/PacManAssets-Ghosts.png",
+                "assets/texture/spritesheets/pacman_hd"
+                "/PacManAssets-Ghosts.png",
                 frame_width=32, frame_height=32,
                 frame_count=4, fps=4, loop=True, start_frame=4,
                 center=True,  # box is centered on actor.position, unrotated
@@ -112,7 +113,8 @@ class YellowGhost(BasicGhost):
 
         self.animation = self.add_component(
             AnimatedSpriteComponent(
-                "assets/texture/spritesheets/pacman_hd/PacManAssets-Ghosts.png",
+                "assets/texture/spritesheets/pacman_hd"
+                "/PacManAssets-Ghosts.png",
                 frame_width=32, frame_height=32,
                 frame_count=4, fps=4, loop=True, start_frame=20,
                 center=True,  # box is centered on actor.position, unrotated
@@ -138,7 +140,8 @@ class PinkGhost(BasicGhost):
 
         self.animation = self.add_component(
             AnimatedSpriteComponent(
-                "assets/texture/spritesheets/pacman_hd/PacManAssets-Ghosts.png",
+                "assets/texture/spritesheets/pacman_hd"
+                "/PacManAssets-Ghosts.png",
                 frame_width=32, frame_height=32,
                 frame_count=4, fps=4, loop=True, start_frame=8,
                 center=True,  # box is centered on actor.position, unrotated
