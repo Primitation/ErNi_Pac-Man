@@ -1,5 +1,6 @@
 import ctypes
 import numpy as np
+from typing import Any
 from mlx import Mlx
 import math
 from .. import Assets
@@ -139,6 +140,7 @@ class RendererSubsystem:
         AnimatedSpriteComponent) so any future component that wants
         to be drawn just needs to expose `.sprite` — no changes
         needed here."""
+        out_components: list[Any] = []
 
         components = getattr(actor, "components", None)
         if not components:
@@ -146,9 +148,8 @@ class RendererSubsystem:
 
         for component in components:
             if hasattr(component, "sprite"):
-                return component
-
-        return None
+                out_components.append(component)
+        return out_components
 
     def _fill_solid(self, color: int):
         """One-shot solid color fill — the actual pixel-writing work.
@@ -217,21 +218,23 @@ class RendererSubsystem:
         static_actors = [a for a in world if getattr(a, "static", False)]
 
         for actor in static_actors:
-            component = self._sprite_for(actor)
-            if component is None:
+            components = self._sprite_for(actor)
+            if components is None:
                 continue
-            sprite = getattr(component, 'sprite', None)
-            if sprite is None:
-                continue
-            try:
-                rotation = getattr(actor, 'rotation', 0.0)
-                pivot = getattr(actor, 'pivot', (0.5, 0.5))
-                position = self._get_component_position(component)
-                # Create a position object with x,y attributes
-                pos = type('Position', (), {'x': position[0], 'y': position[1]})()
-                self.draw_sprite(sprite, pos, actor.scale, rotation, pivot)
-            except Exception:
-                self._logger.exception(f"Failed to bake actor {actor!r}")
+            for component in components:
+                sprite = getattr(component, 'sprite', None)
+                if sprite is None:
+                    continue
+                try:
+                    rotation = getattr(actor, 'rotation', 0.0)
+                    component_rotation = getattr(component, 'local_rotation', 0.0)
+                    pivot = getattr(actor, 'pivot', (0.5, 0.5))
+                    position = self._get_component_position(component)
+                    # Create a position object with x,y attributes
+                    pos = type('Position', (), {'x': position[0], 'y': position[1]})()
+                    self.draw_sprite(sprite, pos, actor.scale, rotation + component_rotation, pivot)
+                except Exception:
+                    self._logger.exception(f"Failed to bake actor {actor!r}")
 
         if self.bake_buffer is None:
             self.bake_buffer = bytearray(self.buffer_size)
@@ -576,28 +579,30 @@ class RendererSubsystem:
             if self._baked and getattr(actor, "static", False):
                 continue
 
-            component = self._sprite_for(actor)
-            if component is None:
+            components = self._sprite_for(actor)
+            if components is None:
                 continue
-            sprite = getattr(component, 'sprite', None)
-            if sprite is None:
-                continue
+            for component in components:
+                sprite = getattr(component, 'sprite', None)
+                if sprite is None:
+                    continue
 
-            try:
-                rotation = getattr(actor, 'rotation', 0.0)
-                pivot = getattr(actor, 'pivot', (0.5, 0.5))
-                position = self._get_component_position(component)
-                # Create a position object with x,y attributes
-                pos = type('Position', (), {'x': position[0], 'y': position[1]})()
-                self.draw_sprite(
-                    sprite,
-                    pos,
-                    actor.scale,
-                    rotation,
-                    pivot
-                )
-            except Exception:
-                self._logger.exception(f"Failed to draw actor {actor!r}")
+                try:
+                    rotation = getattr(actor, 'rotation', 0.0)
+                    pivot = getattr(actor, 'pivot', (0.5, 0.5))
+                    component_rotation = getattr(component, 'local_rotation', 0.0)
+                    position = self._get_component_position(component)
+                    # Create a position object with x,y attributes
+                    pos = type('Position', (), {'x': position[0], 'y': position[1]})()
+                    self.draw_sprite(
+                        sprite,
+                        pos,
+                        actor.scale,
+                        rotation + component_rotation,
+                        pivot
+                    )
+                except Exception:
+                    self._logger.exception(f"Failed to draw actor {actor!r}")
 
     def render_present(self):
         """Present the framebuffer to the screen."""

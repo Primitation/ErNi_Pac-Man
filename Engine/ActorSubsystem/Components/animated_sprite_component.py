@@ -37,6 +37,7 @@ class AnimatedSpriteComponent(Component):
         local_offset=(0.0, 0.0),
         offset_rotates=True,
         center: bool = False,
+        local_rotation=0,
     ):
         super().__init__(enabled)
 
@@ -50,6 +51,7 @@ class AnimatedSpriteComponent(Component):
         self.local_position = local_offset
         self.offset_rotates = offset_rotates
         self.center = center
+        self.local_rotation = local_rotation
 
         self.set_animation(
             path, frame_width, frame_height, frame_count, columns,

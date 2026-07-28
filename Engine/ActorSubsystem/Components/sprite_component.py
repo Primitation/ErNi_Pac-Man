@@ -1,5 +1,6 @@
 from .component import Component
 from ... import Assets
+from ... import Vector2
 
 
 class SpriteComponent(Component):
@@ -13,11 +14,13 @@ class SpriteComponent(Component):
     """
 
     def __init__(self, path: str = None, local_offset=(0.0, 0.0),
-                 offset_rotates=True, center: bool = False, enabled: bool = True):
+                 offset_rotates=True, center: bool = False,
+                 enabled: bool = True, local_rotation=0.0):
         super().__init__(enabled)
         self._path = path
         self.local_position = local_offset
         self.offset_rotates = offset_rotates
+        self.local_rotation = local_rotation
         self.center = center
 
     def on_added(self, actor):

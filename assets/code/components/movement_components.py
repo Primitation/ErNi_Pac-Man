@@ -71,15 +71,19 @@ class PlayerMovementInput(Component):
 
         if Input.is_action_held("left"):
             direction.x -= 1
+            direction.y = 0
 
         if Input.is_action_held("right"):
             direction.x += 1
+            direction.y = 0
 
         if Input.is_action_held("up"):
             direction.y -= 1
+            direction.x = 0
 
         if Input.is_action_held("down"):
             direction.y += 1
+            direction.x = 0
 
         self.movement.set_direction(direction)
 
@@ -111,7 +115,7 @@ class FaceDirectionComponent(Component):
         if velocity.x > 0:
             self.actor.rotation = 0
         elif velocity.x < 0:
-            self.actor.rotation = 180
+            self.actor.rotation = 0
         elif velocity.y < 0:
             self.actor.rotation = 270
         elif velocity.y > 0:
