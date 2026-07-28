@@ -92,7 +92,7 @@ PACKAGE := mazegen
 
 all: install
 
-install: banner mlx
+install: banner mlx package-install
 	@printf "$(CYAN)"
 	@printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
 	@printf "        Preparing the environement\n"
@@ -139,8 +139,12 @@ build:
 	@find dist -name "*.tar.gz" -exec cp {} . \;
 
 package-install:
-	$(TITLE) "Installing built package"
-	@$(call spinner,Installing built package $(PACKAGE) package,$(PIP) install *.whl --force-reinstall >/dev/null 2>&1)
+	@printf "$(CYAN)"
+	@printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+	@printf "        Installing built package\n"
+	@printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+	@printf "$(RESET)"
+	@$(call spinner,Installing built package $(PACKAGE) package,$(PIP) install libs/*.whl --force-reinstall >/dev/null 2>&1)
 
 run:
 	@printf "$(BLUE)"
