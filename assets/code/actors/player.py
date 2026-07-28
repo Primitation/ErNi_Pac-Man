@@ -26,13 +26,14 @@ class Player(Actor):
             tag=tag,
         )
 
-        self.tmp: AnimatedSpriteComponent = self.add_component(AnimatedSpriteComponent("assets/texture/spritesheets/pacman_hd/PacManAssets-Ghosts.png",
-                                                              frame_width=32, frame_height=32, start_frame=0, frame_count=4,
-                                                              center=True, local_offset=Vector2(0,50)))
-        
-        self.eye = self.add_component(AnimatedSpriteComponent("assets/texture/spritesheets/pacman_hd/PacManAssets-Ghosts.png",
-                                                                      frame_width=16, frame_height=16, start_frame=160, frame_count=1,
-                                                                      center=True, local_offset=Vector2(0,50)))
+        self.animation = self.add_component(
+            AnimatedSpriteComponent(
+                "assets/texture/spritesheets/pacman_hd/PacManAssets-PacMan.png",
+                frame_width=32, frame_height=32,
+                frame_count=4, fps=4, loop=True, start_frame=0,
+                center=True,  # box is centered on actor.position, unrotated
+            )
+        )
 
         # Movement components
         self.movement = self.add_component(MovementComponent(speed=speed))
@@ -73,9 +74,6 @@ class Player(Actor):
     def update(self, dt):
         if Input.is_action_triggered("dead"):
             self.dead(self.animation)
-        self.tmp.local_rotation += 50
-        self.eye.local_rotation += 50
-
         super().update(dt)
 
     def destroy(self):
