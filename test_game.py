@@ -14,6 +14,7 @@ import sys
 from Engine import Renderer, Input, Log
 from game.game_instance.game_config import GameConfig, GameConfigParser
 from game.game_instance.game_instance import GameInstance
+from game.game_instance.score import Scores
 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -45,6 +46,16 @@ def main_parser():
     sleep(2)
 
 
+def main_scores():
+    game_config: GameConfig = GameConfigParser.parse("config.json")
+    scores = Scores.load_scores(game_config)
+    print(scores.get_top_scores())
+    scores.add_score("AB", 42)
+    print(scores.get_top_scores())
+    scores.save_scores(game_config)
+
+
 if __name__ == "__main__":
     # main_parser()
-    main()
+    # main()
+    main_scores()

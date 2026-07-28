@@ -66,9 +66,24 @@ class GameConfig:
         return self._points_per_super_pacgum
 
     @property
+    def highscore_filename(self) -> int:
+        """scores saves filename"""
+        return self._highscore_filename
+
+    @property
     def points_per_ghost(self) -> int:
         """Points per ghost eaten."""
         return self._points_per_ghost
+
+    @property
+    def lives(self) -> int:
+        """Lives for the game."""
+        return self._lives
+
+    @property
+    def level_max_time(self) -> int:
+        """Maximum time for a level."""
+        return self._level_max_time
 
     @property
     def seed(self) -> int:
