@@ -38,7 +38,7 @@ def main():
         Player,
         position=Vector2(150, 150),
         velocity=Vector2(0, 0),
-        scale=Vector2(2, 2),
+        scale=Vector2(1.5, 1.5),
     )
 
     def on_pause():

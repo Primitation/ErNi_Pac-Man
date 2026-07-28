@@ -25,6 +25,7 @@ class Component(ABC):
         self.enabled = enabled
         self.alive = True
         self.local_position = (0.0, 0.0)  # Offset from actor's position
+        self.local_rotation = 0.0  # Offset from actor's rotation
         self.offset_rotates = True  # If True, offset rotates with actor
 
     def on_added(self, actor):
@@ -81,7 +82,7 @@ class Component(ABC):
 
             # If offset should rotate with the actor
             if self.offset_rotates:
-                rotation = getattr(self.actor, "rotation", 0.0)
+                rotation = getattr(self.actor, "rotation", 0.0) + self.local_rotation
                 # Convert to radians
                 angle = math.radians(rotation)
                 cos_a = math.cos(angle)

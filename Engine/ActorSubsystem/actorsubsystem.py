@@ -161,7 +161,7 @@ class ActorSubsystem:
 
     def __init__(self):
 
-        self._actors = []
+        self._actors: list[AActor] = []
         self._lock = threading.Lock()
 
         self.tick = Event()
@@ -186,7 +186,8 @@ class ActorSubsystem:
 
     def clear(self):
         with self._lock:
-            self._actors.clear()
+            for actor in self._actors:
+                actor.destroy()
 
     def remove(self, actor: AActor):
         with self._lock:

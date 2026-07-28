@@ -1,7 +1,7 @@
 from .actor import Actor
 from Engine import on_end_of_anim
 from Engine import Vector2, Input
-from Engine import AnimatedSpriteComponent
+from Engine import AnimatedSpriteComponent, SpriteComponent
 from ..components.movement_components import (
     MovementComponent, PlayerMovementInput, FaceDirectionComponent)
 from ..components.particle_component import ParticleTrailComponent
@@ -17,7 +17,7 @@ class Player(Actor):
         velocity: Vector2,
         scale: Vector2,
         tag: str = "Actor",
-        speed: float = 200.0,
+        speed: float = 100.0,
     ):
         super().__init__(
             position=position,
@@ -26,14 +26,13 @@ class Player(Actor):
             tag=tag,
         )
 
-        self.animation = self.add_component(
-            AnimatedSpriteComponent(
-                "assets/texture/spritesheets/pacman_hd/PacManAssets-PacMan.png",
-                frame_width=32, frame_height=32,
-                frame_count=4, fps=4, loop=True, start_frame=0,
-                center=True,  # box is centered on actor.position, unrotated
-            )
-        )
+        self.tmp: AnimatedSpriteComponent = self.add_component(AnimatedSpriteComponent("assets/texture/spritesheets/pacman_hd/PacManAssets-Ghosts.png",
+                                                              frame_width=32, frame_height=32, start_frame=0, frame_count=4,
+                                                              center=True, local_offset=Vector2(0,50)))
+        
+        self.eye = self.add_component(AnimatedSpriteComponent("assets/texture/spritesheets/pacman_hd/PacManAssets-Ghosts.png",
+                                                                      frame_width=16, frame_height=16, start_frame=160, frame_count=1,
+                                                                      center=True, local_offset=Vector2(0,50)))
 
         # Movement components
         self.movement = self.add_component(MovementComponent(speed=speed))
@@ -59,7 +58,7 @@ class Player(Actor):
         # so we can see whether the sprite is actually centered on it
         # or drawn with its top-left corner there. Remove once
         # confirmed.
-        # self.add_component(OriginMarkerComponent(color=0xFFFF0000, size=6.0))
+        self.add_component(OriginMarkerComponent(color=0xFFFF0000, size=6.0))
 
         Input.bind_action("dead", [Input.KEYS["t"]])
 
@@ -74,6 +73,8 @@ class Player(Actor):
     def update(self, dt):
         if Input.is_action_triggered("dead"):
             self.dead(self.animation)
+        self.tmp.local_rotation += 50
+        self.eye.local_rotation += 50
 
         super().update(dt)
 
