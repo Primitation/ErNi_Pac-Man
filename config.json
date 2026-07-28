@@ -1,17 +1,17 @@
 {
     "highscore_filename":"save_scores.json",
     "lives":4,
-    "pacgum":"42",
+    "pacgum":"5",
     "level_max_time":"90",
     "points_per_pacgum":"5",
     "points_per_super_pacgum":"10",
     "points_per_ghost":"200",
-    "seed":"420",
+    "seed":"42",
     "level":
         [
             {
-                "width":"100",
-                "height":"100"
+                "width":"200",
+                "height":"200"
             }
         ]
 }

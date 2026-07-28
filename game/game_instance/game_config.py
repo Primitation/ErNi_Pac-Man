@@ -131,7 +131,7 @@ class GameConfigModelConstant:
     MIN_points = 1
     DEFAULT_seed = 42
     MIN_level_max_time = 30  # seconds per level
-    MIN_LEVELS = 3  # TODO REAL VALUE NEEDED: 10
+    MIN_LEVELS = 1  # TODO REAL VALUE NEEDED: 10
 
     LOG = Log.get("main")
 
