@@ -27,7 +27,6 @@ class Actor(AActor):
         # animation can freely push self.scale up and back down.
         self.base_scale = Vector2(scale.x, scale.y)
 
-
         # Register with collision system. get_rect is our own
         # override (below), not the ColliderComponent default, so
         # the hitbox stays pinned to base_scale regardless of what a
@@ -60,7 +59,8 @@ class Actor(AActor):
             or self.get_component(AnimatedSpriteComponent)
         )
 
-        if sprite_component is not None and sprite_component.sprite is not None:
+        if (sprite_component is not None
+                and sprite_component.sprite is not None):
             width = sprite_component.width * self.base_scale.x
             height = sprite_component.height * self.base_scale.y
         else:

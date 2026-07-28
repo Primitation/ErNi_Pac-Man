@@ -1,11 +1,6 @@
 from .actor import Actor
-from Engine import on_end_of_anim
-from Engine import Vector2, Input
-from Engine import AnimatedSpriteComponent, SpriteComponent
-from ..components.movement_components import (
-    MovementComponent, PlayerMovementInput, FaceDirectionComponent)
-from ..components.particle_component import ParticleTrailComponent
-from ..components.origin_marker_component import OriginMarkerComponent
+from Engine import Vector2
+from Engine import AnimatedSpriteComponent
 
 
 class Pacgum(Actor):

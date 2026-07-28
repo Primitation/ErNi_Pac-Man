@@ -8,7 +8,8 @@ from Engine.ParticlesSubsystem.particlessubsystem import Particles
 from assets.code.actors.ghost import (
     RedGhost, BlueGhost, YellowGhost, PinkGhost)
 from assets.code.actors.pacgum import Pacgum, SuperPacgum
-from assets.code.actors.wall import Wall, WallEast, WallNorth, WallSouth, WallWest
+from assets.code.actors.wall import (Wall, WallEast, WallNorth,
+                                     WallSouth, WallWest)
 from game.game_instance.player_information import PlayerInformation
 from game.levelgen import LevelGenerator, LevelOptions
 from assets.code.actors.player import Player
@@ -16,9 +17,9 @@ from game.levelgen.maze_analyzer import MazeAnalyzer
 
 
 class LevelInstance:
-    """Level instance.
+    """A level instance.
 
-    TODO
+    Can start the level.
     """
     def __init__(self, level_options: LevelOptions) -> None:
         """Initializes a level instance.
@@ -40,7 +41,6 @@ class LevelInstance:
         Log.get("level").info("Level instance start load structure")
         self._level_structure = LevelGenerator.generate(self._level_options)
         Log.get("level").info("Level instance load ready")
-        # TODO: set the world
 
     def _scaling(self, vector: Vector2) -> Vector2:
         mult = 1
@@ -57,10 +57,10 @@ class LevelInstance:
             player_information: the player.
         """
 
-        # TODO: SCORES + LIVES (player)
+        # TODO: SCORES + LIVES (player) to link !
         player_information.reset()  # TODO: DELETE !!!
 
-        def full_scalling() -> None: # TODO DELETE AFTER SCALING IN WORLD
+        def full_scalling() -> None:  # TODO DELETE AFTER SCALING IN WORLD
             self._level_structure._pacman = self._scaling_position(
                 self._level_structure.pacman)
             self._level_structure._ghosts = [
@@ -104,7 +104,7 @@ class LevelInstance:
             }
             for wall_position, rotation in all_walls:
                 wall_type, scale = mapping[rotation]
-                Actors.spawn( # TODO :TESTs
+                Actors.spawn(
                     wall_type,
                     position=self._scaling_position(wall_position),
                     velocity=Vector2(0, 0),
@@ -117,15 +117,15 @@ class LevelInstance:
 
         pacman_actor = Actors.spawn(
             Player,
-            position=self._level_structure.pacman,  # TODO ?
+            position=self._level_structure.pacman,
             velocity=Vector2(0, 0),
             scale=self._scaling(Vector2(1, 1))  # TODO size
         )
 
         ghosts_actor = [
             Actors.spawn(
-                ghost_class,  # TODO: ghost
-                position=ghost_position,  # TODO ?
+                ghost_class,
+                position=ghost_position,
                 velocity=Vector2(0, 0),
                 scale=self._scaling(Vector2(1, 1))  # TODO size
             )
@@ -136,8 +136,8 @@ class LevelInstance:
 
         pacgum_actors = [
             Actors.spawn(
-                Pacgum,  # TODO: pacgum
-                position=pacgum_position,  # TODO ?
+                Pacgum,
+                position=pacgum_position,
                 velocity=Vector2(0, 0),
                 scale=self._scaling(Vector2(1.5, 1.5))  # TODO size
             )
@@ -146,8 +146,8 @@ class LevelInstance:
 
         super_pacgum_actors = [
             Actors.spawn(
-                SuperPacgum,  # TODO: super pacgum
-                position=super_pacgum_position,  # TODO ?
+                SuperPacgum,
+                position=super_pacgum_position,
                 velocity=Vector2(0, 0),
                 scale=self._scaling(Vector2(1.5, 1.5))  # TODO size
             )
@@ -181,11 +181,9 @@ class LevelInstance:
 
         # TODO: AI ghosts
 
-        # TODO start the game
         Log.get("level").info("Level instance start")
 
-        # TODO: this is an example temporary example:
-        if 1:
+        try:
             log = Log.get("main")
             log.info("Booting smoke test...")
 
@@ -243,8 +241,9 @@ class LevelInstance:
             Renderer.hook_loop(frame)
             log.info("Entering mlx loop.")
             Renderer.loop()
+        except Exception:
+            log.error("Error level loop.")
 
         World.clear()
         Actors.clear()
-        # TODO: end example
-        Log.get("level").info("Level instance end")
+        log.info("Level instance end")

@@ -47,8 +47,6 @@ class GameModeNormalLevels(GameModeLevels):
             LevelInstance(level_option)
             for level_option in levels_options
         ]
-        # TODO: load now ? or thread ? or etc
-        # TODO: at least 10 levels ! (defaults ?)
 
     @property
     def current_level(self) -> int:

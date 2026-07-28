@@ -3,7 +3,6 @@
 from typing import List, Tuple
 
 from Engine.LogSubsystem.logsubsystem import Log
-from Engine.World.world import World
 from game.game_instance.score import Scores
 from .player_information import PlayerInformation
 from .game_config import GameConfig
@@ -65,13 +64,10 @@ class GameInstance:
         self._game_mode_normal.reset()
         self.log = Log.get("main")
 
-        # TODO: example game 10 only
-
     def _start_normal_levels(self) -> None:
         """Initialize the game and start."""
         self._current_player.reset()
         self._game_mode_normal.reset()
-        """TODO: this is an example of loop with levels."""
         log = Log.get("main")
         log.info("GameInstance: start normal levels")
         level_instance = self._game_mode_normal.next_level()
@@ -119,7 +115,7 @@ class GameInstance:
             Menu
         """
         self.log.info("GameInstance: Instructions")
-        instructions = "Instructions here" # TODO
+        instructions = "Instructions here"  # TODO: instruction text
         AskUI.view_instructions(instructions)
         # Returns to menu
 
