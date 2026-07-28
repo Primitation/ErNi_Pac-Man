@@ -21,6 +21,7 @@ class RendererSubsystem:
 
         self.width = 0
         self.height = 0
+        self.title = "PacEngine"
 
         self.bpp = 0
         self.line_size = 0
@@ -36,8 +37,11 @@ class RendererSubsystem:
         self.bake_buffer = None      # baked static-actor background, same layout as self.buffer
         self.bake_np = None          # numpy view over bake_buffer
         self._baked = False
+        self._last_bake_world = None            # world passed to the last bake() call, if any
+        self._last_bake_background_color = 0xFF000000
 
         self._scale_cache = {}       # (id(texture), scaled_w, scaled_h) -> resampled numpy array
+        self._resize_listeners = []  # callbacks notified with (win_ptr, width, height) after resize()
 
         self._logger = Log.get("renderer")
         self._frame_count = 0
@@ -47,6 +51,7 @@ class RendererSubsystem:
 
         self.width = width
         self.height = height
+        self.title = title
 
         self.mlx = Mlx()
         self.mlx_ptr = self.mlx.mlx_init()
@@ -209,6 +214,9 @@ class RendererSubsystem:
         Call bake() again (e.g. after spawning/removing static actors)
         to rebuild the background; call unbake() to go back to a
         plain solid-color clear()."""
+
+        self._last_bake_world = world
+        self._last_bake_background_color = background_color
 
         # Build directly into the main buffer as scratch — bypass the
         # baked shortcut in clear() while we're constructing the bake.
@@ -665,6 +673,110 @@ class RendererSubsystem:
                 self.mlx_ptr
             )
 
+    def on_resize(self, callback):
+        """Register a callback to be notified after resize() rebuilds
+        the window. Called as callback(win_ptr, width, height) with
+        the *new* window pointer — use this to rebind anything that
+        hooked mlx_hook() onto the old win_ptr directly (e.g. Input's
+        key/mouse hooks), since that window is destroyed by resize()
+        and takes its hooks with it. Without rebinding, the engine
+        keeps running fine (the frame loop is hooked to mlx_ptr, not
+        the window) but input will silently stop responding."""
+        self._resize_listeners.append(callback)
+
+    def resize(self, width: int, height: int, title: str = None):
+        """Resize the window and framebuffer to a new width/height.
+
+        Destroys the current native window and rebuilds it (and the
+        framebuffer image + all buffers) at the new size — mirrors
+        the buffer-setup steps in init(), just without re-running
+        mlx_init(). If bake() had been called, the old baked background
+        no longer matches the new size, so it's dropped and immediately
+        rebuilt at the new dimensions from the same world/background_color
+        used last time — no need to call bake() again yourself. If a
+        static actor was added or removed via a normal bake() call in
+        between, that's still what gets rebaked here, since we just
+        re-run bake() with whatever world reference was last given."""
+
+        if self.win_ptr is None:
+            raise RuntimeError("RendererSubsystem.resize() called before .init().")
+
+        if title is None:
+            title = self.title
+
+        self.close()  # destroys the old window (self.win_ptr -> None)
+
+        self.width = width
+        self.height = height
+        self.title = title
+
+        self.win_ptr = self.mlx.mlx_new_window(
+            self.mlx_ptr, width, height, title
+        )
+
+        if self.win_ptr is None:
+            raise RuntimeError("mlx_new_window() failed during resize().")
+
+        self.framebuffer = self.mlx.mlx_new_image(
+            self.mlx_ptr, width, height
+        )
+
+        if self.framebuffer is None:
+            raise RuntimeError("mlx_new_image() failed during resize().")
+
+        (
+            self.framebuffer_data,
+            self.bpp,
+            self.line_size,
+            self.format
+        ) = self.mlx.mlx_get_data_addr(self.framebuffer)
+
+        self.pixel_size = self.bpp // 8
+        self.framebuffer_ptr = ctypes.addressof(self.framebuffer_data.obj)
+        self.buffer_size = self.height * self.line_size
+        self.buffer = bytearray(self.buffer_size)
+
+        self.buffer_np = np.frombuffer(self.buffer, dtype=np.uint8).reshape(
+            self.height, self.line_size
+        )
+        self._buffer_cbuf = (ctypes.c_char * self.buffer_size).from_buffer(self.buffer)
+
+        pixel_dtype = {1: np.uint8, 2: np.uint16, 4: np.uint32}.get(self.pixel_size)
+        if pixel_dtype is not None and self.line_size % self.pixel_size == 0:
+            self._clear_view = self.buffer_np.view(dtype=pixel_dtype)
+        else:
+            self._clear_view = None
+
+        # Old bake buffer is the wrong size for the new dimensions — drop
+        # it, then immediately rebake from the last world/color passed to
+        # bake() (if any) so callers don't have to remember to redo it
+        # after every resize. Falls back to a solid fill on the next
+        # clear() if bake() was never called in the first place.
+        self._baked = False
+        self.bake_buffer = None
+        self.bake_np = None
+
+        if self._last_bake_world is not None:
+            try:
+                self.bake(self._last_bake_world, self._last_bake_background_color)
+            except Exception:
+                self._logger.exception("Failed to rebake background after resize")
+
+        self.mlx.mlx_hook(
+            self.win_ptr, 33, 0, self._close_window, self
+        )
+
+        self._logger.info(f'Window resized: {width}x{height} "{title}"')
+
+        self.clear(0xFF000000)
+
+        # Let anything bound to the old win_ptr (e.g. Input's key/mouse
+        # hooks) rebind itself against the new one.
+        for listener in self._resize_listeners:
+            try:
+                listener(self.win_ptr, width, height)
+            except Exception:
+                self._logger.exception("resize listener failed")
 
 # Global renderer system
 Renderer = RendererSubsystem()

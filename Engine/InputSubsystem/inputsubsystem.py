@@ -179,16 +179,18 @@ class InputSubsystem:
         self._input_running = False
         self._state_lock = threading.Lock()
 
-    def init(self, renderer):
+    def init(self):
+        from .. import Renderer
+
         """Initialize the input subsystem with the renderer's MLX instance."""
         if self._initialized:
             return
 
         # Get MLX from renderer
-        self._renderer = renderer
-        self.mlx = renderer.mlx
-        self.mlx_ptr = renderer.mlx_ptr
-        self.win_ptr = renderer.win_ptr
+        self._renderer = Renderer
+        self.mlx = Renderer.mlx
+        self.mlx_ptr = Renderer.mlx_ptr
+        self.win_ptr = Renderer.win_ptr
 
         # Without this, X11 auto-repeats held keys by firing rapid
         # KeyRelease/KeyPress pairs once the OS repeat-delay kicks in.
@@ -204,6 +206,21 @@ class InputSubsystem:
 
         self._initialized = True
         self._logger.info("Input subsystem initialized")
+        self._renderer.on_resize(self.resize)
+
+    def resize(self, win_ptr, width, height):
+        """Rebind hooks after Renderer.resize() rebuilds the native window.
+
+        Renderer.resize() destroys the old window (taking its mlx hooks
+        with it) and calls resize listeners with (win_ptr, width, height)
+        for the *new* window. We only need to point at the new win_ptr
+        and re-register the mlx hooks against it — action bindings, the
+        input thread, and key-autorepeat (which lives on mlx_ptr, not the
+        window) are untouched by a resize, so there's no need to tear
+        down and re-run the full init()."""
+        self.win_ptr = win_ptr
+        self._register_mlx_hooks()
+        self._logger.info(f"Input hooks rebound to new window ({width}x{height})")
 
     def start_input_thread(self):
         """Start asynchronous input processing thread."""
