@@ -20,7 +20,7 @@ from game.game_instance.score import Scores
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-WIDTH, HEIGHT = 300, 200
+WIDTH, HEIGHT = 800, 600
 
 
 def main():
@@ -57,5 +57,5 @@ def main_scores():
 
 if __name__ == "__main__":
     # main_parser()
-    # main()
-    main_scores()
+    main()
+    # main_scores()

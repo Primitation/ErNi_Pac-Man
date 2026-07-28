@@ -4,6 +4,9 @@ import time
 from Engine import (Assets, Collision, Input, Log, Renderer, World,
                     Vector2, Actors)
 from Engine.ParticlesSubsystem.particlessubsystem import Particles
+from assets.code.actors.ghost import (
+    RedGhost, BlueGhost, YellowGhost, PinkGhost)
+from assets.code.actors.pacgum import Pacgum, SuperPacgum
 from game.game_instance.player_information import PlayerInformation
 from game.levelgen import LevelGenerator, LevelOptions
 from assets.code.actors.player import Player
@@ -77,38 +80,41 @@ class LevelInstance:
             Player,
             position=self._level_structure.pacman,  # TODO ?
             velocity=Vector2(0, 0),
-            scale=self._scaling(Vector2(0.25, 0.25))  # TODO size
+            scale=self._scaling(Vector2(1.5, 1.5))  # TODO size
         )
 
         ghosts_actor = [
             Actors.spawn(
-                Player,  # TODO: ghost
+                ghost_class,  # TODO: ghost
                 position=ghost_position,  # TODO ?
                 velocity=Vector2(0, 0),
-                scale=self._scaling(Vector2(0.25, 0.25))  # TODO size
+                scale=self._scaling(Vector2(1.5, 1.5))  # TODO size
             )
-            for ghost_position in self._level_structure.ghosts
+            for ghost_class, ghost_position in zip(
+                [RedGhost, BlueGhost, YellowGhost, PinkGhost],
+                self._level_structure.ghosts)
         ]
 
         pacgum_actors = [
             Actors.spawn(
-                Player,  # TODO: pacgum
+                Pacgum,  # TODO: pacgum
                 position=pacgum_position,  # TODO ?
                 velocity=Vector2(0, 0),
-                scale=self._scaling(Vector2(0.10, 0.10))  # TODO size
+                scale=self._scaling(Vector2(1.5, 1.5))  # TODO size
             )
             for pacgum_position in self._level_structure.pacgums
         ]
 
         super_pacgum_actors = [
             Actors.spawn(
-                Player,  # TODO: super pacgum
+                SuperPacgum,  # TODO: super pacgum
                 position=super_pacgum_position,  # TODO ?
                 velocity=Vector2(0, 0),
-                scale=self._scaling(Vector2(0.2, 0.2))  # TODO size
+                scale=self._scaling(Vector2(1.5, 1.5))  # TODO size
             )
             for super_pacgum_position in self._level_structure.super_pacgums
         ]
+
         Log.get("level").info("Level instance actors ready")
         # TODO: set the interactions on each Actors
         """
