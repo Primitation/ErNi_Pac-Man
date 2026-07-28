@@ -3,6 +3,7 @@
 import time
 from Engine import (Assets, Collision, Input, Log, Renderer, World,
                     Vector2, Actors)
+from Engine.ParticlesSubsystem.particlessubsystem import Particles
 from game.game_instance.player_information import PlayerInformation
 from game.levelgen import LevelGenerator, LevelOptions
 from assets.code.actors.player import Player
@@ -180,27 +181,23 @@ class LevelInstance:
                     fps_frames = 0
                     fps_timer -= 1000
 
-                Input.process_events()
-
-                Input.process_actions()
-
                 Assets.update()
+                Input.process_events()
+                Input.update()
+                Input.process_actions()
 
                 Actors.update(dt)
                 if not Actors.paused:
                     Collision.update()
-                Renderer.render(World)
 
-                # Runs last: downgrades PRESSED -> HELD and RELEASED
-                #                                                -> IDLE only
-                # after everything this frame (process_actions, actor updates,
-                # collision, render) has had a chance to see the fresh state.
-                Input.update()
+                Renderer.render_draw(World)
+                Particles.update(dt)
+                Particles.render(Renderer)
+                Renderer.render_present()
 
             Renderer.hook_loop(frame)
-
             log.info("Entering mlx loop.")
-
             Renderer.loop()
+
         # TODO: end example
         Log.get("level").info("Level instance end")

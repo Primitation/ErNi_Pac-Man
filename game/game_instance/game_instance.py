@@ -15,7 +15,7 @@ class GameInstance:
             config: the configs for the game.
         """
         self._current_player = PlayerInformation(config)
-        self._game_mode_normal = GameModeNormalLevels(config.level_options)
+        self._game_mode_normal = GameModeNormalLevels(config.levels_options)
 
         # TODO load here ? or not ?
         self._game_mode_normal.reset()
@@ -34,9 +34,9 @@ class GameInstance:
         """TODO: this is an example of loop with levels."""
         log = Log.get("main")
         log.info("GameInstance: start normal levels")
-        level_name = self._game_mode_normal.current_level
         level_instance = self._game_mode_normal.next_level()
         while self._current_player.is_alive() and level_instance is not None:
+            level_name = self._game_mode_normal.current_level
             log.info(f"GameInstance: start normal level {level_name}")
             level_instance.start(self._current_player)
             level_instance = self._game_mode_normal.next_level()

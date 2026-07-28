@@ -1,6 +1,7 @@
 """Level options for generation."""
 
 from time import time
+from random import randrange
 
 
 class LevelOptions:
@@ -30,7 +31,7 @@ class LevelOptions:
         self._width = width
         self._height = height
         self._pac_gum_count = pac_gum_count
-        self._seed = seed if seed is not None else int(time() * 1000000)
+        self._seed = seed
 
     @property
     def width(self) -> int:
@@ -47,7 +48,28 @@ class LevelOptions:
         """The number of pacgums to put in the maze."""
         return self._pac_gum_count
 
+    @pac_gum_count.setter
+    def pac_gum_count(self, pac_gum: int) -> None:
+        """Set the number of pacgums to put in the maze."""
+        self._pac_gum_count = pac_gum
+
     @property
     def seed(self) -> int:
         """The random seed."""
-        return self._seed
+        return (self._seed
+                if self._seed is not None
+                else randrange(int(time() * 1000000)))
+
+    @seed.setter
+    def seed(self, seed: int | None) -> None:
+        """Set the random seed."""
+        self._seed = seed
+
+    def __str__(self) -> str:
+        """Returns a string representation.
+
+        Returns:
+            Returns a string representation.
+        """
+        return (f"LevelOptions width={self._width} height={self._height} "
+                f"pac_gum_count={self._pac_gum_count} seed={self._seed}")
