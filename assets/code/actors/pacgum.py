@@ -30,7 +30,7 @@ class Pacgum(Actor):
             AnimatedSpriteComponent(
                 "assets/texture/spritesheets/pacman_hd/PacManAssets-Items.png",
                 frame_width=16, frame_height=16,
-                frame_count=1, start_frame=8,
+                frame_count=1, start_frame=9,
                 center=True,
             )
         )

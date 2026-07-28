@@ -10,12 +10,14 @@ class Actor(AActor):
         position: Vector2,
         velocity: Vector2,
         scale: Vector2,
+        static: bool = False,
         tag: str = "Actor",
 
     ):
         super().__init__(
             position=position,
             scale=scale,
+            static=static
         )
 
         self.velocity = velocity

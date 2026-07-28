@@ -20,12 +20,12 @@ from game.game_instance.score import Scores
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-WIDTH, HEIGHT = 800, 600
+WIDTH, HEIGHT = 1000, 1000
 
 
 def main():
     Renderer.init(WIDTH*1, HEIGHT*1, "Engine smoke test")
-    Input.init(Renderer)
+    Input.init()
 
     game_config = GameConfigParser.parse("config.json")
     game_instance = GameInstance(game_config)
@@ -57,5 +57,5 @@ def main_scores():
 
 if __name__ == "__main__":
     # main_parser()
-    main()
     # main_scores()
+    main()

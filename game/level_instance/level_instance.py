@@ -1,15 +1,18 @@
 """Level instance"""
 
 import time
+from typing import Tuple
 from Engine import (Assets, Collision, Input, Log, Renderer, World,
                     Vector2, Actors)
 from Engine.ParticlesSubsystem.particlessubsystem import Particles
 from assets.code.actors.ghost import (
     RedGhost, BlueGhost, YellowGhost, PinkGhost)
 from assets.code.actors.pacgum import Pacgum, SuperPacgum
+from assets.code.actors.wall import Wall, WallEast, WallNorth, WallSouth, WallWest
 from game.game_instance.player_information import PlayerInformation
 from game.levelgen import LevelGenerator, LevelOptions
 from assets.code.actors.player import Player
+from game.levelgen.maze_analyzer import MazeAnalyzer
 
 
 class LevelInstance:
@@ -40,7 +43,12 @@ class LevelInstance:
         # TODO: set the world
 
     def _scaling(self, vector: Vector2) -> Vector2:
-        return vector  # TODO rescaling rule ?
+        mult = 1
+        return Vector2(vector.x * mult, vector.y * mult)
+
+    def _scaling_position(self, position: Vector2) -> Vector2:
+        mult = 48
+        return Vector2(position.x * mult, position.y * mult)
 
     def start(self, player_information: PlayerInformation) -> None:
         """Initialize and start the level.
@@ -51,6 +59,28 @@ class LevelInstance:
 
         # TODO: SCORES + LIVES (player)
         player_information.reset()  # TODO: DELETE !!!
+
+        def full_scalling() -> None: # TODO DELETE AFTER SCALING IN WORLD
+            self._level_structure._pacman = self._scaling_position(
+                self._level_structure.pacman)
+            self._level_structure._ghosts = [
+                self._scaling_position(ghost_pos)
+                for ghost_pos in self._level_structure.ghosts
+            ]
+            self._level_structure._pacgums = [
+                self._scaling_position(ghost_pos)
+                for ghost_pos in self._level_structure.pacgums
+            ]
+            self._level_structure._super_pacgums = [
+                self._scaling_position(ghost_pos)
+                for ghost_pos in self._level_structure.super_pacgums
+            ]
+            size_vector = self._scaling_position(Vector2(
+                self._level_structure.width,
+                self._level_structure.height))
+            self._level_structure._width = size_vector.x
+            self._level_structure._height = size_vector.y
+        full_scalling()
 
         Log.get("level").info("Level instance start init")
         if self._level_structure is None:
@@ -63,24 +93,32 @@ class LevelInstance:
         Collision.init(self._level_structure.width,
                        self._level_structure.height)
 
-        def tmp_put_wall_collision():  # TODO DELETE / OPTIMIZE
-            tmp_maze = self._level_structure.maze
-            for w in range(self._level_structure.width):
-                for h in range(self._level_structure.height):
-                    if self._level_structure.maze[h][w] & 8:  # West
-                        # TODO: Collision: add a wall w-1 h
-                        pass
-                    if self._level_structure.maze[h][w] & 1:  # West
-                        # TODO: Collision: add a wall w h+1
-                        pass
-        tmp_put_wall_collision()
+        def put_wall_texture() -> None:  # TODO DELETE / OPTIMIZE
+            maze = self._level_structure.maze
+            all_walls = MazeAnalyzer.extract_walls(maze)
+            mapping: dict[float, Tuple[Wall, Vector2]] = {
+                0: (WallNorth, Vector2(1, 0.5)),
+                90: (WallEast, Vector2(0.5, 1)),
+                180: (WallSouth, Vector2(1, 0.5)),
+                270: (WallWest, Vector2(0.5, 1))
+            }
+            for wall_position, rotation in all_walls:
+                wall_type, scale = mapping[rotation]
+                Actors.spawn( # TODO :TESTs
+                    wall_type,
+                    position=self._scaling_position(wall_position),
+                    velocity=Vector2(0, 0),
+                    scale=self._scaling(scale)  # TODO size
+                )
+        put_wall_texture()
+
         Log.get("level").info("Level instance walls ready")
 
         pacman_actor = Actors.spawn(
             Player,
             position=self._level_structure.pacman,  # TODO ?
             velocity=Vector2(0, 0),
-            scale=self._scaling(Vector2(1.5, 1.5))  # TODO size
+            scale=self._scaling(Vector2(1, 1))  # TODO size
         )
 
         ghosts_actor = [
@@ -88,7 +126,7 @@ class LevelInstance:
                 ghost_class,  # TODO: ghost
                 position=ghost_position,  # TODO ?
                 velocity=Vector2(0, 0),
-                scale=self._scaling(Vector2(1.5, 1.5))  # TODO size
+                scale=self._scaling(Vector2(1, 1))  # TODO size
             )
             for ghost_class, ghost_position in zip(
                 [RedGhost, BlueGhost, YellowGhost, PinkGhost],
