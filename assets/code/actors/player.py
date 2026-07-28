@@ -18,12 +18,14 @@ class Player(Actor):
         scale: Vector2,
         tag: str = "Actor",
         speed: float = 100.0,
+        static: bool = False,
     ):
         super().__init__(
             position=position,
             scale=scale,
             velocity=velocity,
             tag=tag,
+            static=static
         )
 
         self.animation = self.add_component(
