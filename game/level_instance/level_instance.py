@@ -111,6 +111,7 @@ class LevelInstance:
                     scale=self._scaling(scale)  # TODO size
                 )
         put_wall_texture()
+        Renderer.bake(World)
 
         Log.get("level").info("Level instance walls ready")
 
