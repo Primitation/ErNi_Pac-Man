@@ -194,7 +194,6 @@ class LevelInstance:
             fps_timer = 0.0
             fps_frames = 0
             fps = 0
-            Renderer.bake(World)
 
             def frame(_param):
 

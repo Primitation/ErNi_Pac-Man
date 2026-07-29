@@ -196,7 +196,8 @@ class RendererSubsystem:
 
         self._fill_solid(color)
 
-    def bake(self, world, background_color: int = 0xFF000000):
+    def bake(self, world, background_color: int = 0xFF000000,
+             max_wait_ticks: int = 300):
         """Pre-renders every static actor once into an internal
         background buffer. Call this after all static actors have
         been spawned — typically right before entering the main loop.
@@ -211,6 +212,15 @@ class RendererSubsystem:
         is True — add a `static` attribute/flag to your Actor class
         (or subclasses) to opt in.
 
+        Sprite assets resolve asynchronously (see _sprite_for) — a
+        component's `.sprite` is None until its asset has finished
+        loading. Since bake() only runs once, calling it before the
+        assets are ready would silently skip those actors and leave
+        a blank/solid-color background forever. To avoid that, bake()
+        pumps Assets.update() (up to `max_wait_ticks` times) until
+        every static actor's sprite components have resolved, or
+        gives up and bakes anyway with a warning.
+
         Call bake() again (e.g. after spawning/removing static actors)
         to rebuild the background; call unbake() to go back to a
         plain solid-color clear()."""
@@ -224,6 +234,28 @@ class RendererSubsystem:
         self._fill_solid(background_color)
 
         static_actors = [a for a in world if getattr(a, "static", False)]
+
+        def _sprites_pending() -> bool:
+            for actor in static_actors:
+                components = self._sprite_for(actor)
+                if not components:
+                    continue
+                for component in components:
+                    if getattr(component, 'sprite', None) is None:
+                        return True
+            return False
+
+        ticks = 0
+        while _sprites_pending() and ticks < max_wait_ticks:
+            Assets.update()
+            ticks += 1
+        if ticks >= max_wait_ticks and _sprites_pending():
+            self._logger.warning(
+                "bake(): some static actor sprite(s) hadn't finished "
+                f"loading after {max_wait_ticks} Assets.update() tick(s); "
+                "baking anyway — those actors may be missing from the "
+                "baked background."
+            )
 
         for actor in static_actors:
             components = self._sprite_for(actor)
@@ -777,6 +809,7 @@ class RendererSubsystem:
                 listener(self.win_ptr, width, height)
             except Exception:
                 self._logger.exception("resize listener failed")
+
 
 # Global renderer system
 Renderer = RendererSubsystem()
