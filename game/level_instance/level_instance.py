@@ -62,6 +62,8 @@ class LevelInstance:
 
         # TODO: SCORES + LIVES (player) to link !
         player_information.reset()  # TODO: DELETE !!!
+        Player.set_player_information(player_information)
+
         curr_pacman_data = self._world_position(
             self._level_structure.pacman
         )
