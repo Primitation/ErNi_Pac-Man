@@ -21,6 +21,8 @@ class LevelInstance:
 
     Can start the level.
     """
+    TILE_SIZE = 48
+
     def __init__(self, level_options: LevelOptions) -> None:
         """Initializes a level instance.
     TILE_SIZE = 48
@@ -54,7 +56,7 @@ class LevelInstance:
             self.load()
 
     def start(self, player_information: PlayerInformation) -> None:
-        """Initialize and start the level.
+        """Initialize and start the level."""
 
         World.clear()
         Actors.clear()
@@ -135,7 +137,7 @@ class LevelInstance:
                 Pacgum,
                 position=position,
                 velocity=Vector2(0, 0),
-                scale=Vector2(1.5, 1.5),
+                scale=Vector2(1, 1),
             )
             for position in curr_pacgums_data
         ]
@@ -143,8 +145,9 @@ class LevelInstance:
         super_pacgum_actors = [
             Actors.spawn(
                 SuperPacgum,
-                position=super_pacgum_position,
+                position=position,
                 velocity=Vector2(0, 0),
+                scale=Vector2(1.5, 1.5),
             )
             for position in curr_super_pacgums_data
         ]
