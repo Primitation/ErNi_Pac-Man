@@ -4,11 +4,12 @@ from .actor import Actor
 from Engine import Vector2
 from Engine import AnimatedSpriteComponent
 from ..components.origin_marker_component import OriginMarkerComponent
-import sys
 
 
 class Wall(Actor):
     """A wall Actor."""
+
+    local_offset_scaling: int = 1
 
     def __init__(
         self,
@@ -25,7 +26,7 @@ class Wall(Actor):
             position=position,
             scale=scale,
             velocity=velocity,
-            static=False if len(sys.argv) == 1 else True,  # TODO: put to true
+            static=True,
             tag=tag,
         )
 
@@ -34,13 +35,13 @@ class Wall(Actor):
                 "assets/texture/spritesheets/pacman_hd/"
                 "PacManAssets_Map_TileSet.png",
                 frame_width=frame_width, frame_height=frame_height,
-                local_offset=local_offset,
+                local_offset=(local_offset[0] * Wall.local_offset_scaling,
+                              local_offset[1] * Wall.local_offset_scaling),
                 frame_count=1, start_frame=0, loop=False,
-                center=True,  # box is centered on actor.position, unrotated
+                center=True,
                 local_rotation=local_rotation
             )
         )
-        self.add_component(OriginMarkerComponent(color=0xFFFF0000, size=6.0))
 
     def update(self, dt):
         super().update(dt)
@@ -48,6 +49,10 @@ class Wall(Actor):
     def destroy(self):
         self.logger.debug("destroy")
         super().destroy()
+
+    @staticmethod
+    def local_offset_scaling(scale: float = 1) -> None:
+        Wall.local_offset_scaling = scale
 
 
 class WallNorth(Wall):

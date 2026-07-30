@@ -42,12 +42,17 @@ class LevelInstance:
         self._level_structure = LevelGenerator.generate(self._level_options)
         Log.get("level").info("Level instance load ready")
 
+    def _scaling_multiplier(self) -> float:
+        return (1 * 10 / max(self._level_structure.width,
+                             self._level_structure.height))
+
     def _scaling(self, vector: Vector2) -> Vector2:
-        mult = 1
+        mult = self._scaling_multiplier()
         return Vector2(vector.x * mult, vector.y * mult)
 
     def _scaling_position(self, position: Vector2) -> Vector2:
-        mult = 48
+        mult = (48 * 10 / max(self._level_structure.width,
+                              self._level_structure.height))
         return Vector2(position.x * mult, position.y * mult)
 
     def start(self, player_information: PlayerInformation) -> None:
@@ -109,6 +114,7 @@ class LevelInstance:
                     velocity=Vector2(0, 0),
                     scale=self._scaling(scale)  # TODO size
                 )
+        Wall.local_offset_scaling(self._scaling_multiplier())
         put_wall_texture()
         Renderer.bake(World)
 
