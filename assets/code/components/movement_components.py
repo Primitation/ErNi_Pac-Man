@@ -91,12 +91,13 @@ class PlayerMovementInput(Component):
 class ChasePlayerComponent(Component):
 
     def update(self, dt):
+        from assets.code.actors.player import Player
 
         movement = self.actor.get_component(
             MovementComponent
         )
 
-        player = World.find("Player")
+        player = World.find(Player)
 
         direction = Vector2(
             player.position.x - self.actor.position.x,
@@ -107,6 +108,22 @@ class ChasePlayerComponent(Component):
 
 
 class FaceDirectionComponent(Component):
+
+    def update(self, dt):
+
+        velocity = self.actor.velocity
+
+        if velocity.x > 0:
+            self.actor.rotation = 0
+        elif velocity.x < 0:
+            self.actor.rotation = 180
+        elif velocity.y < 0:
+            self.actor.rotation = 270
+        elif velocity.y > 0:
+            self.actor.rotation = 90
+
+
+class GhostFaceDirectionComponent(Component):
 
     def update(self, dt):
 
