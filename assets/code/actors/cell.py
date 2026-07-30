@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from Engine import AActor, Vector2
 from ..components.wall_components import (
-    Wall_Component, Corner_Component, Inner_Corner_Component,
+    Wall_Component,
+    Corner_Component,
+    Inner_Corner_Component,
 )
 
 
@@ -44,7 +46,6 @@ class Cell(AActor):
             if not is_open:
                 self.add_component(Wall_Component(rotation))
 
-
     @property
     def has_north_wall(self):
         return not self.open_north
@@ -61,55 +62,114 @@ class Cell(AActor):
     def has_west_wall(self):
         return not self.open_west
 
+    @staticmethod
+    def has_neighbor_wall(cell, wall):
+        """
+        Missing neighbors are considered walls.
+        """
+        if cell is None:
+            return True
+
+        return getattr(cell, wall)
+
     def build_geometry(self):
+
         # Outer (convex) NE corner
         if (
             self.open_north
             and self.open_east
-            and self.north
-            and self.north.has_east_wall
+            and (
+                self.has_neighbor_wall(
+                    self.north,
+                    "has_east_wall"
+                )
+                or self.has_neighbor_wall(
+                    self.east,
+                    "has_north_wall"
+                )
+            )
         ):
-            self.add_component(Corner_Component(local_rotation=180))
+            self.add_component(
+                Corner_Component(local_rotation=180)
+            )
 
         # Outer (convex) NW corner
         if (
             self.open_north
             and self.open_west
-            and self.north
-            and self.north.has_west_wall
+            and (
+                self.has_neighbor_wall(
+                    self.north,
+                    "has_west_wall"
+                )
+                or self.has_neighbor_wall(
+                    self.west,
+                    "has_north_wall"
+                )
+            )
         ):
-            self.add_component(Corner_Component(local_rotation=90))
+            self.add_component(
+                Corner_Component(local_rotation=90)
+            )
 
         # Outer (convex) SE corner
         if (
             self.open_south
             and self.open_east
-            and self.south
-            and self.south.has_east_wall
+            and (
+                self.has_neighbor_wall(
+                    self.south,
+                    "has_east_wall"
+                )
+                or self.has_neighbor_wall(
+                    self.east,
+                    "has_south_wall"
+                )
+            )
         ):
-            self.add_component(Corner_Component(local_rotation=270))
+            self.add_component(
+                Corner_Component(local_rotation=270)
+            )
 
         # Outer (convex) SW corner
         if (
             self.open_south
             and self.open_west
-            and self.south
-            and self.south.has_west_wall
+            and (
+                self.has_neighbor_wall(
+                    self.south,
+                    "has_west_wall"
+                )
+                or self.has_neighbor_wall(
+                    self.west,
+                    "has_south_wall"
+                )
+            )
         ):
-            self.add_component(Corner_Component(local_rotation=0))
+            self.add_component(
+                Corner_Component(local_rotation=0)
+            )
 
-        # Inner (concave) NE corner: this cell's own N and E walls meet
+        # Inner (concave) NE corner
         if self.has_north_wall and self.has_east_wall:
-            self.add_component(Inner_Corner_Component(local_rotation=180))
+            self.add_component(
+                Inner_Corner_Component(local_rotation=180)
+            )
 
-        # Inner (concave) NW corner: this cell's own N and W walls meet
+        # Inner (concave) NW corner
         if self.has_north_wall and self.has_west_wall:
-            self.add_component(Inner_Corner_Component(local_rotation=90))
+            self.add_component(
+                Inner_Corner_Component(local_rotation=90)
+            )
 
-        # Inner (concave) SE corner: this cell's own S and E walls meet
+        # Inner (concave) SE corner
         if self.has_south_wall and self.has_east_wall:
-            self.add_component(Inner_Corner_Component(local_rotation=270))
+            self.add_component(
+                Inner_Corner_Component(local_rotation=270)
+            )
 
-        # Inner (concave) SW corner: this cell's own S and W walls meet
+        # Inner (concave) SW corner
         if self.has_south_wall and self.has_west_wall:
-            self.add_component(Inner_Corner_Component(local_rotation=0))
+            self.add_component(
+                Inner_Corner_Component(local_rotation=0)
+            )
