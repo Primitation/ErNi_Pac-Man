@@ -23,6 +23,7 @@ class BasicGhost(Actor):
             scale=scale,
             velocity=velocity,
             tag=tag,
+            collision="Player"
         )
 
         # Movement components
@@ -38,6 +39,11 @@ class BasicGhost(Actor):
     def destroy(self):
         self.logger.debug("destroy")
         super().destroy()
+
+    def _on_collision_begin(self, collider, other):
+        from .player import Player
+        if isinstance(other.owner, Player):
+            other.owner.dead(other.owner.animation)
 
 
 class RedGhost(BasicGhost):

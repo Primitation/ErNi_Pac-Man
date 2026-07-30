@@ -19,6 +19,7 @@ class Pacgum(Actor):
             scale=scale,
             velocity=velocity,
             tag=tag,
+            collision="Player"
         )
 
         self.animation = self.add_component(
@@ -29,6 +30,11 @@ class Pacgum(Actor):
                 center=True,
             )
         )
+
+    def _on_collision_begin(self, collider, other):
+        from .player import Player
+        if isinstance(other.owner, Player):
+            self.destroy()
 
     def update(self, dt):
         super().update(dt)
@@ -54,6 +60,7 @@ class SuperPacgum(Actor):
             scale=scale,
             velocity=velocity,
             tag=tag,
+            collision="Player"
         )
 
         self.animation = self.add_component(
@@ -64,6 +71,11 @@ class SuperPacgum(Actor):
                 center=True,
             )
         )
+
+    def _on_collision_begin(self, collider, other):
+        from .player import Player
+        if isinstance(other.owner, Player):
+            self.destroy()
 
     def update(self, dt):
         super().update(dt)
