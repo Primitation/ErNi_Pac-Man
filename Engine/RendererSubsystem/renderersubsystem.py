@@ -318,24 +318,40 @@ class RendererSubsystem:
                 "baked background."
             )
 
+        # Collect every (actor, component) with a sprite, then sort by
+        # render_layer — same rationale as render_draw(): guarantees
+        # e.g. every wall (layer 0) bakes before any corner (layer 1)
+        # across all cells, regardless of spawn order, so corners sit
+        # on top at shared boundary pixels instead of it being
+        # order-dependent.
+        draw_list = []
         for actor in static_actors:
             components = self._sprite_for(actor)
             if components is None:
                 continue
             for component in components:
-                sprite = getattr(component, 'sprite', None)
-                if sprite is None:
+                if getattr(component, 'sprite', None) is None:
                     continue
-                try:
-                    rotation = getattr(actor, 'rotation', 0.0)
-                    component_rotation = getattr(component, 'local_rotation', 0.0)
-                    pivot = getattr(actor, 'pivot', (0.5, 0.5))
-                    position = self._get_component_position(component)
-                    # Create a position object with x,y attributes
-                    pos = type('Position', (), {'x': position[0], 'y': position[1]})()
-                    self.draw_sprite(sprite, pos, actor.scale, rotation + component_rotation, pivot)
-                except Exception:
-                    self._logger.exception(f"Failed to bake actor {actor!r}")
+                draw_list.append((actor, component))
+
+        draw_list.sort(key=lambda pair: getattr(pair[1], 'render_layer', 0))
+
+        for actor, component in draw_list:
+            sprite = component.sprite
+            if sprite is None:
+                continue
+            try:
+                rotation = getattr(actor, 'rotation', 0.0)
+                component_rotation = getattr(component, 'local_rotation', 0.0)
+                pivot = getattr(actor, 'pivot', (0.5, 0.5))
+                position = self._get_component_position(component)
+                # Create a position object with x,y attributes
+                pos = type('Position', (), {'x': position[0], 'y': position[1]})()
+                get_world_scale = getattr(component, 'get_world_scale', None)
+                scale = get_world_scale() if get_world_scale is not None else actor.scale
+                self.draw_sprite(sprite, pos, scale, rotation + component_rotation, pivot)
+            except Exception:
+                self._logger.exception(f"Failed to bake actor {actor!r}")
 
         if self.bake_buffer is None:
             self.bake_buffer = bytearray(self.buffer_size)
@@ -442,7 +458,15 @@ class RendererSubsystem:
         screen pixels via world_to_screen() (current camera_position/
         zoom) before drawing. `scale` is likewise multiplied by the
         current zoom, so a sprite keeps its correct on-screen size as
-        the camera zooms in/out."""
+        the camera zooms in/out.
+
+        scale_x/scale_y apply in the sprite's own LOCAL (pre-rotation)
+        frame — e.g. scale=(2.61, 1.0) always stretches along the
+        sprite's own width axis, regardless of rotation. The actual
+        on-screen box is then whatever that stretched local box looks
+        like once rotated (so a wall stretched wide at rotation=0
+        correctly becomes stretched TALL at rotation=90, rather than
+        staying wide — see _blit_rotated)."""
 
         if hasattr(scale, 'x') and hasattr(scale, 'y'):
             scale_x = scale.x
@@ -455,6 +479,7 @@ class RendererSubsystem:
         dest_x = int(screen_x)
         dest_y = int(screen_y)
 
+        # Local (pre-rotation) box dimensions
         scaled_width = max(1, int(texture.width * scale_x * self.zoom))
         scaled_height = max(1, int(texture.height * scale_y * self.zoom))
 
@@ -463,8 +488,29 @@ class RendererSubsystem:
 
         # Use rotation if specified (with small epsilon to avoid unnecessary work)
         if abs(rotation) > 0.001:
+            angle_rad = math.radians(rotation)
+            cos_a = abs(math.cos(angle_rad))
+            sin_a = abs(math.sin(angle_rad))
+
+            # On-screen bounding box of the local box after rotation.
+            # At 90/270 this cleanly swaps width<->height; at 0/180 it
+            # stays as-is; angles in between blend smoothly.
+            out_width = max(1, int(round(scaled_width * cos_a + scaled_height * sin_a)))
+            out_height = max(1, int(round(scaled_width * sin_a + scaled_height * cos_a)))
+
+            # dest_x/dest_y was computed (often by a component's
+            # center=True logic) as the top-left of a box sized
+            # (scaled_width, scaled_height). Since the box actually
+            # drawn is (out_width, out_height), re-center around the
+            # same point so a centered sprite's anchor doesn't drift
+            # sideways just because rotation changed its footprint.
+            dest_x -= (out_width - scaled_width) // 2
+            dest_y -= (out_height - scaled_height) // 2
+
             self._blit_rotated(texture, dest_x, dest_y, rotation,
-                            pivot[0], pivot[1], scaled_width, scaled_height)
+                            pivot[0], pivot[1],
+                            scaled_width, scaled_height,
+                            out_width, out_height)
         elif scale_x == 1.0 and scale_y == 1.0 and self.zoom == 1.0:
             self._blit(texture, dest_x, dest_y)
         else:
@@ -587,36 +633,66 @@ class RendererSubsystem:
             dest_view[:, :, :] = region[:, :, :self.pixel_size]
 
     def _blit_rotated(self, texture, dest_x, dest_y, angle_degrees,
-                      pivot_x=0.5, pivot_y=0.5, scaled_width=None, scaled_height=None):
-        """Vectorized blit with rotation support using nearest-neighbor rotation."""
+                      pivot_x=0.5, pivot_y=0.5,
+                      local_width=None, local_height=None,
+                      out_width=None, out_height=None):
+        """Vectorized blit with rotation support using nearest-neighbor rotation.
+
+        local_width/local_height are the sprite's box dimensions in
+        its own frame, BEFORE rotation is applied (i.e. after
+        per-axis scale only) — used to work out which texture pixel
+        each output pixel samples. out_width/out_height are the
+        actual on-screen canvas size (the local box's bounding box
+        AFTER rotation — see draw_sprite) — used for the drawn area.
+        These two differ whenever scale_x != scale_y and rotation
+        isn't a multiple of 180; keeping them separate is what lets a
+        wall stretched wide at rotation=0 correctly render tall
+        instead of wide once rotated to 90.
+
+        pivot is treated as the same fractional point in both boxes,
+        which is exact for the default center pivot (0.5, 0.5) used
+        throughout this codebase; an off-center pivot combined with
+        non-square scaling would need a fully general bounding-box
+        calculation, which isn't implemented here."""
 
         tex = self._get_texture_array(texture)
         src_h, src_w = tex.shape[0], tex.shape[1]
 
-        # Determine target size
-        if scaled_width is None:
-            scaled_width = src_w
-        if scaled_height is None:
-            scaled_height = src_h
+        if local_width is None:
+            local_width = src_w
+        if local_height is None:
+            local_height = src_h
+        if out_width is None:
+            out_width = local_width
+        if out_height is None:
+            out_height = local_height
 
         # Pre-compute cos/sin once
         angle_rad = math.radians(angle_degrees)
         cos_a = math.cos(angle_rad)
         sin_a = math.sin(angle_rad)
 
-        # Create output grid
-        y_coords, x_coords = np.mgrid[0:scaled_height, 0:scaled_width]
+        # Create output grid (post-rotation canvas size)
+        y_coords, x_coords = np.mgrid[0:out_height, 0:out_width]
 
-        # Translate to pivot space (center of rotation)
-        pivot_x = pivot_x * scaled_width
-        pivot_y = pivot_y * scaled_height
+        # Pivot location within each box
+        out_pivot_x = pivot_x * out_width
+        out_pivot_y = pivot_y * out_height
+        local_pivot_x = pivot_x * local_width
+        local_pivot_y = pivot_y * local_height
 
-        # Rotate coordinates around pivot
-        x_rel = x_coords - pivot_x
-        y_rel = y_coords - pivot_y
+        # Position relative to pivot, in OUTPUT (post-rotation) space
+        x_rel = x_coords - out_pivot_x
+        y_rel = y_coords - out_pivot_y
 
-        src_x = (x_rel * cos_a + y_rel * sin_a + pivot_x) * (src_w / scaled_width)
-        src_y = (-x_rel * sin_a + y_rel * cos_a + pivot_y) * (src_h / scaled_height)
+        # Inverse-rotate back into the LOCAL (pre-rotation) box, then
+        # shift from pivot-relative back to local-box space
+        local_x = x_rel * cos_a + y_rel * sin_a + local_pivot_x
+        local_y = -x_rel * sin_a + y_rel * cos_a + local_pivot_y
+
+        # Scale from the local (pre-rotation) box into texture pixels
+        src_x = local_x * (src_w / local_width)
+        src_y = local_y * (src_h / local_height)
 
         # Clip to texture bounds
         src_x = np.clip(src_x, 0, src_w - 1).astype(np.int32)
@@ -627,7 +703,7 @@ class RendererSubsystem:
 
         # Now blit this region like in _blit
         return self._blit_region(region, dest_x, dest_y,
-                                scaled_width, scaled_height, texture.bytes_per_pixel)
+                                out_width, out_height, texture.bytes_per_pixel)
 
     def _blit_region(self, region, dest_x, dest_y, region_w, region_h, bpp):
         """Internal method to blit a pre-processed region."""
@@ -701,7 +777,15 @@ class RendererSubsystem:
 
         baked_valid = self._baked and self._camera_matches_bake()
 
-        # Draw all actors in order (later actors will overwrite earlier ones)
+        # Collect every (actor, component) with a sprite to draw, then
+        # sort by render_layer — a stable sort, so within the same
+        # layer the original per-actor / per-component order (later
+        # actors, and later components on the same actor, overwrite
+        # earlier ones) is preserved as-is. This guarantees e.g. every
+        # wall (layer 0) draws before any corner (layer 1) even across
+        # different actors/cells, instead of depending on world/spawn
+        # order at their shared boundary pixels.
+        draw_list = []
         for actor in world:
             if baked_valid and getattr(actor, "static", False):
                 continue
@@ -710,26 +794,35 @@ class RendererSubsystem:
             if components is None:
                 continue
             for component in components:
-                sprite = getattr(component, 'sprite', None)
-                if sprite is None:
+                if getattr(component, 'sprite', None) is None:
                     continue
+                draw_list.append((actor, component))
 
-                try:
-                    rotation = getattr(actor, 'rotation', 0.0)
-                    pivot = getattr(actor, 'pivot', (0.5, 0.5))
-                    component_rotation = getattr(component, 'local_rotation', 0.0)
-                    position = self._get_component_position(component)
-                    # Create a position object with x,y attributes
-                    pos = type('Position', (), {'x': position[0], 'y': position[1]})()
-                    self.draw_sprite(
-                        sprite,
-                        pos,
-                        actor.scale,
-                        rotation + component_rotation,
-                        pivot
-                    )
-                except Exception:
-                    self._logger.exception(f"Failed to draw actor {actor!r}")
+        draw_list.sort(key=lambda pair: getattr(pair[1], 'render_layer', 0))
+
+        for actor, component in draw_list:
+            sprite = component.sprite
+            if sprite is None:
+                continue
+
+            try:
+                rotation = getattr(actor, 'rotation', 0.0)
+                pivot = getattr(actor, 'pivot', (0.5, 0.5))
+                component_rotation = getattr(component, 'local_rotation', 0.0)
+                position = self._get_component_position(component)
+                # Create a position object with x,y attributes
+                pos = type('Position', (), {'x': position[0], 'y': position[1]})()
+                get_world_scale = getattr(component, 'get_world_scale', None)
+                scale = get_world_scale() if get_world_scale is not None else actor.scale
+                self.draw_sprite(
+                    sprite,
+                    pos,
+                    scale,
+                    rotation + component_rotation,
+                    pivot
+                )
+            except Exception:
+                self._logger.exception(f"Failed to draw actor {actor!r}")
 
     def render_present(self):
         """Present the framebuffer to the screen."""
@@ -896,6 +989,7 @@ class RendererSubsystem:
                 listener(self.win_ptr, width, height)
             except Exception:
                 self._logger.exception("resize listener failed")
+
 
 # Global renderer system
 Renderer = RendererSubsystem()
