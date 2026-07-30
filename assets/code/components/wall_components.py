@@ -5,7 +5,7 @@ class Wall_Component(AnimatedSpriteComponent):
     """Sprite drawn on a closed side of a cell (a wall)."""
 
     def __init__(self, local_rotation=0):
-        super().__init__(frame_width=16, frame_height=16, center=True, scale=(2.63, 1),
+        super().__init__(frame_width=16, frame_height=16, center=True, scale=(2.7, 1),
                        frame_count=1, start_frame=61, loop=False,
                        path="assets/texture/spritesheets/pacman_hd/PacManAssets_Map_TileSet.png",
                        local_rotation=local_rotation, local_offset=Vector2(0, 21),

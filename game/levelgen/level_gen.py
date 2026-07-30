@@ -54,6 +54,7 @@ class LevelGenerator:
         random.seed(level_options.seed)
 
         # TODO: good position: right now 20x20 or 10x10 is inside the 42
+
         pacman = Vector2(max(0, level_options.width - 1) // 2,
                          max(0, level_options.height - 1) // 2)
 

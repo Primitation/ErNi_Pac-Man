@@ -12,6 +12,7 @@ class Actor(AActor):
         scale: Vector2,
         static: bool = False,
         tag: str = "Actor",
+        collision: list[str] = None
 
     ):
         super().__init__(
@@ -34,8 +35,8 @@ class Actor(AActor):
         self._collider = self.add_component(
             ColliderComponent(
                 get_rect=self.get_rect,
-                tag="Actor",
-                collides_with=None,
+                tag=tag,
+                collides_with=collision,
                 blocking=False,
                 bounce=0.8,
                 static=False,
