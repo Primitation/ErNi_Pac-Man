@@ -1,10 +1,11 @@
 import ctypes
 import numpy as np
-from typing import Any
+from typing import Any, Tuple
 from mlx import Mlx
 import math
 from .. import Assets
 from .. import Log, log_timing
+from .. import Vector2
 
 
 class RendererSubsystem:
@@ -39,6 +40,21 @@ class RendererSubsystem:
         self._baked = False
         self._last_bake_world = None            # world passed to the last bake() call, if any
         self._last_bake_background_color = 0xFF000000
+
+        # Camera: camera_position is the WORLD point centered on screen.
+        # zoom is a screen-pixels-per-world-unit multiplier (1.0 = no
+        # zoom). See world_to_screen().
+        self.camera_position = Vector2(0.0, 0.0)
+        self.zoom = 1.0
+
+        # Camera state as of the last bake() call. bake() pre-renders
+        # static actors once, so if the camera moves/zooms after that,
+        # the baked pixels no longer reflect the current view. clear()
+        # and render_draw() check _camera_matches_bake() and fall back
+        # to redrawing static actors fresh (still correctly
+        # transformed) whenever the camera has since diverged.
+        self._bake_camera_position = Vector2(0.0, 0.0)
+        self._bake_zoom = 1.0
 
         self._scale_cache = {}       # (id(texture), scaled_w, scaled_h) -> resampled numpy array
         self._resize_listeners = []  # callbacks notified with (win_ptr, width, height) after resize()
@@ -121,6 +137,46 @@ class RendererSubsystem:
         # Clear with FULLY OPAQUE BLACK
         self.clear(0xFF000000)
 
+    def set_camera(self, position: Vector2) -> None:
+        """Move the camera. `position` is the world point that gets
+        centered on screen."""
+        self.camera_position = position
+
+    def move_camera(self, dx: float, dy: float) -> None:
+        """Pan the camera by (dx, dy) in world units."""
+        self.camera_position = Vector2(
+            self.camera_position.x + dx, self.camera_position.y + dy
+        )
+
+    def set_zoom(self, zoom: float) -> None:
+        """Set the zoom level. 1.0 = no zoom, 2.0 = twice as large
+        on screen, 0.5 = half size."""
+        if zoom <= 0:
+            raise ValueError("zoom must be > 0")
+        self.zoom = zoom
+
+    def zoom_by(self, factor: float) -> None:
+        """Multiply the current zoom by `factor`."""
+        self.set_zoom(self.zoom * factor)
+
+    def _camera_matches_bake(self) -> bool:
+        """Whether the live camera is still where it was when bake()
+        last ran — i.e. whether the baked background pixels are still
+        valid to use as-is."""
+        return (
+            abs(self.camera_position.x - self._bake_camera_position.x) < 1e-6
+            and abs(self.camera_position.y - self._bake_camera_position.y) < 1e-6
+            and abs(self.zoom - self._bake_zoom) < 1e-6
+        )
+
+    def world_to_screen(self, x: float, y: float) -> Tuple[float, float]:
+        """Converts world-space coordinates to framebuffer pixel
+        coordinates, applying the current camera_position and zoom.
+        camera_position is the world point centered on screen."""
+        screen_x = (x - self.camera_position.x) * self.zoom + self.width / 2.0
+        screen_y = (y - self.camera_position.y) * self.zoom + self.height / 2.0
+        return screen_x, screen_y
+
     def _get_component_position(self, component):
         """Get the world position of a component (actor position + local offset)."""
         if hasattr(component, 'get_world_position'):
@@ -182,15 +238,20 @@ class RendererSubsystem:
     def clear(self, color: int = 0xFF000000):
         """Clears the framebuffer before drawing the next frame.
 
-        If bake() has been called, this copies the baked static-actor
-        background in one vectorized operation instead of filling a
-        solid color — `color` is ignored in that case, since the
-        baked image already has its own background baked in.
+        If bake() has been called AND the camera hasn't moved/zoomed
+        since (see _camera_matches_bake), this copies the baked
+        static-actor background in one vectorized operation instead
+        of filling a solid color — `color` is ignored in that case,
+        since the baked image already has its own background baked
+        in.
 
-        Without a bake, falls back to a single vectorized whole-pixel
-        fill (see _fill_solid)."""
+        If the camera has since panned or zoomed away from where it
+        was at bake time, the baked pixels no longer line up with the
+        current view, so this falls back to a solid fill instead —
+        render_draw() detects the same mismatch and redraws static
+        actors fresh (with the current camera transform) that frame."""
 
-        if self._baked:
+        if self._baked and self._camera_matches_bake():
             self.buffer_np[:, :] = self.bake_np
             return
 
@@ -285,8 +346,15 @@ class RendererSubsystem:
         self.bake_np[:, :] = self.buffer_np
         self._baked = True
 
+        self._bake_camera_position = Vector2(
+            self.camera_position.x, self.camera_position.y
+        )
+        self._bake_zoom = self.zoom
+
         self._logger.info(
-            f"Baked {len(static_actors)} static actor(s) into background."
+            f"Baked {len(static_actors)} static actor(s) into background "
+            f"at camera=({self._bake_camera_position.x}, "
+            f"{self._bake_camera_position.y}), zoom={self._bake_zoom}."
         )
 
     def unbake(self):
@@ -297,7 +365,12 @@ class RendererSubsystem:
         self._baked = False
 
     def put_pixel(self, x: int, y: int, color: int):
-        """Writes a pixel directly into the framebuffer."""
+        """Writes a pixel into the framebuffer. (x, y) is a WORLD
+        coordinate — transformed through the current camera_position/
+        zoom before writing."""
+
+        screen_x, screen_y = self.world_to_screen(x, y)
+        x, y = int(screen_x), int(screen_y)
 
         if x < 0 or y < 0 or x >= self.width or y >= self.height:
             return
@@ -315,10 +388,15 @@ class RendererSubsystem:
 
         Meant for cheap effects that don't need a real texture — see
         ParticleSubsystem, which draws every particle this way
-        instead of loading/blitting a sprite per particle."""
+        instead of loading/blitting a sprite per particle.
 
-        x, y = int(x), int(y)
-        width, height = int(width), int(height)
+        (x, y, width, height) are WORLD-space — transformed through
+        the current camera_position/zoom before drawing."""
+
+        screen_x, screen_y = self.world_to_screen(x, y)
+        x, y = int(screen_x), int(screen_y)
+        width = int(width * self.zoom)
+        height = int(height * self.zoom)
 
         if width <= 0 or height <= 0:
             return
@@ -359,7 +437,12 @@ class RendererSubsystem:
         dest_view[:, :, :] = blended.astype(np.uint8)
 
     def draw_sprite(self, texture, position, scale, rotation=0.0, pivot=(0.5, 0.5)):
-        """Draws a texture into the framebuffer with scaling and rotation support."""
+        """Draws a texture into the framebuffer with scaling and
+        rotation support. `position` is WORLD space — converted to
+        screen pixels via world_to_screen() (current camera_position/
+        zoom) before drawing. `scale` is likewise multiplied by the
+        current zoom, so a sprite keeps its correct on-screen size as
+        the camera zooms in/out."""
 
         if hasattr(scale, 'x') and hasattr(scale, 'y'):
             scale_x = scale.x
@@ -368,11 +451,12 @@ class RendererSubsystem:
             scale_x = float(scale)
             scale_y = float(scale)
 
-        dest_x = int(position.x)
-        dest_y = int(position.y)
+        screen_x, screen_y = self.world_to_screen(position.x, position.y)
+        dest_x = int(screen_x)
+        dest_y = int(screen_y)
 
-        scaled_width = max(1, int(texture.width * scale_x))
-        scaled_height = max(1, int(texture.height * scale_y))
+        scaled_width = max(1, int(texture.width * scale_x * self.zoom))
+        scaled_height = max(1, int(texture.height * scale_y * self.zoom))
 
         if scaled_width <= 0 or scaled_height <= 0:
             return
@@ -381,7 +465,7 @@ class RendererSubsystem:
         if abs(rotation) > 0.001:
             self._blit_rotated(texture, dest_x, dest_y, rotation,
                             pivot[0], pivot[1], scaled_width, scaled_height)
-        elif scale_x == 1.0 and scale_y == 1.0:
+        elif scale_x == 1.0 and scale_y == 1.0 and self.zoom == 1.0:
             self._blit(texture, dest_x, dest_y)
         else:
             self._blit(texture, dest_x, dest_y, scaled_width, scaled_height)
@@ -610,13 +694,16 @@ class RendererSubsystem:
         if self.win_ptr is None:
             raise RuntimeError("RendererSubsystem.render_draw() called before .init().")
 
-        # Clear with FULLY OPAQUE BLACK — or, if bake() has been called,
-        # copies the baked static-actor background instead.
+        # Clear with FULLY OPAQUE BLACK — or, if bake() has been called
+        # and the camera still matches, copies the baked static-actor
+        # background instead.
         self.clear(0xFFAAAAAA)
+
+        baked_valid = self._baked and self._camera_matches_bake()
 
         # Draw all actors in order (later actors will overwrite earlier ones)
         for actor in world:
-            if self._baked and getattr(actor, "static", False):
+            if baked_valid and getattr(actor, "static", False):
                 continue
 
             components = self._sprite_for(actor)
@@ -809,7 +896,6 @@ class RendererSubsystem:
                 listener(self.win_ptr, width, height)
             except Exception:
                 self._logger.exception("resize listener failed")
-
 
 # Global renderer system
 Renderer = RendererSubsystem()

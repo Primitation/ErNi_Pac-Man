@@ -152,7 +152,7 @@ run:
 	@printf "║         Entering the Maze...         ║\n"
 	@printf "╚══════════════════════════════════════╝\n"
 	@printf "$(RESET)"
-	@$(PYTHON) systemtest.py
+	@$(PYTHON) test_game.py
 
 debug:
 	$(TITLE) "Debug mode"
