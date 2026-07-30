@@ -3,7 +3,7 @@ from Engine import on_end_of_anim
 from Engine import Vector2, Input
 from Engine import AnimatedSpriteComponent
 from ..components.movement_components import (
-    MovementComponent, PlayerMovementInput, FaceDirectionComponent)
+    GridMovementComponent, PlayerGridInput, FaceDirectionComponent)
 from ..components.particle_component import ParticleTrailComponent
 from ..components.origin_marker_component import OriginMarkerComponent
 
@@ -39,8 +39,8 @@ class Player(Actor):
         )
 
         # Movement components
-        self.movement = self.add_component(MovementComponent(speed=speed))
-        self.add_component(PlayerMovementInput())
+        self.movement = self.add_component(GridMovementComponent(speed=100))
+        self.add_component(PlayerGridInput())
         self.add_component(FaceDirectionComponent())
 
         # Particle trail with rotation

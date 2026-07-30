@@ -3,7 +3,7 @@ from Engine.ActorSubsystem.Components.animated_sprite_component import (
 from .actor import Actor
 from Engine import Vector2, Input
 from ..components.movement_components import (
-    ChasePlayerComponent, GhostFaceDirectionComponent, MovementComponent, FaceDirectionComponent)
+    ChasePlayerGridComponent, GhostFaceDirectionComponent, GridMovementComponent, FaceDirectionComponent)
 from ..components.origin_marker_component import OriginMarkerComponent
 
 
@@ -26,8 +26,8 @@ class BasicGhost(Actor):
         )
 
         # Movement components
-        self.movement = self.add_component(MovementComponent(speed=speed))
-        self.add_component(ChasePlayerComponent())
+        self.movement = self.add_component(GridMovementComponent(speed=speed))
+        self.add_component(ChasePlayerGridComponent())
         self.add_component(GhostFaceDirectionComponent())
 
     def update(self, dt):
