@@ -8,8 +8,7 @@ from Engine.ParticlesSubsystem.particlessubsystem import Particles
 from assets.code.actors.ghost import (
     RedGhost, BlueGhost, YellowGhost, PinkGhost)
 from assets.code.actors.pacgum import Pacgum, SuperPacgum
-from assets.code.actors.wall import (Wall, WallEast, WallNorth,
-                                     WallSouth, WallWest)
+from assets.code.actors.cell import Cell
 from game.game_instance.player_information import PlayerInformation
 from game.levelgen import LevelGenerator, LevelOptions
 from assets.code.actors.player import Player
@@ -21,7 +20,7 @@ class LevelInstance:
 
     Can start the level.
     """
-    TILE_SIZE = 48
+    TILE_SIZE = 42
 
     def __init__(self, level_options: LevelOptions) -> None:
         """Initializes a level instance.
@@ -87,30 +86,54 @@ class LevelInstance:
 
         Collision.init(maze_width, maze_height)
 
-        def put_wall_texture() -> None:  # TODO DELETE / OPTIMIZE
+        def put_cell() -> None:
             maze = self._level_structure.maze
-            all_walls = MazeAnalyzer.extract_walls(maze)
-            mapping: dict[float, Tuple[Wall, Vector2]] = {
-                0: (WallNorth, Vector2(1, 0.5)),
-                90: (WallEast, Vector2(0.5, 1)),
-                180: (WallSouth, Vector2(1, 0.5)),
-                270: (WallWest, Vector2(0.5, 1))
-            }
 
-            for wall_position, rotation in all_walls:
-                wall_type, scale = mapping[rotation]
+            height = len(maze)
+            width = len(maze[0])
 
-                Actors.spawn(
-                    wall_type,
-                    position=self._world_position(wall_position),
-                    velocity=Vector2(0, 0),
-                    scale=scale,
-                )
+            cells = [[None for _ in range(width)] for _ in range(height)]
 
-        Wall.local_offset_scaling(1.0)
-        put_wall_texture()
+            # First pass: create every cell
+            for y in range(height):
+                for x in range(width):
+                    value = maze[y][x]
 
-        Log.get("level").info("Level instance walls ready")
+                    cell = Actors.spawn(
+                        Cell,
+                        position=self._world_position(Vector2(x, y)),
+                        N=not (value & 1),
+                        E=not (value & 2),
+                        S=not (value & 4),
+                        W=not (value & 8),
+                    )
+
+                    cells[y][x] = cell
+
+            # Second pass: assign neighbors
+            for y in range(height):
+                for x in range(width):
+                    cell = cells[y][x]
+
+                    if y > 0:
+                        cell.north = cells[y - 1][x]
+
+                    if y < height - 1:
+                        cell.south = cells[y + 1][x]
+
+                    if x > 0:
+                        cell.west = cells[y][x - 1]
+
+                    if x < width - 1:
+                        cell.east = cells[y][x + 1]
+
+            self.cells = cells
+            for row in self.cells:
+                for cell in row:
+                    cell.build_geometry()
+
+            Log.get("level").info("Level instance cells ready")
+        put_cell()
 
         pacman_actor = Actors.spawn(
             Player,

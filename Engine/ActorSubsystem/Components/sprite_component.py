@@ -13,10 +13,11 @@ class SpriteComponent(Component):
     (cached, shared) Texture every other user of that path gets.
     """
 
-    def __init__(self, path: str = None, local_offset=(0.0, 0.0),
+    def __init__(self, path: str = None, local_offset=Vector2(0.0, 0.0),
                  offset_rotates=True, center: bool = False,
-                 enabled: bool = True, local_rotation=0.0):
-        super().__init__(enabled)
+                 enabled: bool = True, local_rotation=0.0,
+                 scale=Vector2(1.0, 1.0), render_layer: int = 0):
+        super().__init__(enabled, local_scale=scale, render_layer=render_layer)
         self._path = path
         self.local_position = local_offset
         self.offset_rotates = offset_rotates
@@ -69,8 +70,9 @@ class SpriteComponent(Component):
         x, y = super().get_world_position()
 
         if self.center and self.actor is not None:
-            width = self.width * self.actor.scale.x
-            height = self.height * self.actor.scale.y
+            world_scale = self.get_world_scale()
+            width = self.width * world_scale.x
+            height = self.height * world_scale.y
             x -= width / 2
             y -= height / 2
 
@@ -78,12 +80,13 @@ class SpriteComponent(Component):
 
     def get_rect(self):
         """Rect (x, y, width, height) from the actor's position and
-        scale — handy to pass straight into a ColliderComponent as
+        this component's world scale (actor.scale * local_scale) —
+        handy to pass straight into a ColliderComponent as
         `get_rect=sprite_component.get_rect`, or to use as the
         fallback ColliderComponent picks up automatically when no
         get_rect is given."""
-        actor = self.actor
         world_pos = self.get_world_position()
-        width = self.width * actor.scale.x
-        height = self.height * actor.scale.y
+        world_scale = self.get_world_scale()
+        width = self.width * world_scale.x
+        height = self.height * world_scale.y
         return (world_pos[0], world_pos[1], width, height)

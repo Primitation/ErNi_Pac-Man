@@ -38,8 +38,10 @@ class AnimatedSpriteComponent(Component):
         offset_rotates=True,
         center: bool = False,
         local_rotation=0,
+        scale=(1.0, 1.0),
+        render_layer: int = 0,
     ):
-        super().__init__(enabled)
+        super().__init__(enabled, local_scale=scale, render_layer=render_layer)
 
         self._key = None
         self._animation = None
@@ -116,8 +118,9 @@ class AnimatedSpriteComponent(Component):
         x, y = super().get_world_position()
 
         if self.center and self.actor is not None:
-            width = self.width * self.actor.scale.x
-            height = self.height * self.actor.scale.y
+            world_scale = self.get_world_scale()
+            width = self.width * world_scale.x
+            height = self.height * world_scale.y
             x -= width / 2
             y -= height / 2
 
@@ -125,11 +128,12 @@ class AnimatedSpriteComponent(Component):
 
     def get_rect(self):
         """Rect (x, y, width, height) from the actor's position and
-        scale — same convenience as SpriteComponent.get_rect()."""
-        actor = self.actor
+        this component's world scale (actor.scale * local_scale) —
+        same convenience as SpriteComponent.get_rect()."""
         world_pos = self.get_world_position()
-        width = self.width * actor.scale.x
-        height = self.height * actor.scale.y
+        world_scale = self.get_world_scale()
+        width = self.width * world_scale.x
+        height = self.height * world_scale.y
         return (world_pos[0], world_pos[1], width, height)
 
     def update(self, dt):

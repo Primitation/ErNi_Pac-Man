@@ -1,6 +1,8 @@
 from abc import ABC
 import math
 
+from ... import Vector2
+
 
 class Component(ABC):
     """Base class for everything an Actor can carry as a component —
@@ -20,13 +22,15 @@ class Component(ABC):
     `alive` flips to False.
     """
 
-    def __init__(self, enabled: bool = True):
+    def __init__(self, enabled: bool = True, local_scale=Vector2(1.0, 1.0), render_layer: int = 0):
         self.actor = None
         self.enabled = enabled
         self.alive = True
-        self.local_position = (0.0, 0.0)  # Offset from actor's position
+        self.local_position = Vector2(0.0, 0.0)  # Offset from actor's position
         self.local_rotation = 0.0  # Offset from actor's rotation
         self.offset_rotates = True  # If True, offset rotates with actor
+        self.local_scale = local_scale  # Multiplied with actor.scale — see get_world_scale()
+        self.render_layer = render_layer  # Draw order across ALL actors — see RendererSubsystem
 
     def on_added(self, actor):
         """Called once by AActor.add_component(), right after this
@@ -97,3 +101,37 @@ class Component(ABC):
             pos_y += offset_y
 
         return (pos_x, pos_y)
+
+    def get_world_scale(self):
+        """World-space scale = this component's local_scale multiplied
+        elementwise with the owning actor's scale — the per-component
+        equivalent of get_world_position() combining local_position
+        with the actor's position.
+
+        Lets one component (e.g. a corner sprite that should render
+        smaller than the rest of the tile) scale independently of its
+        actor, without affecting the actor's other components or its
+        collider.
+
+        local_scale accepts a plain (x, y) tuple/list OR anything
+        with .x/.y (e.g. Vector2), same duck-typing as local_position.
+        Returns a Vector2 so callers (e.g. the renderer's draw_sprite,
+        which checks for .x/.y) can use it as a drop-in replacement
+        for actor.scale."""
+        scale = self.local_scale
+        scale_x, scale_y = (
+            (scale.x, scale.y) if hasattr(scale, "x") else (scale[0], scale[1])
+        )
+
+        actor_scale = getattr(self.actor, "scale", None) if self.actor is not None else None
+        if actor_scale is not None:
+            actor_scale_x, actor_scale_y = (
+                (actor_scale.x, actor_scale.y)
+                if hasattr(actor_scale, "x")
+                else (actor_scale[0], actor_scale[1])
+            )
+            scale_x *= actor_scale_x
+            scale_y *= actor_scale_y
+
+        return Vector2(scale_x, scale_y)
+    
