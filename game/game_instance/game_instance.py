@@ -13,10 +13,13 @@ class AskUI:
     @staticmethod
     def menu() -> str:  # temporary return type
         msg = "Menu = start/s, highscores/h, instructions/i, exit/e:\n"
-        inv = input(msg)
+        log = Log.get("main")
+        log.warning(msg)
+        inv = input()
         while inv not in ("start", "highscores", "instructions",
                           "exit", "s", "h", "i", "e"):
-            inv = input(msg)
+            log.warning(msg)
+            inv = input()
         d = {"i": "instructions", "s": "start", "h": "highscores", "e": "exit"}
         if inv in d:
             inv = d[inv]
@@ -91,7 +94,7 @@ class GameInstance:
         """
         exit_menu = False
         while not exit_menu:
-            self.log.info("GameInstance: Menu")
+            self.log.success("GameInstance: Menu")
             next_page = AskUI.menu()
             if next_page == "start":
                 self.page_current_normal_levels()
@@ -114,7 +117,7 @@ class GameInstance:
         Out:
             Menu
         """
-        self.log.info("GameInstance: Instructions")
+        self.log.success("GameInstance: Instructions")
         instructions = "Instructions here"  # TODO: instruction text
         AskUI.view_instructions(instructions)
         # Returns to menu
@@ -129,7 +132,7 @@ class GameInstance:
         Out:
             Menu
         """
-        self.log.info("GameInstance: Normal level")
+        self.log.success("GameInstance: Normal level")
         self._start_normal_levels()
         # Returns to menu
 
@@ -155,7 +158,7 @@ class GameInstance:
         Out:
             Menu
         """
-        self.log.info("GameInstance: Ask player name for score saving")
+        self.log.success("GameInstance: Enter player name for score saving:")
         message_for_player = ("Winner\n"
                               if self._current_player.is_alive()
                               else "Well played\n")
@@ -174,6 +177,6 @@ class GameInstance:
         Out:
             Menu
         """
-        self.log.info("GameInstance: HighScores")
+        self.log.success("GameInstance: HighScores")
         AskUI.view_scores(self._scores.get_top_scores(10))
         # Returns to Menu
