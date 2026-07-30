@@ -1,12 +1,12 @@
 from typing import Tuple
 
 from .actor import Actor
-from Engine import Vector2
+from Engine import Vector2, AActor
 from Engine import AnimatedSpriteComponent
 from ..components.origin_marker_component import OriginMarkerComponent
 
 
-class Wall(Actor):
+class Wall(AActor):
     """A wall Actor."""
 
     local_offset_scaling: int = 1
@@ -25,9 +25,7 @@ class Wall(Actor):
         super().__init__(
             position=position,
             scale=scale,
-            velocity=velocity,
             static=True,
-            tag=tag,
         )
 
         self.animation = self.add_component(
