@@ -223,9 +223,12 @@ class ActorSubsystem:
         during this tick — cleanup still runs while paused so nothing
         piles up waiting for a resume()."""
 
+        from assets.code.actors.player import Player
         if not self.paused:
             self.tick.emit(dt)
             self.remaining_time -= dt / 1000
+            if self.remaining_time <= 0:
+                Player.end_game = True
 
         with self._lock:
             dead = [actor for actor in self._actors if not actor.alive]

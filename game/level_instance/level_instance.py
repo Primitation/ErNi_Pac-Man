@@ -233,7 +233,7 @@ class LevelInstance:
                 nonlocal fps_frames
                 nonlocal fps
 
-                if Player.end_game or Player.quit:
+                if Player.game_ended():
                     Renderer.close_request()
 
                 now = time.perf_counter()
