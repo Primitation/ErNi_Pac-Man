@@ -1,4 +1,5 @@
 from Engine.LogSubsystem.logsubsystem import Log
+from Engine.World.world import World
 from assets.code.actors.ghost import BasicGhost
 from assets.code.actors.pacgum import Pacgum, SuperPacgum
 from game.game_instance.player_information import PlayerInformation
@@ -18,6 +19,8 @@ class Player(Actor):
 
     current_player: PlayerInformation | None = None
     current_level: str = "None"
+    end_game: bool = False
+    quit: bool = False
 
     def __init__(
         self,
@@ -54,7 +57,7 @@ class Player(Actor):
 
         Input.bind_action("dead", [Input.KEYS["t"]])
 
-    @on_end_of_anim(lambda self: self.destroy())
+    @on_end_of_anim(lambda self: self.destroy_after_dead())
     def dead(self, component):
         component.set_animation(
             "assets/texture/spritesheets/pacman_hd/PacManAssets-PacMan.png",
@@ -67,9 +70,10 @@ class Player(Actor):
         )
 
     def update(self, dt):
-        if Input.is_action_triggered("dead"):
-            self.dead()
         super().update(dt)
+        if World.find(Pacgum) is None:
+            Log.get("main").success("No more pacgum.")
+            Player.end_game = True
 
     def _super_pacman_time(self) -> float:
         return 10  # TODO: super pacmann time: here 10 seconds
@@ -86,9 +90,13 @@ class Player(Actor):
     def set_player_information(player: PlayerInformation | None) -> None:
         Player.current_player = player
 
+    def destroy_after_dead(self):
+        self.destroy()
+        Player.end_game = True
+
     def destroy(self):
         self.logger.debug("destroy")
-        super().destroy()
+        super.destroy()
 
     def _on_collision_begin(self, self_collider, other_collider) -> None:
         if Player.current_player is None:
