@@ -22,6 +22,7 @@ class Actor(AActor):
         )
 
         self.velocity = velocity
+        self._start_position = Vector2(position.x, position.y)
 
         # The "resting" scale to animate around. Kept separate from
         # self.scale (which the renderer actually reads) so the punch

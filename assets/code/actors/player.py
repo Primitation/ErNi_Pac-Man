@@ -71,7 +71,7 @@ class Player(Actor):
         super().update(dt)
 
     def _super_pacman_time(self) -> float:
-        return 10  # 10 seconds
+        return 10  # TODO: super pacmann time: here 10 seconds
 
     def _super_pacman(self) -> None:
         self._start_super_pacman = perf_counter()
@@ -101,8 +101,22 @@ class Player(Actor):
         elif isinstance(other_collider.owner, BasicGhost):
             if self._is_super_pacman():
                 Player.current_player.score_info.eat_ghost()
-                other_collider.owner.destroy()  # TODO: respawn instead !
+                # TODO: temporary respawning
+                other_collider.owner.position.x = (
+                    other_collider.owner._start_position.x)
+                other_collider.owner.position.y = (
+                    other_collider.owner._start_position.y)
+                other_collider.owner.movement.current_cell = None
+                other_collider.owner.movement.stop()
             else:
-                self.dead(self.animation)
+                Player.current_player.loss_live()
+                if Player.current_player.is_alive():
+                    # TODO: temporary respawning
+                    self.position.x = self._start_position.x
+                    self.position.y = self._start_position.y
+                    self.movement.current_cell = None
+                    self.movement.stop()
+                else:
+                    self.dead(self.animation)
         Log.get("main").info(f"Player._on_collision_begin score "
                              f"{Player.current_player.score_info.score}.")
