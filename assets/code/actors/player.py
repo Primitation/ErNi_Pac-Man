@@ -71,6 +71,10 @@ class Player(Actor):
             start_frame=4
         )
 
+    @staticmethod
+    def game_ended() -> bool:
+        return Player.end_game or Player.quit
+
     def update(self, dt):
         super().update(dt)
         if World.find(Pacgum) is None:
