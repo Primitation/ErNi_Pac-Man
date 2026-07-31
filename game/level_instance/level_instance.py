@@ -12,6 +12,7 @@ from assets.code.actors.cell import Cell
 from game.game_instance.player_information import PlayerInformation
 from game.levelgen import LevelGenerator, LevelOptions
 from assets.code.actors.player import Player
+from assets.code.ui.gameplay_hud import GameplayHUD
 from game.levelgen.maze_analyzer import MazeAnalyzer
 
 
@@ -24,7 +25,6 @@ class LevelInstance:
 
     def __init__(self, level_options: LevelOptions) -> None:
         """Initializes a level instance.
-    TILE_SIZE = 48
 
         Args:
             level_options: options for the current level.
@@ -51,12 +51,11 @@ class LevelInstance:
             position.y * self.TILE_SIZE,
         )
 
+    def start(self, player_information: PlayerInformation, level_name: str) -> None:
+        """Initialize and start the level."""
 
         if self._level_structure is None:
             self.load()
-
-    def start(self, player_information: PlayerInformation, level_name: str) -> None:
-        """Initialize and start the level."""
 
         World.clear()
         Actors.clear()
@@ -221,6 +220,8 @@ class LevelInstance:
             log.info("Booting smoke test...")
             log.info(f"World has {len(World)} actor(s).")
 
+            hud = GameplayHUD()
+
             last_time = time.perf_counter()
             fps_timer = 0.0
             fps_frames = 0
@@ -269,6 +270,7 @@ class LevelInstance:
                 if Renderer._debug_draw_colliders:
                     Collision.draw_debug(Renderer, Renderer._debug_collider_color_map)
                 Particles.render(Renderer)
+                hud.render(Renderer)
                 Renderer.render_present()
                 Input.update()
 

@@ -64,6 +64,10 @@ class RendererSubsystem:
 
         self._debug_draw_colliders = False
         self._debug_collider_color_map = None
+        # Off by default — assets/code/ui/gameplay_hud.py now draws the
+        # real HUD (lives/score/time). Flip to True for a quick text
+        # fallback if the HUD widgets ever need bypassing for debug.
+        self._draw_debug_banner = False
 
     def init(self, width: int, height: int, title: str = "PacEngine"):
         """Call once, at startup, before anything else touches mlx."""
@@ -869,7 +873,8 @@ class RendererSubsystem:
             0,
             0,
         )
-        self.render_level_banner()
+        if self._draw_debug_banner:
+            self.render_level_banner()
 
     def render(self, world):
         """Legacy method - draws and presents in one call."""

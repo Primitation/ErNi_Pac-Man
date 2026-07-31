@@ -12,15 +12,13 @@ the window. Shows:
 
 from Engine import Assets, Input, Log, Renderer
 from Engine.UISubsystem.uisubsystem import Canvas, VBox, HBox, Text, Button, Spacer
-
-# Sprite-sheet font used for button labels — see BitmapText in
-# uisubsystem.py. ArcadeFont.png is a 128x32 sheet, 8x8 px cells,
-# 16 columns x 4 rows.
-BUTTON_FONT_PATH = "assets/texture/ArcadeFont.png"
-BUTTON_FONT_CHARSET = "ABCDEFGHIJKLMNO_PQRSTUVWXYZ!?pts0123456789/-'_ "
-BUTTON_FONT_CHAR_WIDTH = 8
-BUTTON_FONT_CHAR_HEIGHT = 8
-BUTTON_FONT_COLUMNS = 16
+from assets.code.ui.font_config import (
+    ARCADE_FONT_PATH as BUTTON_FONT_PATH,
+    ARCADE_FONT_CHARSET as BUTTON_FONT_CHARSET,
+    ARCADE_FONT_CHAR_WIDTH as BUTTON_FONT_CHAR_WIDTH,
+    ARCADE_FONT_CHAR_HEIGHT as BUTTON_FONT_CHAR_HEIGHT,
+    ARCADE_FONT_COLUMNS as BUTTON_FONT_COLUMNS,
+)
 
 
 class MainMenu:
@@ -63,8 +61,8 @@ class MainMenu:
         root.add(Spacer(height=10))
 
         buttons = VBox(spacing=12, justify="center")
-        buttons.add(self._button("PLAY 123 pts", self._on_play), align="center")
-        buttons.add(self._button("OPTIONS !!", self._on_options), align="center")
+        buttons.add(self._button("PLAY", self._on_play), align="center")
+        buttons.add(self._button("OPTIONS", self._on_options), align="center")
         buttons.add(self._button("QUIT", self._on_quit), align="center")
         root.add(buttons, align="center")
 
