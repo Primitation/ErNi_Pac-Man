@@ -827,6 +827,23 @@ class RendererSubsystem:
             except Exception:
                 self._logger.exception(f"Failed to draw actor {actor!r}")
 
+    def render_level_banner(self) -> None:
+        try:
+            from assets.code.actors.player import Player
+            from .. import Actors
+            text = (f"Score  {Player.current_player.score_info.score}   "
+                    f"Lives  {Player.current_player.lives}   "
+                    f"Level  {Player.current_level}    "
+                    f"Time  {max(0, round(Actors.remaining_time, 1))}")
+            self.mlx.mlx_string_put(
+                self.mlx_ptr, self.win_ptr, 20,
+                self.height - 50,
+                0x000000FF,
+                text)
+        except Exception as e:
+            self._logger.exception(f"Failed to draw level banner")
+            pass
+
     def render_present(self):
         """Present the framebuffer to the screen."""
         if self.win_ptr is None:
@@ -847,6 +864,7 @@ class RendererSubsystem:
             0,
             0,
         )
+        self.render_level_banner()
 
     def render(self, world):
         """Legacy method - draws and presents in one call."""

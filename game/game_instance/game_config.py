@@ -365,7 +365,8 @@ class GameConfigParser:
                 LevelOptions(width,
                              height,
                              gcm.pacgum,
-                             None)  # Default
+                             None,
+                             gcm.level_max_time)  # Default
                 for width, height in levels_options_tuple
             ]
             if len(levels_options) < GameConfigModelConstant.MIN_LEVELS:
