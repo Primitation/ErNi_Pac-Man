@@ -146,10 +146,5 @@ class AnimatedSpriteComponent(Component):
         ):
             self._complete_fired = True
 
-            if self.actor is not None:
-                self.actor.logger.info(
-                    f"Animation complete on {self.actor.__class__.__name__}"
-                )
-
             if self._on_complete:
                 self._on_complete()
