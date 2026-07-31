@@ -90,6 +90,7 @@ class GameInstance:
         return not Player.quit
 
     def page_menu(self) -> None:
+        from assets.code.ui.mainmenu import MainMenu
         """Menu page.
 
         Main page.
@@ -99,6 +100,7 @@ class GameInstance:
             page_scores
         Out:
             exit program
+        """
         """
         exit_menu = False
         while not exit_menu:
@@ -115,6 +117,18 @@ class GameInstance:
             elif next_page == "exit":
                 self._scores.save_scores(self._config)
                 exit_menu = True
+        """
+        while True:
+            result = MainMenu().show()
+            self.log.info(f"Menu closed with result: {result}")
+ 
+            if result == "play":
+                normal_end = self.page_current_normal_levels()
+                if normal_end:
+                    self.page_player_name_for_score()
+                # falls back into the while loop -> menu shows again
+            else:
+                break  # "quit" or window closed some other way
 
     def page_instructions(self) -> None:
         """Instruction page.
