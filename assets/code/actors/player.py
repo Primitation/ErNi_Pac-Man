@@ -17,6 +17,7 @@ class Player(Actor):
     """A player-controlled Actor, moved via the Input subsystem."""
 
     current_player: PlayerInformation | None = None
+    current_level: str = "None"
 
     def __init__(
         self,

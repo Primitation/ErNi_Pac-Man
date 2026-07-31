@@ -44,6 +44,7 @@ class Score:
 
 
 class Scores:
+
     """Scores saved."""
     def __init__(self, scores: List[Tuple[str, int]]) -> None:
         """Initialize the scores.
@@ -52,6 +53,7 @@ class Scores:
             scores: lists of name and scores
         """
         self._scores = scores
+        self.MAX_SAVE_SCORES = 10
 
     @staticmethod
     def load_scores(game_config: GameConfig) -> "Scores":
@@ -90,7 +92,7 @@ class Scores:
         """
         try:
             with open(game_config.highscore_filename, "w") as f:
-                json.dump(self._scores, f)
+                json.dump(self.get_top_scores(self.MAX_SAVE_SCORES), f)
         except Exception:
             Log.get("main").error("Can't saves scores in file"
                                   f" {game_config.highscore_filename}")
@@ -103,10 +105,12 @@ class Scores:
             score: the player score.
         """
         self._scores.append((name, score))
+        if len(self._scores) > self.MAX_SAVE_SCORES:
+            self.get_top_scores(self.MAX_SAVE_SCORES)
 
     def get_top_scores(self, max_count: int | None = None
                        ) -> List[Tuple[str, int]]:
-        """Returns the top scores.
+        """Returns the top scores and remove the lower scores.
 
         Args:
             max_count: the maximum number to returns. None is all scores.
@@ -118,5 +122,6 @@ class Scores:
                           reverse=True)
         limit = min(len(self._scores),
                     len(self._scores)
-                    if max_count is None else max_count)
-        return list(self._scores[:limit])
+                    if max_count is None else max(max_count, 0))
+        self._scores = self._scores[:limit]
+        return self._scores

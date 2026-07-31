@@ -166,6 +166,7 @@ class ActorSubsystem:
 
         self.tick = Event()
         self.paused = False
+        self.remaining_time = 0.0
 
         self._logger = Log.get("actors")
 
@@ -224,6 +225,7 @@ class ActorSubsystem:
 
         if not self.paused:
             self.tick.emit(dt)
+            self.remaining_time -= dt / 1000
 
         with self._lock:
             dead = [actor for actor in self._actors if not actor.alive]
@@ -299,6 +301,9 @@ class ActorSubsystem:
             r2[1] + r2[3] <= r1[1]
         )
 
+    def set_level_time(self, level_time: float) -> None:
+        self.remaining_time = level_time
+
 
 def on_end_of_anim(callback: Callable) -> Callable:
     """
@@ -372,4 +377,4 @@ def on_end_of_anim(callback: Callable) -> Callable:
 
 
 # Global actor system
-Actors = ActorSubsystem()
+Actors: ActorSubsystem = ActorSubsystem()

@@ -17,7 +17,8 @@ class LevelOptions:
                  width: int,
                  height: int,
                  pac_gum_count: int,
-                 seed: int | None = None) -> None:
+                 seed: int | None = None,
+                 level_time: float = 90) -> None:
         """Initilize a level options.
 
         Args:
@@ -30,6 +31,7 @@ class LevelOptions:
         self._height = height
         self._pac_gum_count = pac_gum_count
         self._seed = seed
+        self.level_time = level_time
 
     @property
     def width(self) -> int:

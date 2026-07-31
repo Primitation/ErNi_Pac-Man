@@ -31,6 +31,7 @@ class LevelInstance:
         """
         self._level_options = level_options
         self._level_structure = None
+        self._name = None
 
     def load(self) -> None:
         """Load the world structure.
@@ -54,7 +55,7 @@ class LevelInstance:
         if self._level_structure is None:
             self.load()
 
-    def start(self, player_information: PlayerInformation) -> None:
+    def start(self, player_information: PlayerInformation, level_name: str) -> None:
         """Initialize and start the level."""
 
         World.clear()
@@ -72,6 +73,8 @@ class LevelInstance:
         """
 
         Player.set_player_information(player_information)
+        Player.current_level = level_name
+        Actors.set_level_time(self._level_options.level_time)
 
         curr_pacman_data = self._world_position(
             self._level_structure.pacman
@@ -195,8 +198,8 @@ class LevelInstance:
             maze_height * 0.5 - half_cell,
         )
 
-        screen_width = Renderer.width
-        screen_height = Renderer.height
+        screen_width = Renderer.width - 100
+        screen_height = Renderer.height - 100
 
         zoom = min(
             screen_width / maze_width,
