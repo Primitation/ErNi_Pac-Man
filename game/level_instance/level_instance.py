@@ -59,7 +59,17 @@ class LevelInstance:
 
         World.clear()
         Actors.clear()
+        """
+        Renderer._debug_draw_colliders = True
 
+        # Custom color map for different collider tags
+        color_map = {
+            "player": 0xFF00FF00,  # Bright green
+            "wall": 0xFFFF0000,    # Bright red
+            "enemy": 0xFFFF00FF,   # Magenta
+        }
+        Renderer._debug_collider_color_map = color_map
+        """
         # TODO: SCORES + LIVES (player) to link !
         player_information.reset()  # TODO: DELETE !!!
         Player.set_player_information(player_information)
@@ -252,6 +262,8 @@ class LevelInstance:
 
                 Renderer.render_draw(World)
                 Particles.update(dt)
+                if Renderer._debug_draw_colliders:
+                    Collision.draw_debug(Renderer, Renderer._debug_collider_color_map)
                 Particles.render(Renderer)
                 Renderer.render_present()
 

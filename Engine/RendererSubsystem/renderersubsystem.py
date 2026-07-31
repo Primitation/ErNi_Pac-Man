@@ -62,6 +62,9 @@ class RendererSubsystem:
         self._logger = Log.get("renderer")
         self._frame_count = 0
 
+        self._debug_draw_colliders = False
+        self._debug_collider_color_map = None
+
     def init(self, width: int, height: int, title: str = "PacEngine"):
         """Call once, at startup, before anything else touches mlx."""
 
@@ -989,6 +992,90 @@ class RendererSubsystem:
                 listener(self.win_ptr, width, height)
             except Exception:
                 self._logger.exception("resize listener failed")
+
+    def _color_to_bytes(self, color: int) -> np.ndarray:
+        """Convert a 0xAARRGGBB color to a numpy array of bytes in the framebuffer's pixel format."""
+        return np.frombuffer(
+            color.to_bytes(self.pixel_size, "little"), dtype=np.uint8
+        )
+
+    def draw_rect_outline(self, x, y, width, height, color: int = 0xFFFF0000, thickness: int = 1):
+        """
+        Draw a rectangle outline with the given thickness in WORLD-space.
+        Useful for debug visualization of colliders, bounding boxes, etc.
+
+        x, y, width, height are in WORLD-space (transformed through camera).
+        color: 0xAARRGGBB format, default is bright red (0xFFFF0000).
+        thickness: outline thickness in screen pixels (default 1).
+        """
+        if width <= 0 or height <= 0:
+            return
+
+        # Convert world coords to screen coords
+        screen_x, screen_y = self.world_to_screen(x, y)
+        screen_w = int(max(1, width * self.zoom))
+        screen_h = int(max(1, height * self.zoom))
+        x0 = int(screen_x)
+        y0 = int(screen_y)
+        x1 = x0 + screen_w
+        y1 = y0 + screen_h
+
+        # Clip to screen bounds
+        if x1 <= 0 or y1 <= 0 or x0 >= self.width or y0 >= self.height:
+            return
+
+        # Clamp
+        x0 = max(0, x0)
+        y0 = max(0, y0)
+        x1 = min(self.width, x1)
+        y1 = min(self.height, y1)
+
+        # For thick outlines, use draw_rect for simplicity
+        if thickness > 1:
+            # Draw filled rectangles for each edge
+            self.draw_rect(x, y, width, thickness / self.zoom, color)  # Top
+            self.draw_rect(x, y + height - thickness / self.zoom, width, thickness / self.zoom, color)  # Bottom
+            self.draw_rect(x, y, thickness / self.zoom, height, color)  # Left
+            self.draw_rect(x + width - thickness / self.zoom, y, thickness / self.zoom, height, color)  # Right
+            return
+
+        # For thickness 1, draw individual pixel lines
+        color_bytes = self._color_to_bytes(color)
+
+        # Create a repeated array of color bytes for horizontal lines
+        # We need to tile/repeat the color bytes to fill the entire width
+        pixel_count = x1 - x0
+        row_bytes = np.tile(color_bytes, pixel_count)
+
+        # Top edge
+        if y0 >= 0 and y0 < self.height and x0 < x1:
+            start = x0 * self.pixel_size
+            end = x1 * self.pixel_size
+            self.buffer_np[y0, start:end] = row_bytes
+
+        # Bottom edge (if different from top)
+        if y1 - 1 != y0 and y1 - 1 >= 0 and y1 - 1 < self.height and x0 < x1:
+            start = x0 * self.pixel_size
+            end = x1 * self.pixel_size
+            self.buffer_np[y1 - 1, start:end] = row_bytes
+
+        # Left and right edges (skip if height is 1 pixel)
+        if y1 - y0 > 1 and x0 < x1:
+            # Left edge
+            left_start = x0 * self.pixel_size
+            left_end = (x0 + 1) * self.pixel_size
+            if left_start < left_end and x0 < self.width:
+                # Fill left edge for all interior rows
+                for y_pos in range(y0 + 1, y1 - 1):
+                    self.buffer_np[y_pos, left_start:left_end] = color_bytes
+
+            # Right edge
+            right_start = (x1 - 1) * self.pixel_size
+            right_end = x1 * self.pixel_size
+            if right_start < right_end and x1 - 1 >= 0 and x1 - 1 < self.width:
+                # Fill right edge for all interior rows
+                for y_pos in range(y0 + 1, y1 - 1):
+                    self.buffer_np[y_pos, right_start:right_end] = color_bytes
 
 
 # Global renderer system
