@@ -257,7 +257,6 @@ class LevelInstance:
                 Assets.update()
 
                 Input.process_events()
-                Input.update()
                 Input.process_actions()
 
                 Actors.update(dt)
@@ -271,6 +270,7 @@ class LevelInstance:
                     Collision.draw_debug(Renderer, Renderer._debug_collider_color_map)
                 Particles.render(Renderer)
                 Renderer.render_present()
+                Input.update()
 
             Renderer.hook_loop(frame)
             log.info("Entering mlx loop.")
