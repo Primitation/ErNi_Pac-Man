@@ -3,6 +3,7 @@
 from typing import List, Tuple
 
 from Engine.LogSubsystem.logsubsystem import Log
+from assets.code.actors.player import Player
 from game.game_instance.score import Scores
 from .player_information import PlayerInformation
 from .game_config import GameConfig
@@ -67,8 +68,14 @@ class GameInstance:
         self._game_mode_normal.reset()
         self.log = Log.get("main")
 
-    def _start_normal_levels(self) -> None:
-        """Initialize the game and start."""
+    def _start_normal_levels(self) -> bool:
+        """Initialize the game and start.
+
+        Returns:
+            Returns True if the game ended normally, False if the player quit
+        """
+        Player.end_game = False
+        Player.quit = False
         self._current_player.reset()
         self._game_mode_normal.reset()
         log = Log.get("main")
@@ -80,6 +87,7 @@ class GameInstance:
             level_instance.start(self._current_player, level_name)
             level_instance = self._game_mode_normal.next_level()
         log.info("GameInstance: end normal levels")
+        return not Player.quit
 
     def page_menu(self) -> None:
         """Menu page.
@@ -95,10 +103,11 @@ class GameInstance:
         exit_menu = False
         while not exit_menu:
             self.log.success("GameInstance: Menu")
-            next_page = AskUI.menu()
+            next_page = AskUI.menu()  # TODO: show menu in UI !
             if next_page == "start":
-                self.page_current_normal_levels()
-                self.page_player_name_for_score()
+                normal_end = self.page_current_normal_levels()
+                if normal_end:
+                    self.page_player_name_for_score()
             elif next_page == "instructions":
                 self.page_instructions()
             elif next_page == "highscores":
@@ -122,9 +131,11 @@ class GameInstance:
         AskUI.view_instructions(instructions)
         # Returns to menu
 
-    def page_current_normal_levels(self) -> None:
+    def page_current_normal_levels(self) -> bool:
         """Normal current level page.
 
+        Returns:
+            Returns True if the levels are played, else False for quit.
         In:
             Menu
         Access:
@@ -133,8 +144,8 @@ class GameInstance:
             Menu
         """
         self.log.success("GameInstance: Normal level")
-        self._start_normal_levels()
         # Returns to menu
+        return self._start_normal_levels()
 
     def page_pause(self) -> None:
         """Pause page.

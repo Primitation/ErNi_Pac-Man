@@ -1,5 +1,6 @@
 from Engine.ActorSubsystem.Components.animated_sprite_component import (
     AnimatedSpriteComponent)
+from assets.code.components.cheat_components import CheatComponent
 from .actor import Actor
 import random
 from Engine import Vector2, Input
@@ -40,6 +41,8 @@ class BasicGhost(Actor):
                 center=True, render_layer=2
             )
         )
+        self._base_speed = self.movement.speed
+        self.add_component(CheatComponent())
 
     def update(self, dt):
         if Input.is_action_triggered("dead"):
@@ -50,6 +53,11 @@ class BasicGhost(Actor):
         self.logger.debug("destroy")
         super().destroy()
 
+    def freeze_input(self) -> None:
+        if self.movement.speed == 0:
+            self.movement.speed = self._base_speed
+        else:
+            self.movement.speed = 0
 
 class RedGhost(BasicGhost):
     def __init__(
