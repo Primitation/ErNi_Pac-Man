@@ -262,32 +262,31 @@ class GridMovementComponent(Component):
 
     def _choose_next_direction(self):
         """
-        Called only when arriving on a cell.
-
-        Priority:
-        1. Buffered input
-        2. Continue current direction
+        Called when arriving at a cell.
+        Try buffered input first, then continue direction.
         """
 
+        # Try player buffered input
         if (
             self.target_direction.x != 0 or
             self.target_direction.y != 0
         ):
-
-            if self._start_moving(
-                self.target_direction
-            ):
+            if self._start_moving(self.target_direction):
                 return
 
 
+        # Try continuing current direction
         if (
             self.direction.x != 0 or
             self.direction.y != 0
         ):
+            if self._start_moving(self.direction):
+                return
 
-            self._start_moving(
-                self.direction
-            )
+
+        # Nothing possible
+        self.direction = Vector2(0, 0)
+        self.is_moving = False
 
 
     def update(self, dt):

@@ -3,27 +3,7 @@ from Engine import Collision
 
 
 class ColliderComponent(Component):
-    """Thin component wrapper around CollisionSubsystem's Collider.
-
-    Registers itself in on_added() — once self.actor exists, so
-    get_rect can default to reading a sibling sprite component — and
-    unregisters in destroy(), so you never have to remember to call
-    Collision.unregister() yourself when an actor is removed;
-    AActor.destroy() does it for you via component.destroy().
-
-    get_rect: optional callable returning (x, y, width, height). If
-    omitted, this component looks for another component on the same
-    actor that exposes get_rect() (SpriteComponent /
-    AnimatedSpriteComponent both do) and uses that; failing that, it
-    falls back to a 1x1 box at the actor's position scaled by
-    actor.scale. Pass your own get_rect when the hitbox shouldn't
-    just track the visible sprite 1:1 (e.g. a hitbox that ignores a
-    punch/squash animation on the sprite's scale — see Actor.get_rect
-    for that exact case).
-
-    blocking / bounce / static / tag / collides_with: same meaning as
-    CollisionSubsystem.register() — see that docstring.
-    """
+    """Thin component wrapper around CollisionSubsystem's Collider."""
 
     def __init__(
         self,
@@ -34,17 +14,25 @@ class ColliderComponent(Component):
         bounce=0.0,
         static=False,
         enabled=True,
+        offset_x=0.0,
+        offset_y=0.0,
+        width=None,
+        height=None,
     ):
         self._collider = None
-
-        super().__init__(enabled)
-
         self._get_rect_override = get_rect
         self.tag = tag
         self.collides_with = collides_with
         self.blocking = blocking
         self.bounce = bounce
         self.static = static
+        
+        self.offset_x = offset_x
+        self.offset_y = offset_y
+        self.manual_width = width
+        self.manual_height = height
+
+        super().__init__(enabled)
 
     def on_added(self, actor):
         super().on_added(actor)
@@ -60,20 +48,54 @@ class ColliderComponent(Component):
             enabled=self.enabled,
         )
 
-    def _default_get_rect(self):
+    def _find_sprite_component(self):
+        """Find the first component that has a get_rect method."""
+        if self.actor is None:
+            return None
+        
         for component in self.actor.components:
             if component is self:
                 continue
-            get_rect = getattr(component, "get_rect", None)
-            if get_rect is not None:
-                return get_rect()
+            if hasattr(component, "get_rect"):
+                return component
+        return None
+
+    def _default_get_rect(self):
+        sprite = self._find_sprite_component()
+
+        if sprite is not None:
+            rect = sprite.get_rect()
+
+            center_x = rect[0] + rect[2] / 2
+            center_y = rect[1] + rect[3] / 2
+
+            w = self.manual_width if self.manual_width is not None else rect[2]
+            h = self.manual_height if self.manual_height is not None else rect[3]
+
+            return (
+                center_x - w / 2 + self.offset_x,
+                center_y - h / 2 + self.offset_y,
+                w,
+                h,
+            )
 
         actor = self.actor
-        return (actor.position.x, actor.position.y, actor.scale.x, actor.scale.y)
+
+        if actor is None:
+            return (0, 0, 16, 16)
+
+        w = self.manual_width or actor.scale.x
+        h = self.manual_height or actor.scale.y
+
+        return (
+            actor.position.x - w / 2 + self.offset_x,
+            actor.position.y - h / 2 + self.offset_y,
+            w,
+            h,
+        )
 
     @property
     def collider(self):
-        """The underlying Collider, if you need direct access."""
         return self._collider
 
     @property

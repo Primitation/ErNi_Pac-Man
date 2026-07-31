@@ -50,11 +50,11 @@ class Actor(AActor):
         self._collider.on_end_overlap.bind(self._on_collision_end)
 
     def get_rect(self):
-        """Return a rect as (x, y, width, height).
+        """Return collider rect as (x, y, width, height).
 
-        Uses base_scale rather than the animated self.scale
-        Reads size off whatever sprite/animated-sprite component this
-        actor happens to have;"""
+        Collider is centered on actor.position, matching the sprite.
+        Uses base_scale so animations do not resize the hitbox.
+        """
 
         sprite_component = (
             self.get_component(SpriteComponent)
@@ -63,17 +63,15 @@ class Actor(AActor):
 
         if (sprite_component is not None
                 and sprite_component.sprite is not None):
-            width = sprite_component.width * self.base_scale.x
-            height = sprite_component.height * self.base_scale.y
+            width = sprite_component.width * self.base_scale.x/2
+            height = sprite_component.height * self.base_scale.y/2
         else:
-            # Fallback if there's no sprite component yet, or its
-            # sprite hasn't finished loading.
-            width = self.base_scale.x
-            height = self.base_scale.y
+            width = self.base_scale.x/2
+            height = self.base_scale.y/2
 
         return (
-            self.position.x,
-            self.position.y,
+            self.position.x - width / 2,
+            self.position.y - height / 2,
             width,
             height
         )

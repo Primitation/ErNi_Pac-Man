@@ -58,13 +58,23 @@ class CollisionSubsystem:
     def unregister(self, collider: Collider):
 
         self._manager.unregister(collider)
-    
+
     @log_timing()
     def update(self):
         """Call once per frame. Fires on_begin_overlap /
         on_end_overlap on affected colliders."""
 
         self._manager.update()
+
+    def draw_debug(self, renderer, color_map=None):
+        """Draw all registered colliders for debug visualization.
+
+        Args:
+            renderer: The RendererSubsystem instance to draw with.
+            color_map: dict mapping tag -> color (0xAARRGGBB format).
+                    If not provided, uses a default color per tag.
+        """
+        self._manager.draw_debug(renderer, color_map)
 
 
 # Global collision system

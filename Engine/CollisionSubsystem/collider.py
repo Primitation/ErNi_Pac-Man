@@ -115,6 +115,14 @@ class Collider:
 
         return other.tag in self.collides_with
 
+    def draw_debug(self, renderer, color: int = 0xFFFF0000, thickness: int = 1):
+        """Draw this collider's rect for debug visualization."""
+        if not self.enabled:
+            return
+        rect = self.rect()
+        # Draw a filled semi-transparent version for better visibility
+        # renderer.draw_rect(rect[0], rect[1], rect[2], rect[3], 0x22FF0000)  # Semi-transparent fill
+        renderer.draw_rect_outline(rect[0], rect[1], rect[2], rect[3], color, thickness)
 
 class SpatialGrid:
     """Uniform spatial hash used as a broad phase. Colliders are
@@ -476,3 +484,44 @@ class CollisionManager:
                 position.y = self.height - rect[3]
                 if velocity is not None:
                     velocity.y = -abs(velocity.y)
+
+    def draw_debug(self, renderer, color_map=None):
+        """
+        Draw all registered collider rectangles for debug visualization.
+
+        Uses the exact rectangle returned by Collider.rect(),
+        which is the same rectangle used for collision detection.
+
+        color_map: dict mapping tag -> color (0xAARRGGBB format).
+        """
+
+        if color_map is None:
+            color_map = {
+                "default": 0xFFFF0000,  # Red
+                "player": 0xFF00FF00,   # Green
+                "wall": 0xFFFF8800,     # Orange
+                "floor": 0xFF8888FF,    # Light Blue
+                "trigger": 0xFF00FFFF,  # Cyan
+                "enemy": 0xFFFF00FF,    # Magenta
+            }
+
+        for collider in self._colliders:
+            if not collider.enabled:
+                continue
+
+            rect = collider.rect()
+
+            color = color_map.get(collider.tag, 0xFFFFFF00)
+
+            # Non-blocking colliders are displayed transparent
+            if not collider.blocking:
+                color &= 0x88FFFFFF
+
+            renderer.draw_rect_outline(
+                rect[0],
+                rect[1],
+                rect[2],
+                rect[3],
+                color,
+                thickness=1
+            )

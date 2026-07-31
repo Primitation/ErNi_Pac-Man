@@ -1,6 +1,7 @@
 from Engine.ActorSubsystem.Components.animated_sprite_component import (
     AnimatedSpriteComponent)
 from .actor import Actor
+import random
 from Engine import Vector2, Input
 from ..components.movement_components import (
     ChasePlayerGridComponent, GhostFaceDirectionComponent, GridMovementComponent, FaceDirectionComponent)
@@ -29,7 +30,16 @@ class BasicGhost(Actor):
         # Movement components
         self.movement = self.add_component(GridMovementComponent(speed=speed))
         self.add_component(ChasePlayerGridComponent())
-        self.add_component(GhostFaceDirectionComponent())
+        facevalue = random.randrange(8)
+        self.face = self.add_component(
+            AnimatedSpriteComponent(
+                "assets/texture/spritesheets"
+                "/pacman_hd/PacManAssets-Ghosts.png",
+                frame_width=16, frame_height=16,
+                frame_count=1, fps=1, loop=False, start_frame=160+facevalue,
+                center=True, render_layer=2
+            )
+        )
 
     def update(self, dt):
         if Input.is_action_triggered("dead"):
@@ -63,7 +73,7 @@ class RedGhost(BasicGhost):
                 "/pacman_hd/PacManAssets-Ghosts.png",
                 frame_width=32, frame_height=32,
                 frame_count=4, fps=4, loop=True, start_frame=0,
-                center=True,
+                center=True, render_layer=1
             )
         )
 
@@ -90,7 +100,7 @@ class BlueGhost(BasicGhost):
                 "/PacManAssets-Ghosts.png",
                 frame_width=32, frame_height=32,
                 frame_count=4, fps=4, loop=True, start_frame=4,
-                center=True,
+                center=True, render_layer=1
             )
         )
 
@@ -117,7 +127,7 @@ class YellowGhost(BasicGhost):
                 "/PacManAssets-Ghosts.png",
                 frame_width=32, frame_height=32,
                 frame_count=4, fps=4, loop=True, start_frame=20,
-                center=True,
+                center=True, render_layer=1
             )
         )
 
@@ -144,6 +154,6 @@ class PinkGhost(BasicGhost):
                 "/PacManAssets-Ghosts.png",
                 frame_width=32, frame_height=32,
                 frame_count=4, fps=4, loop=True, start_frame=8,
-                center=True,
+                center=True, render_layer=1
             )
         )
