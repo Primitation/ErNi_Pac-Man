@@ -465,26 +465,6 @@ class CollisionManager:
             position = owner.position
             velocity = getattr(owner, "velocity", None)
 
-            # X boundary
-            if rect[0] < 0:
-                position.x = 0
-                if velocity is not None:
-                    velocity.x = abs(velocity.x)
-            elif rect[0] + rect[2] > self.width:
-                position.x = self.width - rect[2]
-                if velocity is not None:
-                    velocity.x = -abs(velocity.x)
-
-            # Y boundary
-            if rect[1] < 0:
-                position.y = 0
-                if velocity is not None:
-                    velocity.y = abs(velocity.y)
-            elif rect[1] + rect[3] > self.height:
-                position.y = self.height - rect[3]
-                if velocity is not None:
-                    velocity.y = -abs(velocity.y)
-
     def draw_debug(self, renderer, color_map=None):
         """
         Draw all registered collider rectangles for debug visualization.
