@@ -43,6 +43,11 @@ class PlayerInformation:
         if self._lives > 0:
             self._lives -= 1
 
+    def add_live(self) -> None:
+        """The player add 1 live"""
+        if self._lives > 0:
+            self._lives += 1
+
     def reset(self) -> None:
         """Reset the player to starting values."""
         self._lives = self._base_lives

@@ -2,6 +2,7 @@ from Engine.LogSubsystem.logsubsystem import Log
 from Engine.World.world import World
 from assets.code.actors.ghost import BasicGhost
 from assets.code.actors.pacgum import Pacgum, SuperPacgum
+from assets.code.components.cheat_components import CheatComponent
 from game.game_instance.player_information import PlayerInformation
 
 from .actor import Actor
@@ -54,8 +55,9 @@ class Player(Actor):
         self.movement = self.add_component(GridMovementComponent(speed=100))
         self.add_component(PlayerGridInput())
         self.add_component(FaceDirectionComponent())
-
-        Input.bind_action("dead", [Input.KEYS["t"]])
+        self.invinsible = False
+        self.add_component(CheatComponent())
+        self._base_speed = self.movement.speed
 
     @on_end_of_anim(lambda self: self.destroy_after_dead())
     def dead(self, component):
@@ -82,9 +84,10 @@ class Player(Actor):
         self._start_super_pacman = perf_counter()
 
     def _is_super_pacman(self) -> bool:
-        return (self._start_super_pacman is not None and
-                (perf_counter() - self._start_super_pacman
-                 <= self._super_pacman_time()))
+        return (self.invinsible
+                or (self._start_super_pacman is not None and
+                    (perf_counter() - self._start_super_pacman
+                     <= self._super_pacman_time())))
 
     @staticmethod
     def set_player_information(player: PlayerInformation | None) -> None:
@@ -96,7 +99,7 @@ class Player(Actor):
 
     def destroy(self):
         self.logger.debug("destroy")
-        super.destroy()
+        super().destroy()
 
     def _on_collision_begin(self, self_collider, other_collider) -> None:
         if Player.current_player is None:
@@ -131,3 +134,9 @@ class Player(Actor):
                     self.dead(self.animation)
         Log.get("main").info(f"Player._on_collision_begin score "
                              f"{Player.current_player.score_info.score}.")
+
+    def speed_up(self) -> None:
+        self.movement.speed += self._base_speed * 0.1
+
+    def speed_down(self) -> None:
+            self.movement.speed -= self._base_speed * 0.1

@@ -516,6 +516,37 @@ class InputSubsystem:
             [self.KEYS["p"]]
         )
 
+        # Cheat
+        self.bind_action(
+            "invinsible",
+            [self.KEYS["i"]]
+        )
+
+        self.bind_action(
+            "level win",
+            [self.KEYS["l"]]
+        )
+
+        self.bind_action(
+            "ghost freeze",
+            [self.KEYS["g"]]
+        )
+
+        self.bind_action(
+            "extra live",
+            [self.KEYS["e"]]
+        )
+
+        self.bind_action(
+            "increase speed",
+            [self.KEYS["u"]]
+        )
+
+        self.bind_action(
+            "lower speed",
+            [self.KEYS["y"]]
+        )
+
         from .. import Renderer
 
         self.register_action_callback(
