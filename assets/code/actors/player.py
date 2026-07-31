@@ -11,6 +11,7 @@ from ..components.movement_components import (
     GridMovementComponent, PlayerGridInput, FaceDirectionComponent)
 from ..components.particle_component import ParticleTrailComponent
 from ..components.origin_marker_component import OriginMarkerComponent
+from time import perf_counter
 
 class Player(Actor):
     """A player-controlled Actor, moved via the Input subsystem."""
@@ -33,6 +34,7 @@ class Player(Actor):
             tag="Player",
             static=static
         )
+        self._start_super_pacman: float | None = None
 
         self.animation = self.add_component(
             AnimatedSpriteComponent(
@@ -68,6 +70,17 @@ class Player(Actor):
             self.dead()
         super().update(dt)
 
+    def _super_pacman_time(self) -> float:
+        return 10  # 10 seconds
+
+    def _super_pacman(self) -> None:
+        self._start_super_pacman = perf_counter()
+
+    def _is_super_pacman(self) -> bool:
+        return (self._start_super_pacman is not None and
+                (perf_counter() - self._start_super_pacman
+                 <= self._super_pacman_time()))
+
     @staticmethod
     def set_player_information(player: PlayerInformation | None) -> None:
         Player.current_player = player
@@ -82,13 +95,14 @@ class Player(Actor):
             return
         if isinstance(other_collider.owner, Pacgum):
             Player.current_player.score_info.eat_pacgum()
-            other_collider.owner.destroy()
         elif isinstance(other_collider.owner, SuperPacgum):
             Player.current_player.score_info.eat_super_pacgum()
-            other_collider.owner.destroy()
+            self._super_pacman()
         elif isinstance(other_collider.owner, BasicGhost):
-            # TODO: super pacman
-            Player.current_player.score_info.eat_ghost()
-            other_collider.owner.destroy()
+            if self._is_super_pacman():
+                Player.current_player.score_info.eat_ghost()
+                other_collider.owner.destroy()  # TODO: respawn instead !
+            else:
+                self.dead(self.animation)
         Log.get("main").info(f"Player._on_collision_begin score "
                              f"{Player.current_player.score_info.score}.")

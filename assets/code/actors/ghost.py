@@ -40,11 +40,6 @@ class BasicGhost(Actor):
         self.logger.debug("destroy")
         super().destroy()
 
-    def _on_collision_begin(self, collider, other):
-        from .player import Player
-        if isinstance(other.owner, Player):
-            other.owner.dead(other.owner.animation)
-
 
 class RedGhost(BasicGhost):
     def __init__(
