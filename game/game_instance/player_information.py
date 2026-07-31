@@ -8,7 +8,6 @@ class PlayerInformation:
     """Player information in the game."""
     def __init__(self,
                  config: GameConfig,
-                 lives: int = 3,
                  score: Score = None) -> None:
         """Initialize a player with a score and lives.
 
@@ -17,7 +16,7 @@ class PlayerInformation:
             lives: the number of lives (> 0) for the player.
             score: the player score.
         """
-        self._lives = lives
+        self._lives = config.lives
         self._base_lives = self._lives
         self._score = score if score is not None else Score(config)
 

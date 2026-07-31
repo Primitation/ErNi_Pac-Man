@@ -89,9 +89,11 @@ class Player(Actor):
         self.logger.debug("destroy")
         super().destroy()
 
-    def _on_collision_begin(self, self_collider, other_collider):
+    def _on_collision_begin(self, self_collider, other_collider) -> None:
         if Player.current_player is None:
             Log.get("main").error(f"Player._on_collision_begin: no player registered !")
+            return
+        if not Player.current_player.is_alive():
             return
         if isinstance(other_collider.owner, Pacgum):
             Player.current_player.score_info.eat_pacgum()
