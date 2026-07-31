@@ -543,7 +543,7 @@ class InputSubsystem:
         )
 
         self.bind_action(
-            "lower speed",
+            "decrease speed",
             [self.KEYS["y"]]
         )
 
