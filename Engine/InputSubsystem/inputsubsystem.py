@@ -543,8 +543,13 @@ class InputSubsystem:
         )
 
         self.bind_action(
-            "lower speed",
+            "decrease speed",
             [self.KEYS["y"]]
+        )
+
+        self.bind_action(
+            "time stop",
+            [self.KEYS["t"]]
         )
 
         from .. import Renderer

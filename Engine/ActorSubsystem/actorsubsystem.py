@@ -167,6 +167,7 @@ class ActorSubsystem:
         self.tick = Event()
         self.paused = False
         self.remaining_time = 0.0
+        self.time_stop = False
 
         self._logger = Log.get("actors")
 
@@ -226,7 +227,8 @@ class ActorSubsystem:
         from assets.code.actors.player import Player
         if not self.paused:
             self.tick.emit(dt)
-            self.remaining_time -= dt / 1000
+            if not self.time_stop:
+                self.remaining_time -= dt / 1000
             if self.remaining_time <= 0:
                 Player.end_game = True
 

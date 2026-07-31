@@ -32,6 +32,7 @@ class CheatComponent(Component):
 
     def update(self, dt):
         from assets.code.actors.player import Player
+        from Engine.ActorSubsystem.actorsubsystem import Actors
         if Input.is_action_held("invinsible"):
             if self.player:
                 self.player.invinsible = not self.player.invinsible
@@ -55,7 +56,14 @@ class CheatComponent(Component):
         if Input.is_action_held("increase speed"):
             if self.player:
                 self.player.speed_up()
+                self._log.info(f"Cheat: speed up")
 
         if Input.is_action_held("decrease speed"):
             if self.player:
                 self.player.speed_down()
+                self._log.info(f"Cheat: speed down")
+
+        if Input.is_action_held("time stop"):
+            if self.player:
+                Actors.time_stop = not Actors.time_stop
+                self._log.info(f"Cheat: Time stop: {Actors.time_stop}")
