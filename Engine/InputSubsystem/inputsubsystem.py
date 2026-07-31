@@ -547,6 +547,11 @@ class InputSubsystem:
             [self.KEYS["y"]]
         )
 
+        self.bind_action(
+            "time stop",
+            [self.KEYS["t"]]
+        )
+
         from .. import Renderer
 
         self.register_action_callback(
