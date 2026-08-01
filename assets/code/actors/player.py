@@ -25,6 +25,14 @@ class Player(Actor):
     end_level: bool = False
     quit: bool = False
 
+    _fps: int = 16
+
+    @property
+    def fps(self) -> int:
+        if self.movement.is_moving:
+            return self._fps
+        return 0
+
     def __init__(
         self,
         position: Vector2,
@@ -43,15 +51,6 @@ class Player(Actor):
         )
         self._start_super_pacman: float | None = None
 
-        self.animation = self.add_component(
-            AnimatedSpriteComponent(
-                "assets/texture/spritesheets/pacman_hd"
-                "/PacManAssets-PacMan.png",
-                frame_width=32, frame_height=32,
-                frame_count=4, fps=4, loop=True, start_frame=0,
-                center=True,  # box is centered on actor.position, unrotated
-            )
-        )
 
         # Movement components
         self.movement = self.add_component(GridMovementComponent(speed=100))
@@ -62,6 +61,16 @@ class Player(Actor):
         self._super_pacman_timer: Timer | None = None
         self.add_component(CheatComponent())
         self._base_speed = self.movement.speed
+
+        self.animation = self.add_component(
+            AnimatedSpriteComponent(
+                "assets/texture/spritesheets/pacman_hd"
+                "/PacManAssets-PacMan.png",
+                frame_width=32, frame_height=32,
+                frame_count=4, fps=self.fps, loop=True, start_frame=0,
+                center=True,  # box is centered on actor.position, unrotated
+            )
+        )
 
     @on_end_of_anim(lambda self: self.destroy_after_dead())
     def dead(self, component):
@@ -123,6 +132,9 @@ class Player(Actor):
 
     def update(self, dt):
         super().update(dt)
+        if self.animation.fps != self.fps:
+            self.animation.set_fps(self.fps)
+        self.logger.debug(f"fps : {self.fps}")
         if World.find(Pacgum) is None:
             Log.get("main").success("No more pacgum.")
             Player.end_level = True

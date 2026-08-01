@@ -87,6 +87,19 @@ class AnimatedSpriteComponent(Component):
         Assets.queue(self._key)
 
     @property
+    def fps(self) -> float:
+        return self._fps
+
+    def set_fps(self, fps: float) -> None:
+        """Change playback speed in place — unlike set_animation,
+        this keeps the current frame/time and completed state, so
+        it's safe to call every frame (e.g. to speed up/slow down
+        or pause an animation) without restarting the clip."""
+        self._fps = fps
+        if self._animation is not None:
+            self._animation.set_fps(fps)
+
+    @property
     def sprite(self):
         if self._animation is None:
             frames = Assets.get(self._key)

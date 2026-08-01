@@ -111,7 +111,7 @@ class PacmanTransition:
     FRAME_COUNT = 4
     # Faster than the in-game 4fps: a 650ms crossing only has time for
     # a couple of loops at 4fps, so bump it up for a readable chomp.
-    FPS = 10
+    FPS = 16
 
     def __init__(self, duration_ms: float = 700.0, size: int = None,
                  color: int = 0x000000):

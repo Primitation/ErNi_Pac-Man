@@ -241,8 +241,16 @@ class Animation:
 
     def __init__(self, frames: List[Texture], fps: float = 10.0, loop: bool = True):
         self.frames = frames
-        self.fps = fps
         self.loop = loop
+        self.set_fps(fps)
+
+    def set_fps(self, fps: float) -> None:
+        """Change playback speed in place. frame_duration is derived
+        from fps and only ever read inside frame_at(), so this is
+        the only correct way to change speed after construction —
+        just assigning .fps directly is a no-op, since frame_at()
+        never looks at .fps itself."""
+        self.fps = fps
         self.frame_duration = (1000.0 / fps) if fps > 0 else 0.0
 
     def frame_at(self, elapsed_ms: float) -> Optional[Texture]:
