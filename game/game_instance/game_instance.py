@@ -120,7 +120,7 @@ class GameInstance:
                 exit_menu = True
         """
         while True:
-            result = MainMenu().show()
+            result = MainMenu(self._scores).show()
             self.log.info(f"Menu closed with result: {result}")
  
             if result == "play":
