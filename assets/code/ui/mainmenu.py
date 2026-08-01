@@ -11,7 +11,7 @@ the window. Shows:
 """
 
 from Engine import Assets, Input, Log, Renderer
-from Engine.UISubsystem.uisubsystem import Canvas, VBox, HBox, Text, Button, Spacer
+from Engine.UISubsystem.uisubsystem import BitmapText, Canvas, VBox, HBox, Text, Button, Spacer
 from assets.code.ui.font_config import (
     ARCADE_FONT_PATH as BUTTON_FONT_PATH,
     ARCADE_FONT_CHARSET as BUTTON_FONT_CHARSET,
@@ -19,20 +19,25 @@ from assets.code.ui.font_config import (
     ARCADE_FONT_CHAR_HEIGHT as BUTTON_FONT_CHAR_HEIGHT,
     ARCADE_FONT_COLUMNS as BUTTON_FONT_COLUMNS,
 )
+from game.game_instance.score import Scores
 
 
 class MainMenu:
     """Call .show() to run the menu loop. Returns "play", "quit", or None
     (window closed some other way) once the loop exits."""
 
-    def __init__(self):
+    def __init__(self, scores: Scores):
         self._logger = Log.get("menu")
         self._result = None
         self._font_texture = Assets.load(BUTTON_FONT_PATH)
 
+        self._scores = scores
+        self.SHOW_MAX_SCORES = 10
+
         self.canvas = Canvas(0, 0, Renderer.width, Renderer.height)
         self._menu_root = self._build_menu_root()
         self._options_root = self._build_options_root()
+        self._scores_root = self._build_scores_root()
         self.canvas.set_root(self._menu_root)
 
         Renderer.on_resize(self._on_resize)
@@ -51,6 +56,14 @@ class MainMenu:
             font_scale=font_scale, color_normal=0xFF000000, color_focused=0xFFFFFF00
         )
 
+    def _label(self, text: str, text_scale: float = 2.0) -> BitmapText:
+        return BitmapText(
+            text, self._font_texture,
+            char_width=BUTTON_FONT_CHAR_WIDTH, char_height=BUTTON_FONT_CHAR_HEIGHT,
+            charset=BUTTON_FONT_CHARSET, columns=BUTTON_FONT_COLUMNS,
+            scale=text_scale,
+        )
+
     def _build_menu_root(self) -> VBox:
         root = VBox(spacing=24, justify="center", background_color=0xFF000000)
 
@@ -63,6 +76,7 @@ class MainMenu:
         buttons = VBox(spacing=12, justify="center")
         buttons.add(self._button("PLAY", self._on_play), align="center")
         buttons.add(self._button("OPTIONS", self._on_options), align="center")
+        buttons.add(self._button("SCORES", self._on_scores), align="center")
         buttons.add(self._button("QUIT", self._on_quit), align="center")
         root.add(buttons, align="center")
 
@@ -92,6 +106,20 @@ class MainMenu:
 
         return root
 
+    def _build_scores_root(self) -> VBox:
+        root = VBox(spacing=20, justify="center")
+        root.add(self._label("SCORES", text_scale=10.0), align="center")
+        text_scale = 7.0  # TODO: better size ?
+        for rank, player_score in enumerate(
+                self._scores.get_top_scores(self.SHOW_MAX_SCORES)):
+            root.add(self._label(f"{rank + 1} {player_score[0]} - {player_score[1]}",
+                                 text_scale=text_scale), align="center")
+            text_scale = max(4.0, text_scale - 1)
+        root.add(Spacer(height=10))
+
+        root.add(self._button("BACK", callback=self._on_back), align="center")
+        return root
+
     # ----- volume state (kept simple: plain ints on the instance) -----
 
     music_volume = 80
@@ -117,6 +145,9 @@ class MainMenu:
 
     def _on_options(self):
         self.canvas.set_root(self._options_root)
+
+    def _on_scores(self):
+        self.canvas.set_root(self._scores_root)
 
     def _on_back(self):
         self.canvas.set_root(self._menu_root)
