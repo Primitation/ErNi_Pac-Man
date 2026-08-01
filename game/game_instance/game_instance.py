@@ -184,12 +184,12 @@ class GameInstance:
         Out:
             Menu
         """
+        from assets.code.ui.end_screen import EndScreen
+
         self.log.success("GameInstance: Enter player name for score saving:")
-        message_for_player = ("Winner\n"
-                              if self._current_player.is_alive()
-                              else "Well played\n")
+        won = self._current_player.is_alive()
         player_score = self._current_player.score_info.score
-        player_name = AskUI.ask_name(message_for_player, player_score)
+        player_name = EndScreen(won, player_score).show()
         self._scores.add_score(player_name, player_score)
         # Returns to Menu
 
