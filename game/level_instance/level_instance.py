@@ -292,8 +292,8 @@ class LevelInstance:
             Renderer.hook_loop(frame)
             log.info("Entering mlx loop.")
             Renderer.loop()
-            Input.remove_action_callback(on_pause)
-            Input.remove_action_callback(on_quit_to_menu)
+            Input.remove_action_callback("pause", on_pause)
+            Input.remove_action_callback("quit to menu", on_quit_to_menu)
 
         except Exception:
             log.error("Error level loop.")
