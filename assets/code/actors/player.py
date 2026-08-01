@@ -21,6 +21,7 @@ class Player(Actor):
     current_player: PlayerInformation | None = None
     current_level: str = "None"
     end_game: bool = False
+    end_level: bool = False
     quit: bool = False
 
     def __init__(
@@ -89,13 +90,13 @@ class Player(Actor):
 
     @staticmethod
     def game_ended() -> bool:
-        return Player.end_game or Player.quit
+        return Player.end_game or Player.quit or Player.end_level
 
     def update(self, dt):
         super().update(dt)
         if World.find(Pacgum) is None:
             Log.get("main").success("No more pacgum.")
-            Player.end_game = True
+            Player.end_level = True
 
     def _super_pacman_time(self) -> float:
         return 10  # TODO: super pacmann time: here 10 seconds
