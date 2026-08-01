@@ -41,8 +41,23 @@ class BasicGhost(Actor):
                 center=True, render_layer=2
             )
         )
+
+        self._edible = False
         self._base_speed = self.movement.speed
         self.add_component(CheatComponent())
+
+
+    def edible_mode(self) -> None:
+        if self._edible:
+            return
+        # TODO: change texture and run from player
+        pass
+
+    def normal_mode(self) -> None:
+        if not self._edible:
+            return
+        # TODO: normal mode
+        pass
 
     def update(self, dt):
         if Input.is_action_triggered("dead"):
