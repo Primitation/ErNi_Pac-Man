@@ -227,6 +227,11 @@ class LevelInstance:
             fps_frames = 0
             fps = 0
 
+            def on_pause():
+                paused = Actors.toggle_pause()
+                log.info(f"Game {'paused' if paused else 'resumed'}.")
+            Input.register_action_callback("pause", on_pause)
+
             def frame(_param):
 
                 nonlocal last_time
@@ -264,6 +269,7 @@ class LevelInstance:
 
                 if not Actors.paused:
                     Collision.update()
+                    Particles.update(dt)
 
                 Renderer.render_draw(World)
                 Particles.update(dt)

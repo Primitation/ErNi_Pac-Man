@@ -55,7 +55,7 @@ class Player(Actor):
         self.movement = self.add_component(GridMovementComponent(speed=100))
         self.add_component(PlayerGridInput())
         self.add_component(FaceDirectionComponent())
-        self.invinsible = False
+        self._invinsible = False
         self.add_component(CheatComponent())
         self._base_speed = self.movement.speed
 
@@ -70,6 +70,22 @@ class Player(Actor):
             loop=False,
             start_frame=4
         )
+
+    @property
+    def invinsible(self) -> bool:
+        return self._invinsible
+
+    @invinsible.setter
+    def invinsible(self, is_invinsible: bool) -> None:
+        self._invinsible = is_invinsible
+        self.change_ghosts_mode()
+
+    def change_ghosts_mode(self) -> None:
+        for ghost in World.find_all(BasicGhost):
+            if self._is_super_pacman():
+                ghost.edible_mode()
+            else:
+                ghost.normal_mode()
 
     @staticmethod
     def game_ended() -> bool:
@@ -86,6 +102,7 @@ class Player(Actor):
 
     def _super_pacman(self) -> None:
         self._start_super_pacman = perf_counter()
+        self.change_ghosts_mode()
 
     def _is_super_pacman(self) -> bool:
         return (self.invinsible
@@ -143,4 +160,5 @@ class Player(Actor):
         self.movement.speed += self._base_speed * 0.1
 
     def speed_down(self) -> None:
-            self.movement.speed -= self._base_speed * 0.1
+        self.movement.speed = max(
+            0, self.movement.speed - self._base_speed * 0.1)
