@@ -40,7 +40,7 @@ class CheatComponent(Component):
 
         if Input.is_action_triggered("level win"):
             if self.player:
-                Player.end_game = True
+                Player.end_level = True
                 self._log.info(f"Cheat: Win level")
 
         if Input.is_action_triggered("ghost freeze"):
