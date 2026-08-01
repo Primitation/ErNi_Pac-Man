@@ -9,6 +9,8 @@ from ..components.movement_components import (
 from ..components.origin_marker_component import OriginMarkerComponent
 
 
+EDIBLEGHOST_INDEX = 32
+
 class BasicGhost(Actor):
     """A basic ghost Actor."""
 
@@ -19,6 +21,7 @@ class BasicGhost(Actor):
         scale: Vector2,
         tag: str = "Actor",
         speed: float = 100.0,
+        color_index: int = 0
     ):
         super().__init__(
             position=position,
@@ -42,22 +45,52 @@ class BasicGhost(Actor):
             )
         )
 
+        self.color_index = color_index
+
         self._edible = False
         self._base_speed = self.movement.speed
         self.add_component(CheatComponent())
 
+        self.animation = self.add_component(
+            AnimatedSpriteComponent(
+                "assets/texture/spritesheets"
+                "/pacman_hd/PacManAssets-Ghosts.png",
+                frame_width=32, frame_height=32,
+                frame_count=4, fps=4, loop=True, start_frame=color_index,
+                center=True, render_layer=1
+            )
+        )
 
-    def edible_mode(self) -> None:
-        if self._edible:
-            return
-        # TODO: change texture and run from player
-        pass
+    @property
+    def edible(self) -> bool:
+        return self._edible
 
-    def normal_mode(self) -> None:
-        if not self._edible:
+    @edible.setter
+    def edible(self, value: bool) -> None:
+        if self._edible == value:
             return
-        # TODO: normal mode
-        pass
+
+        self._edible = value
+
+        self.update_ghost_mode()
+
+    def update_ghost_mode(self):
+        if self.edible:
+            self.animation.set_animation(
+                "assets/texture/spritesheets"
+                "/pacman_hd/PacManAssets-Ghosts.png",
+                frame_width=32, frame_height=32,
+                frame_count=8, fps=4, loop=True, start_frame=EDIBLEGHOST_INDEX
+            )
+            self.face.enabled = False
+        else:
+            self.animation.set_animation(
+                "assets/texture/spritesheets"
+                "/pacman_hd/PacManAssets-Ghosts.png",
+                frame_width=32, frame_height=32,
+                frame_count=4, fps=4, loop=True, start_frame=self.color_index
+            )
+            self.face.enabled = True
 
     def update(self, dt):
         if Input.is_action_triggered("dead"):
@@ -73,6 +106,8 @@ class BasicGhost(Actor):
             self.movement.speed = self._base_speed
         else:
             self.movement.speed = 0
+    
+    
 
 class RedGhost(BasicGhost):
     def __init__(
@@ -88,17 +123,10 @@ class RedGhost(BasicGhost):
             scale=scale,
             velocity=velocity,
             tag=tag,
+            color_index=0
         )
 
-        self.animation = self.add_component(
-            AnimatedSpriteComponent(
-                "assets/texture/spritesheets"
-                "/pacman_hd/PacManAssets-Ghosts.png",
-                frame_width=32, frame_height=32,
-                frame_count=4, fps=4, loop=True, start_frame=0,
-                center=True, render_layer=1
-            )
-        )
+        
 
 
 class BlueGhost(BasicGhost):
@@ -115,16 +143,7 @@ class BlueGhost(BasicGhost):
             scale=scale,
             velocity=velocity,
             tag=tag,
-        )
-
-        self.animation = self.add_component(
-            AnimatedSpriteComponent(
-                "assets/texture/spritesheets/pacman_hd"
-                "/PacManAssets-Ghosts.png",
-                frame_width=32, frame_height=32,
-                frame_count=4, fps=4, loop=True, start_frame=4,
-                center=True, render_layer=1
-            )
+            color_index=4
         )
 
 
@@ -142,16 +161,7 @@ class YellowGhost(BasicGhost):
             scale=scale,
             velocity=velocity,
             tag=tag,
-        )
-
-        self.animation = self.add_component(
-            AnimatedSpriteComponent(
-                "assets/texture/spritesheets/pacman_hd"
-                "/PacManAssets-Ghosts.png",
-                frame_width=32, frame_height=32,
-                frame_count=4, fps=4, loop=True, start_frame=20,
-                center=True, render_layer=1
-            )
+            color_index=20
         )
 
 
@@ -169,14 +179,5 @@ class PinkGhost(BasicGhost):
             scale=scale,
             velocity=velocity,
             tag=tag,
-        )
-
-        self.animation = self.add_component(
-            AnimatedSpriteComponent(
-                "assets/texture/spritesheets/pacman_hd"
-                "/PacManAssets-Ghosts.png",
-                frame_width=32, frame_height=32,
-                frame_count=4, fps=4, loop=True, start_frame=8,
-                center=True, render_layer=1
-            )
+            color_index=8
         )

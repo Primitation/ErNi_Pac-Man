@@ -14,6 +14,7 @@ from ..components.movement_components import (
 from ..components.particle_component import ParticleTrailComponent
 from ..components.origin_marker_component import OriginMarkerComponent
 from time import perf_counter
+from threading import Timer
 
 class Player(Actor):
     """A player-controlled Actor, moved via the Input subsystem."""
@@ -57,6 +58,8 @@ class Player(Actor):
         self.add_component(PlayerGridInput())
         self.add_component(FaceDirectionComponent())
         self._invinsible = False
+        self._super_pacman = False
+        self._super_pacman_timer: Timer | None = None
         self.add_component(CheatComponent())
         self._base_speed = self.movement.speed
 
@@ -77,16 +80,42 @@ class Player(Actor):
         return self._invinsible
 
     @invinsible.setter
-    def invinsible(self, is_invinsible: bool) -> None:
-        self._invinsible = is_invinsible
+    def invinsible(self, value: bool) -> None:
+        self._invinsible = value
+        self.change_ghosts_mode()
+
+    @property
+    def super_pacman(self) -> bool:
+        return self._super_pacman
+
+    @super_pacman.setter
+    def super_pacman(self, value: bool) -> None:
+        if self._super_pacman_timer:
+            self._super_pacman_timer.cancel()
+            self._super_pacman_timer = None
+
+        self._super_pacman = value
+
+        if value:
+            self._super_pacman_timer = Timer(
+                self._super_pacman_time(),
+                lambda: setattr(self, "super_pacman", False)
+            )
+            self._super_pacman_timer.start()
+
         self.change_ghosts_mode()
 
     def change_ghosts_mode(self) -> None:
-        for ghost in World.find_all(BasicGhost):
-            if self._is_super_pacman():
-                ghost.edible_mode()
-            else:
-                ghost.normal_mode()
+        edible = self.super_pacman or self.invinsible
+
+        ghosts = World.find_all(BasicGhost)
+
+        Log.get("main").debug(
+            f"Changing ghost mode: edible={edible}, ghosts={len(ghosts)}"
+        )
+
+        for ghost in ghosts:
+            ghost.edible = edible
 
     @staticmethod
     def game_ended() -> bool:
@@ -101,15 +130,8 @@ class Player(Actor):
     def _super_pacman_time(self) -> float:
         return 10  # TODO: super pacmann time: here 10 seconds
 
-    def _super_pacman(self) -> None:
-        self._start_super_pacman = perf_counter()
-        self.change_ghosts_mode()
-
     def _is_super_pacman(self) -> bool:
-        return (self.invinsible
-                or (self._start_super_pacman is not None and
-                    (perf_counter() - self._start_super_pacman
-                     <= self._super_pacman_time())))
+        return (self.super_pacman or self.invinsible)
 
     @staticmethod
     def set_player_information(player: PlayerInformation | None) -> None:
@@ -133,7 +155,7 @@ class Player(Actor):
             Player.current_player.score_info.eat_pacgum()
         elif isinstance(other_collider.owner, SuperPacgum):
             Player.current_player.score_info.eat_super_pacgum()
-            self._super_pacman()
+            self.super_pacman = True
         elif isinstance(other_collider.owner, BasicGhost):
             if self._is_super_pacman():
                 Player.current_player.score_info.eat_ghost()
