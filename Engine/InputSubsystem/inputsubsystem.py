@@ -470,6 +470,11 @@ class InputSubsystem:
             [self.KEYS["t"]]
         )
 
+        self.bind_action(
+            "quit to menu",
+            [self.KEYS["m"]]
+        )
+
         from .. import Renderer
 
         self.register_action_callback(

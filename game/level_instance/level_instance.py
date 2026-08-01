@@ -9,6 +9,7 @@ from assets.code.actors.ghost import (
     RedGhost, BlueGhost, YellowGhost, PinkGhost)
 from assets.code.actors.pacgum import Pacgum, SuperPacgum
 from assets.code.actors.cell import Cell
+from assets.code.ui.pause_hud import PauseHUD
 from game.game_instance.player_information import PlayerInformation
 from game.levelgen import LevelGenerator, LevelOptions
 from assets.code.actors.player import Player
@@ -221,6 +222,7 @@ class LevelInstance:
             log.info(f"World has {len(World)} actor(s).")
 
             hud = GameplayHUD()
+            pause_hud = PauseHUD()
 
             last_time = time.perf_counter()
             fps_timer = 0.0
@@ -232,7 +234,12 @@ class LevelInstance:
                 log.info(f"Game {'paused' if paused else 'resumed'}.")
             Input.register_action_callback("pause", on_pause)
 
-            def frame(_param):
+            def on_quit_to_menu() -> None:
+                if Actors.paused:
+                    Player.quit = True
+            Input.register_action_callback("quit to menu", on_quit_to_menu)
+
+            def frame(_param) -> None:
 
                 nonlocal last_time
                 nonlocal fps_timer
@@ -277,6 +284,8 @@ class LevelInstance:
                     Collision.draw_debug(Renderer, Renderer._debug_collider_color_map)
                 Particles.render(Renderer)
                 hud.render(Renderer)
+                if Actors.paused:
+                    pause_hud.render(Renderer)
                 Renderer.render_present()
                 Input.update()
 
