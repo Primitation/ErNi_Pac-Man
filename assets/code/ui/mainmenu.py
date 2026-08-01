@@ -38,6 +38,7 @@ class MainMenu:
         self._menu_root = self._build_menu_root()
         self._options_root = self._build_options_root()
         self._scores_root = self._build_scores_root()
+        self._instructions_root = self._build_instructions_root()
         self.canvas.set_root(self._menu_root)
 
         Renderer.on_resize(self._on_resize)
@@ -77,6 +78,7 @@ class MainMenu:
         buttons.add(self._button("PLAY", self._on_play), align="center")
         buttons.add(self._button("OPTIONS", self._on_options), align="center")
         buttons.add(self._button("SCORES", self._on_scores), align="center")
+        buttons.add(self._button("INSTRUCTIONS", self._on_instructions), align="center")
         buttons.add(self._button("QUIT", self._on_quit), align="center")
         root.add(buttons, align="center")
 
@@ -107,7 +109,7 @@ class MainMenu:
         return root
 
     def _build_scores_root(self) -> VBox:
-        root = VBox(spacing=20, justify="center")
+        root = VBox(spacing=20, justify="center", background_color=0xFF000000)
         root.add(self._label("SCORES", text_scale=10.0), align="center")
         text_scale = 7.0  # TODO: better size ?
         for rank, player_score in enumerate(
@@ -115,6 +117,35 @@ class MainMenu:
             root.add(self._label(f"{rank + 1} {player_score[0]} - {player_score[1]}",
                                  text_scale=text_scale), align="center")
             text_scale = max(4.0, text_scale - 1)
+        root.add(Spacer(height=10))
+
+        root.add(self._button("BACK", callback=self._on_back), align="center")
+        return root
+
+    def _build_instructions_root(self) -> VBox:
+        root = VBox(spacing=20, justify="center", background_color=0xFF000000)
+        root.add(self._label("INSTRUCTIONS", text_scale=8.0), align="center")
+        instructions = [
+            "RULES",
+            "WIN - EAT ALL PACGUMS",
+            "LOSE - NO MORE LIVE OR TIME AT 0",
+            "LOSE LIVE - NON EDIBLE GHOST ON PACMAN",
+            "EDIBLE GHOST - SHORT DURATION AFTER EATING A SUPER-PACGUM",
+            "SCORE - EAT PACGUM / SUPER-PACGUM / EDIBLE GHOST",
+            "",
+            "COMMANDS",
+            "WASD - MOVE",
+            "P - PAUSE",
+            "E - EXTRA LIVE",
+            "I - INVINSIBLE",
+            "U - SPEED UP",
+            "Y - SPEED DOWN",
+            "G - GHOSTS FREEZE",
+            "L - LEVEL WIN",
+            "T - TIME STOP",
+        ]
+        for instruction in instructions:
+            root.add(self._label(instruction, text_scale=2.0), align="center")
         root.add(Spacer(height=10))
 
         root.add(self._button("BACK", callback=self._on_back), align="center")
@@ -148,6 +179,9 @@ class MainMenu:
 
     def _on_scores(self):
         self.canvas.set_root(self._scores_root)
+
+    def _on_instructions(self):
+        self.canvas.set_root(self._instructions_root)
 
     def _on_back(self):
         self.canvas.set_root(self._menu_root)
