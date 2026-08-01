@@ -1,6 +1,12 @@
 """Maze parser from the maze generator result."""
+from enum import IntEnum
 from typing import Dict, List, Set, Tuple
-from .constants import Position
+
+
+class Position(IntEnum):
+    """Positions for (width, height) format."""
+    WIDTH = 0
+    HEIGHT = 1
 
 
 class MazeData:
