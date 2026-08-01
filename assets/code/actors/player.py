@@ -160,4 +160,5 @@ class Player(Actor):
         self.movement.speed += self._base_speed * 0.1
 
     def speed_down(self) -> None:
-            self.movement.speed -= self._base_speed * 0.1
+        self.movement.speed = max(
+            0, self.movement.speed - self._base_speed * 0.1)
