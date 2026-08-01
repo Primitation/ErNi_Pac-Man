@@ -131,6 +131,15 @@ class GridMovementComponent(Component):
 
         self.is_moving = False
 
+        # Optional callable: (movement) -> Vector2 | None.
+        # If set, called exactly when a new direction is needed (on
+        # arrival at a cell), with current_cell already pointing at
+        # the cell just arrived at. Lets AI-driven movement (chase
+        # components) make a fresh, precise decision instead of
+        # relying on a buffered compass direction like player input.
+        self.direction_strategy = None
+
+
 
     def set_direction(self, direction: Vector2):
         """
@@ -263,8 +272,14 @@ class GridMovementComponent(Component):
     def _choose_next_direction(self):
         """
         Called when arriving at a cell.
-        Try buffered input first, then continue direction.
+        Try an AI direction_strategy first (fresh, computed from
+        this exact cell), then buffered input, then continue direction.
         """
+
+        if self.direction_strategy:
+            direction = self.direction_strategy(self)
+            if direction and self._start_moving(direction):
+                return
 
         # Try player buffered input
         if (
@@ -387,58 +402,379 @@ class PlayerGridInput(Component):
             self.movement.set_direction(direction)
 
 
-class ChasePlayerGridComponent(Component):
-    """AI component for grid-based chasing behavior using cell references."""
+class ChaseTargetGridComponent(Component):
+    """
+    Generic grid-based chase behavior.
 
-    def __init__(self, speed_multiplier=1.0):
+    Unlike a component hardcoded to chase the Player, this one chases
+    whatever Actor is set as `target` — the Player, another ghost,
+    anything with a GridMovementComponent. The target can be swapped
+    at runtime with set_target(), which is what lets a "tag" style
+    mode hand the chase off from one ghost to another.
+
+    Movement decisions use the same core idea as the original Pac-Man
+    ghosts: at every intersection, look at each open direction (other
+    than the one just arrived from) and pick whichever one lands on
+    the cell closest to the current target tile. Reversing direction
+    is only allowed when there is no other option (dead end).
+
+    Subclasses only need to override get_target_cell() to reproduce
+    the different ghost personalities (see PinkyChaseComponent,
+    InkyChaseComponent, ClydeChaseComponent below); the movement /
+    intersection logic here stays the same for all of them.
+    """
+
+    # Priority order used to break ties when two directions are
+    # equally close to the target tile.
+    _DIRECTION_PRIORITY = (
+        Vector2(0, -1),  # up
+        Vector2(-1, 0),  # left
+        Vector2(0, 1),   # down
+        Vector2(1, 0),   # right
+    )
+
+    def __init__(self, target=None, speed_multiplier: float = 1.0):
         super().__init__()
+        self.target = target
         self.speed_multiplier = speed_multiplier
 
     def on_added(self, actor):
         super().on_added(actor)
-        # Optionally adjust speed
+
         movement = actor.get_component(GridMovementComponent)
         if movement:
-            movement.speed *= self.speed_multiplier
+            if self.speed_multiplier != 1.0:
+                movement.speed *= self.speed_multiplier
+
+            # Decide direction exactly when the ghost needs one
+            # (on arrival at a cell) instead of continuously — see
+            # _decide_direction for why that matters.
+            movement.direction_strategy = self._decide_direction
+
+        if self.target is None:
+            self._auto_target_player()
+
+    def set_target(self, target) -> None:
+        """Retarget this component to chase a different Actor."""
+        self.target = target
+
+    def _auto_target_player(self) -> None:
+        """
+        Fall back to chasing the Player when nobody explicitly set a
+        target. Kept lazy/best-effort: if the Player doesn't exist
+        yet (spawn order), _decide_direction retries this on every
+        arrival until it succeeds, or until set_target() is called
+        explicitly.
+        """
+        try:
+            from assets.code.actors.player import Player
+        except ImportError:
+            return
+
+        self.target = World.find(Player)
+
+    def get_target_cell(self):
+        """
+        Return the Cell currently being aimed at.
+
+        Default behavior is a direct chase (Blinky-style): the
+        target's own current cell. Override for ambush-style or
+        other targeting behavior.
+        """
+        if not self.target:
+            return None
+
+        target_movement = self.target.get_component(GridMovementComponent)
+        if not target_movement:
+            return None
+
+        return target_movement.current_cell
+
+    def _decide_direction(self, movement):
+        """
+        Called by GridMovementComponent's direction_strategy hook —
+        exactly once, right as the ghost arrives at a cell, with
+        movement.current_cell already pointing at that cell.
+
+        This matters: computing the direction on every frame instead
+        (from whatever cell the ghost was last AT, mid-move) means
+        the choice is always one cell stale by the time it's used —
+        a turn that's correct for the cell just left, applied at the
+        cell just entered. Straight corridors hide that; the sharper
+        turns needed to reach an ambush-style target (Pinky, Inky)
+        don't, which is why they drift far off course while a direct
+        chase (Blinky) mostly looks fine.
+        """
+        if self.target is None:
+            self._auto_target_player()
+
+        target_cell = self.get_target_cell()
+        if not target_cell:
+            return None
+
+        return self._choose_direction(movement, target_cell)
 
     def update(self, dt):
-        from assets.code.actors.player import Player
+        # No-op: direction decisions happen in _decide_direction via
+        # movement.direction_strategy, called exactly once on arrival
+        # at each cell rather than every frame.
+        pass
 
-        movement = self.actor.get_component(GridMovementComponent)
-        if not movement or not movement.current_cell:
-            return
-
-        player = World.find(Player)
-        if not player:
-            return
-
-        # Get player's grid movement component
-        player_movement = player.get_component(GridMovementComponent)
-        if not player_movement or not player_movement.current_cell:
-            return
-
-        # Calculate direction based on cell positions
+    def _choose_direction(self, movement, target_cell):
         current_cell = movement.current_cell
-        target_cell = player_movement.current_cell
 
-        # Find path direction (simple chase - choose dominant axis)
-        dx = target_cell.position.x - current_cell.position.x
-        dy = target_cell.position.y - current_cell.position.y
+        # movement.direction is the direction we're currently moving
+        # in (or just arrived from) — used to forbid reversing.
+        came_from = movement.direction
 
-        # Choose the dominant direction
-        if abs(dx) > abs(dy):
-            direction = Vector2(1 if dx > 0 else -1, 0)
-        else:
-            direction = Vector2(0, 1 if dy > 0 else -1)
+        best_direction = None
+        best_distance = float("inf")
+        fallback_direction = None
+        fallback_distance = float("inf")
 
-        # Check if we can move in that direction
-        if movement._can_move_from_cell(current_cell, direction):
-            movement.set_direction(direction)
-        else:
-            # Try the other direction if blocked
-            other_direction = Vector2(0, 1 if dy > 0 else -1) if abs(dx) > abs(dy) else Vector2(1 if dx > 0 else -1, 0)
-            if movement._can_move_from_cell(current_cell, other_direction):
-                movement.set_direction(other_direction)
+        for direction in self._DIRECTION_PRIORITY:
+            if not movement._can_move_from_cell(current_cell, direction):
+                continue
+
+            neighbor = movement._get_neighbor_cell(current_cell, direction)
+            if not neighbor:
+                continue
+
+            dx = target_cell.position.x - neighbor.position.x
+            dy = target_cell.position.y - neighbor.position.y
+            distance = dx * dx + dy * dy
+
+            is_reverse = (
+                (came_from.x != 0 or came_from.y != 0)
+                and direction.x == -came_from.x
+                and direction.y == -came_from.y
+            )
+
+            if distance < fallback_distance:
+                fallback_distance = distance
+                fallback_direction = direction
+
+            if is_reverse:
+                continue
+
+            if distance < best_distance:
+                best_distance = distance
+                best_direction = direction
+
+        # Only reverse into a dead end if there was truly no other option.
+        return best_direction or fallback_direction
+
+
+class ChasePlayerGridComponent(ChaseTargetGridComponent):
+    """
+    Backward-compatible name: direct chase (Blinky's classic
+    behavior), auto-targeting the Player. Functionally identical to
+    ChaseTargetGridComponent used with no target — kept as an alias
+    so existing code/readability isn't disrupted.
+    """
+    pass
+
+
+class PinkyChaseComponent(ChaseTargetGridComponent):
+    """
+    Ambush behavior: aims a few cells ahead of the target's current
+    facing direction instead of the target's own cell, so it tries
+    to cut the target off rather than tail it.
+    """
+
+    AMBUSH_DISTANCE = 4
+
+    def get_target_cell(self):
+        if not self.target:
+            return None
+
+        target_movement = self.target.get_component(GridMovementComponent)
+        if not target_movement or not target_movement.current_cell:
+            return None
+
+        facing = target_movement.direction
+        if facing.x == 0 and facing.y == 0:
+            facing = target_movement.target_direction
+
+        cell = target_movement.current_cell
+
+        for _ in range(self.AMBUSH_DISTANCE):
+            next_cell = self._neighbor_in_direction(cell, facing)
+            if not next_cell:
+                break
+            cell = next_cell
+
+        return cell
+
+    @staticmethod
+    def _neighbor_in_direction(cell, direction):
+        if direction.x > 0:
+            return cell.east
+        if direction.x < 0:
+            return cell.west
+        if direction.y > 0:
+            return cell.south
+        if direction.y < 0:
+            return cell.north
+        return None
+
+
+class InkyChaseComponent(ChaseTargetGridComponent):
+    """
+    Unpredictable chase: draws a line from a `pivot` Actor
+    (traditionally another ghost, e.g. Blinky) through a point a
+    couple of cells ahead of the target, then doubles that line to
+    get the final target tile. Erratic when the pivot is far from
+    the target, aggressive when it's close.
+    """
+
+    LOOKAHEAD = 2
+
+    def __init__(self, pivot=None, target=None, speed_multiplier=1.0):
+        super().__init__(target=target, speed_multiplier=speed_multiplier)
+        self.pivot = pivot
+
+    def set_pivot(self, pivot) -> None:
+        self.pivot = pivot
+
+    def get_target_cell(self):
+        if not self.target:
+            return None
+
+        target_movement = self.target.get_component(GridMovementComponent)
+        if not target_movement or not target_movement.current_cell:
+            return None
+
+        # No pivot wired up (e.g. Blinky hasn't been assigned yet) —
+        # fall back to a direct chase rather than freezing in place.
+        if not self.pivot:
+            return target_movement.current_cell
+
+        pivot_movement = self.pivot.get_component(GridMovementComponent)
+        if not pivot_movement or not pivot_movement.current_cell:
+            return target_movement.current_cell
+
+        facing = target_movement.direction
+        if facing.x == 0 and facing.y == 0:
+            facing = target_movement.target_direction
+
+        cell = target_movement.current_cell
+        for _ in range(self.LOOKAHEAD):
+            next_cell = PinkyChaseComponent._neighbor_in_direction(cell, facing)
+            if not next_cell:
+                break
+            cell = next_cell
+
+        pivot_pos = pivot_movement.current_cell.position
+
+        aim_x = cell.position.x + (cell.position.x - pivot_pos.x)
+        aim_y = cell.position.y + (cell.position.y - pivot_pos.y)
+
+        return self._closest_cell_to(aim_x, aim_y)
+
+    @staticmethod
+    def _closest_cell_to(x, y):
+        from assets.code.actors.cell import Cell
+
+        closest = None
+        distance = float("inf")
+
+        for c in World.find_all(Cell):
+            dx = c.position.x - x
+            dy = c.position.y - y
+            d = dx * dx + dy * dy
+
+            if d < distance:
+                distance = d
+                closest = c
+
+        return closest
+
+
+class ClydeChaseComponent(ChaseTargetGridComponent):
+    """
+    Chases directly while far from the target, but flees toward
+    `home_cell` once within `flee_distance` *cells* — classic Clyde:
+    aggressive at range, shy up close.
+    """
+
+    def __init__(
+        self,
+        flee_distance: float = 8,
+        home_cell=None,
+        target=None,
+        speed_multiplier=1.0,
+    ):
+        super().__init__(target=target, speed_multiplier=speed_multiplier)
+        self.flee_distance = flee_distance
+        self.home_cell = home_cell
+        self._cell_size = None
+
+    def set_home_cell(self, cell) -> None:
+        self.home_cell = cell
+
+    def get_target_cell(self):
+        if not self.target:
+            return None
+
+        target_movement = self.target.get_component(GridMovementComponent)
+        movement = self.actor.get_component(GridMovementComponent)
+
+        if not target_movement or not target_movement.current_cell:
+            return None
+        if not movement or not movement.current_cell:
+            return None
+
+        dx = target_movement.current_cell.position.x - movement.current_cell.position.x
+        dy = target_movement.current_cell.position.y - movement.current_cell.position.y
+        distance = (dx * dx + dy * dy) ** 0.5
+
+        # flee_distance is expressed in cells, but cell positions are
+        # in world units — scale the threshold by the actual spacing
+        # between cells instead of comparing raw pixels to a "8".
+        threshold = self.flee_distance * self._get_cell_size(movement.current_cell)
+
+        if distance > threshold:
+            return target_movement.current_cell
+
+        return self.home_cell or self._find_home_cell(target_movement.current_cell)
+
+    def _get_cell_size(self, cell) -> float:
+        if self._cell_size is not None:
+            return self._cell_size
+
+        for neighbor in (cell.east, cell.west, cell.north, cell.south):
+            if neighbor:
+                dx = neighbor.position.x - cell.position.x
+                dy = neighbor.position.y - cell.position.y
+                self._cell_size = (dx * dx + dy * dy) ** 0.5
+                break
+
+        return self._cell_size or 1.0
+
+    def _find_home_cell(self, target_cell):
+        """
+        No explicit home_cell was set — pick (and cache) whichever
+        maze cell is farthest from the target as a stand-in "corner"
+        to retreat to, so Clyde actually moves away instead of
+        targeting the cell it's already standing on.
+        """
+        from assets.code.actors.cell import Cell
+
+        farthest = None
+        farthest_distance = -1.0
+
+        for c in World.find_all(Cell):
+            dx = c.position.x - target_cell.position.x
+            dy = c.position.y - target_cell.position.y
+            d = dx * dx + dy * dy
+
+            if d > farthest_distance:
+                farthest_distance = d
+                farthest = c
+
+        self.home_cell = farthest
+        return farthest
 
 
 class ScatterGhostComponent(Component):

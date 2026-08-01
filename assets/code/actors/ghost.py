@@ -2,10 +2,13 @@ from Engine.ActorSubsystem.Components.animated_sprite_component import (
     AnimatedSpriteComponent)
 from assets.code.components.cheat_components import CheatComponent
 from .actor import Actor
+from typing import Type
 import random
 from Engine import Vector2, Input
 from ..components.movement_components import (
-    ChasePlayerGridComponent, GhostFaceDirectionComponent, GridMovementComponent, FaceDirectionComponent)
+    ChasePlayerGridComponent, GhostFaceDirectionComponent,
+    GridMovementComponent, FaceDirectionComponent,
+    InkyChaseComponent, ClydeChaseComponent, PinkyChaseComponent)
 from ..components.origin_marker_component import OriginMarkerComponent
 
 
@@ -21,7 +24,9 @@ class BasicGhost(Actor):
         scale: Vector2,
         tag: str = "Actor",
         speed: float = 100.0,
-        color_index: int = 0
+        color_index: int = 0,
+        chase_component: Type[ChasePlayerGridComponent] = ChasePlayerGridComponent,
+        chase_kwargs: dict | None = None,
     ):
         super().__init__(
             position=position,
@@ -33,7 +38,12 @@ class BasicGhost(Actor):
 
         # Movement components
         self.movement = self.add_component(GridMovementComponent(speed=speed))
-        self.add_component(ChasePlayerGridComponent())
+        # Defaults to chasing the Player, Blinky-style. Retarget at
+        # runtime with set_chase_target() to have this ghost chase
+        # something else instead (e.g. another ghost). chase_kwargs
+        # lets subclasses like BlueGhost forward extra constructor
+        # args (e.g. pivot= for InkyChaseComponent).
+        self.chase = self.add_component(chase_component(**(chase_kwargs or {})))
         facevalue = random.randrange(8)
         self.face = self.add_component(
             AnimatedSpriteComponent(
@@ -106,7 +116,13 @@ class BasicGhost(Actor):
             self.movement.speed = self._base_speed
         else:
             self.movement.speed = 0
-    
+
+    def set_chase_target(self, target) -> None:
+        """
+        Retarget who this ghost is chasing — e.g. hand the chase off
+        from the Player to another ghost, or back again.
+        """
+        self.chase.set_target(target)
     
 
 class RedGhost(BasicGhost):
@@ -126,8 +142,6 @@ class RedGhost(BasicGhost):
             color_index=0
         )
 
-        
-
 
 class BlueGhost(BasicGhost):
     def __init__(
@@ -137,14 +151,21 @@ class BlueGhost(BasicGhost):
         scale: Vector2,
         tag: str = "Actor",
         speed: float = 100.0,
+        pivot=None,
     ):
         super().__init__(
             position=position,
             scale=scale,
             velocity=velocity,
             tag=tag,
-            color_index=4
+            color_index=4,
+            chase_component=InkyChaseComponent,
+            chase_kwargs={"pivot": pivot},
         )
+
+    def set_pivot(self, pivot) -> None:
+        """Wire up (or change) the ghost Inky uses as its pivot, e.g. Blinky."""
+        self.chase.set_pivot(pivot)
 
 
 class YellowGhost(BasicGhost):
@@ -161,7 +182,8 @@ class YellowGhost(BasicGhost):
             scale=scale,
             velocity=velocity,
             tag=tag,
-            color_index=20
+            color_index=20,
+            chase_component=ClydeChaseComponent
         )
 
 
@@ -179,5 +201,6 @@ class PinkGhost(BasicGhost):
             scale=scale,
             velocity=velocity,
             tag=tag,
-            color_index=8
+            color_index=8,
+            chase_component=PinkyChaseComponent
         )
