@@ -3,7 +3,6 @@ from typing import Dict, Set, Optional, Callable, List, Tuple
 from dataclasses import dataclass
 import queue
 import threading
-import os
 from .. import Log
 
 
@@ -173,10 +172,10 @@ class InputSubsystem:
 
         # Debug flag
         self._debug_print_keys = False
-        # Threaded input event queue
+        # Input event queue — filled by mlx hooks (may fire off the
+        # main thread depending on the mlx binding), drained once per
+        # frame by process_events() on the main/game thread.
         self._event_queue = queue.SimpleQueue()
-        self._input_thread = None
-        self._input_running = False
         self._state_lock = threading.Lock()
 
     def init(self):
@@ -202,7 +201,6 @@ class InputSubsystem:
         # Set up input handlers
         self._setup_input()
         self._register_mlx_hooks()
-        self.start_input_thread()
 
         self._initialized = True
         self._logger.info("Input subsystem initialized")
@@ -223,107 +221,27 @@ class InputSubsystem:
         self._logger.info(f"Input hooks rebound to new window ({width}x{height})")
 
     def start_input_thread(self):
-        """Start asynchronous input processing thread."""
-
-        if self._input_running:
-            return
-
-        self._input_running = True
-
-        self._input_thread = threading.Thread(
-            target=self._input_worker,
-            name="InputThread",
-            daemon=True,
-        )
-
-        self._input_thread.start()
-
-        self._logger.info(
-            "Input thread started"
-        )
+        """No-op, kept only so existing callers of init() -> this don't
+        break. State mutation used to also happen on a background thread
+        here, racing process_events() for the same queue: PRESSED/RELEASED
+        are meant to be a one-frame-only window (see update()), but the
+        background thread mutated state at arbitrary wall-clock times,
+        decoupled from the frame loop, so update() could erase a
+        RELEASED/PRESSED before the game ever polled it that frame.
+        is_key_held/is_action_held never showed the symptom because "is the
+        key currently down" isn't time-windowed the same way — which is why
+        trigger/release silently dropped while hold kept working fine.
+        process_events(), called once per frame before process_actions(),
+        is now the single consumer of _event_queue and the only place that
+        mutates key/mouse state, so PRESSED/RELEASED get a clean, well
+        defined frame to be observed in."""
+        pass
 
     def stop_input_thread(self):
-        """Stop input processing thread."""
-
-        self._input_running = False
-
-        if self._input_thread:
-            self._input_thread.join(
-                timeout=1.0
-            )
-
-        self._logger.info(
-            "Input thread stopped"
-        )
-
-    def _input_worker(self):
-        """Background input event processor."""
-
-        try:
-            os.sched_setscheduler(
-                0,
-                os.SCHED_FIFO,
-                os.sched_param(50)
-            )
-
-            self._logger.info(
-                "Input thread priority boosted"
-            )
-
-        except PermissionError:
-            self._logger.debug(
-                "No realtime input priority permission"
-            )
-
-
-        while self._input_running:
-
-            event = self._event_queue.get()
-
-            event_type = event[0]
-
-            if event_type == "key_press":
-                self._set_key_state(
-                    event[1],
-                    True
-                )
-
-            elif event_type == "key_release":
-                self._set_key_state(
-                    event[1],
-                    False
-                )
-
-            elif event_type == "mouse_press":
-                self._handle_mouse_press(
-                    event[1],
-                    event[2],
-                    event[3],
-                    None
-                )
-
-            elif event_type == "mouse_release":
-                self._handle_mouse_release(
-                    event[1],
-                    event[2],
-                    event[3],
-                    None
-                )
-
-            elif event_type == "motion":
-                self._handle_motion(
-                    event[1],
-                    event[2],
-                    None
-                )
-
-            elif event_type == "close":
-                for callback in self.close_callbacks:
-                    callback()
+        """No-op — see start_input_thread()."""
+        pass
 
     def close(self):
-        self.stop_input_thread()
-
         if self._initialized and self.mlx_ptr is not None:
             self.mlx.mlx_do_key_autorepeaton(
                 self.mlx_ptr
@@ -456,12 +374,12 @@ class InputSubsystem:
         # =========================
 
         def on_destroy(param):
-
-            self._event_queue.put(
-                (
-                    "close",
-                )
-            )
+            # Fires synchronously on the main thread as part of mlx_loop's
+            # own event dispatch — no need to queue this for a background
+            # thread (there isn't one anymore) or wait for the next frame's
+            # process_events(); window close should react immediately.
+            for callback in self.close_callbacks:
+                callback()
 
         self._mlx_callbacks["destroy"] = on_destroy
 
@@ -712,7 +630,15 @@ class InputSubsystem:
         """
         Process all pending MLX input events.
 
-        Call once per frame before process_actions().
+        Call once per frame before process_actions(). This is now the
+        SOLE consumer of _event_queue and the only place key/mouse state
+        gets mutated — do not add another consumer of this queue (e.g. a
+        background thread), or PRESSED/RELEASED lose their well-defined
+        one-frame window and is_action_triggered()/is_action_released()
+        become unreliable while is_action_held() keeps working (since
+        "held" isn't time-windowed the same way). "close" events are
+        handled synchronously in the on_destroy mlx hook itself and never
+        reach this queue.
         """
 
         while True:

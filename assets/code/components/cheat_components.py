@@ -33,37 +33,37 @@ class CheatComponent(Component):
     def update(self, dt):
         from assets.code.actors.player import Player
         from Engine.ActorSubsystem.actorsubsystem import Actors
-        if Input.is_action_held("invinsible"):
+        if Input.is_action_triggered("invinsible"):
             if self.player:
                 self.player.invinsible = not self.player.invinsible
                 self._log.info(f"Cheat: Invinsible: {self.player.invinsible}")
 
-        if Input.is_action_held("level win"):
+        if Input.is_action_triggered("level win"):
             if self.player:
                 Player.end_game = True
                 self._log.info(f"Cheat: Win level")
 
-        if Input.is_action_held("ghost freeze"):
+        if Input.is_action_triggered("ghost freeze"):
             if self.ghost:
                 self.ghost.freeze_input()
                 self._log.info(f"Cheat: Activate/Deactivate freeze")
 
-        if Input.is_action_held("extra live"):
+        if Input.is_action_triggered("extra live"):
             if self.player:
                 Player.current_player.add_live()
                 self._log.info(f"Cheat: Add live")
 
-        if Input.is_action_held("increase speed"):
+        if Input.is_action_triggered("increase speed"):
             if self.player:
                 self.player.speed_up()
                 self._log.info(f"Cheat: speed up")
 
-        if Input.is_action_held("decrease speed"):
+        if Input.is_action_triggered("decrease speed"):
             if self.player:
                 self.player.speed_down()
                 self._log.info(f"Cheat: speed down")
 
-        if Input.is_action_held("time stop"):
+        if Input.is_action_triggered("time stop"):
             if self.player:
                 Actors.time_stop = not Actors.time_stop
                 self._log.info(f"Cheat: Time stop: {Actors.time_stop}")

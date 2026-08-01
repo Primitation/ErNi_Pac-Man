@@ -64,6 +64,10 @@ class RendererSubsystem:
 
         self._debug_draw_colliders = False
         self._debug_collider_color_map = None
+        # Off by default — assets/code/ui/gameplay_hud.py now draws the
+        # real HUD (lives/score/time). Flip to True for a quick text
+        # fallback if the HUD widgets ever need bypassing for debug.
+        self._draw_debug_banner = False
 
     def init(self, width: int, height: int, title: str = "PacEngine"):
         """Call once, at startup, before anything else touches mlx."""
@@ -828,8 +832,14 @@ class RendererSubsystem:
                 self._logger.exception(f"Failed to draw actor {actor!r}")
 
     def render_level_banner(self) -> None:
+        from assets.code.actors.player import Player
+
+        # No level in progress (e.g. we're on the main menu) — nothing to
+        # draw. Not an error, so don't fall through to the except below.
+        if Player.current_player is None:
+            return
+
         try:
-            from assets.code.actors.player import Player
             from .. import Actors
             text = (f"Score  {Player.current_player.score_info.score}   "
                     f"Lives  {Player.current_player.lives}   "
@@ -840,9 +850,8 @@ class RendererSubsystem:
                 self.height - 50,
                 0x000000FF,
                 text)
-        except Exception as e:
-            self._logger.exception(f"Failed to draw level banner")
-            pass
+        except Exception:
+            self._logger.exception("Failed to draw level banner")
 
     def render_present(self):
         """Present the framebuffer to the screen."""
@@ -864,7 +873,8 @@ class RendererSubsystem:
             0,
             0,
         )
-        self.render_level_banner()
+        if self._draw_debug_banner:
+            self.render_level_banner()
 
     def render(self, world):
         """Legacy method - draws and presents in one call."""
@@ -1094,6 +1104,90 @@ class RendererSubsystem:
                 # Fill right edge for all interior rows
                 for y_pos in range(y0 + 1, y1 - 1):
                     self.buffer_np[y_pos, right_start:right_end] = color_bytes
+
+    def draw_rect_screen(self, x, y, width, height, color: int):
+        """Fill a rect in SCREEN-space pixels, ignoring camera/zoom.
+        Same blending as draw_rect(), just without world_to_screen()."""
+        x, y, width, height = int(x), int(y), int(width), int(height)
+        if width <= 0 or height <= 0:
+            return
+        clip_x0 = max(0, -x)
+        clip_y0 = max(0, -y)
+        x, y = max(0, x), max(0, y)
+        dw = min(width - clip_x0, self.width - x)
+        dh = min(height - clip_y0, self.height - y)
+        if dw <= 0 or dh <= 0:
+            return
+        dest_view = self.buffer_np[
+            y:y + dh, x * self.pixel_size:(x + dw) * self.pixel_size,
+        ].reshape(dh, dw, self.pixel_size)
+        pixel_bytes = np.frombuffer(color.to_bytes(self.pixel_size, "little"), dtype=np.uint8)
+        alpha = (color >> 24) & 0xFF if self.pixel_size == 4 else 255
+        if alpha == 0:
+            return
+        if alpha == 255:
+            dest_view[:, :, :] = pixel_bytes
+            return
+        a = np.uint16(alpha)
+        src = pixel_bytes.astype(np.uint16)
+        blended = (src * a + dest_view.astype(np.uint16) * (255 - a)) // 255
+        blended[..., 3] = 255
+        dest_view[:, :, :] = blended.astype(np.uint8)
+
+    def draw_texture_region_screen(self, texture, src_x, src_y, src_w, src_h,
+                                    dest_x, dest_y, dest_w=None, dest_h=None):
+        """Blit a sub-rectangle of `texture` — in texture pixels,
+        (src_x, src_y, src_w, src_h) — to SCREEN-space (dest_x, dest_y),
+        ignoring camera/zoom. Same alpha blending as draw_sprite_screen(),
+        just restricted to one cell of a larger sheet.
+
+        Used for sprite-sheet fonts / tile atlases: pull a single glyph
+        or tile out of a shared texture and draw it at its screen
+        position. If dest_w/dest_h are given and differ from
+        src_w/src_h, the cell is nearest-neighbor resampled to fit —
+        otherwise it's drawn at its native size."""
+        tex = self._get_texture_array(texture)
+        tex_h, tex_w = tex.shape[0], tex.shape[1]
+
+        src_x, src_y = int(src_x), int(src_y)
+        src_w, src_h = int(src_w), int(src_h)
+
+        # Clip the requested cell to the texture's own bounds (a
+        # misconfigured charset/grid shouldn't read past the sheet).
+        src_x0 = max(0, min(src_x, tex_w))
+        src_y0 = max(0, min(src_y, tex_h))
+        src_x1 = max(src_x0, min(src_x + src_w, tex_w))
+        src_y1 = max(src_y0, min(src_y + src_h, tex_h))
+
+        if src_x1 <= src_x0 or src_y1 <= src_y0:
+            return
+
+        region = tex[src_y0:src_y1, src_x0:src_x1]
+
+        dest_w = int(dest_w) if dest_w is not None else region.shape[1]
+        dest_h = int(dest_h) if dest_h is not None else region.shape[0]
+
+        if dest_w != region.shape[1] or dest_h != region.shape[0]:
+            rh, rw = region.shape[0], region.shape[1]
+            if dest_w <= 0 or dest_h <= 0:
+                return
+            ys = (np.arange(dest_h) * rh // dest_h).clip(0, rh - 1)
+            xs = (np.arange(dest_w) * rw // dest_w).clip(0, rw - 1)
+            region = region[np.ix_(ys, xs)]
+
+        self._blit_region(region, int(dest_x), int(dest_y), dest_w, dest_h, texture.bytes_per_pixel)
+
+    def draw_sprite_screen(self, texture, x, y, width=None, height=None):
+        """Draw a texture at SCREEN-space pixel (x, y), ignoring
+        camera/zoom. No rotation support (not needed for UI) — reuses
+        the same _blit() draw_sprite() already calls internally, which
+        works in raw screen pixels once world_to_screen() is out of the
+        way, so this is just draw_sprite() minus the camera transform."""
+        dest_x, dest_y = int(x), int(y)
+        if width is None or height is None:
+            self._blit(texture, dest_x, dest_y)
+        else:
+            self._blit(texture, dest_x, dest_y, max(1, int(width)), max(1, int(height)))
 
 
 # Global renderer system
