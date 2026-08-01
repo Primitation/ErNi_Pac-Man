@@ -20,6 +20,7 @@ from assets.code.ui.font_config import (
     ARCADE_FONT_COLUMNS as BUTTON_FONT_COLUMNS,
 )
 from game.game_instance.score import Scores
+from assets.code.ui.screen_transition import PacmanTransition as Transition
 
 
 class MainMenu:
@@ -30,6 +31,9 @@ class MainMenu:
         self._logger = Log.get("menu")
         self._result = None
         self._font_texture = Assets.load(BUTTON_FONT_PATH)
+
+        self._fade_in = Transition(650)
+        self._fade_out = None  # created on demand, see _close()
 
         self._scores = scores
         self.SHOW_MAX_SCORES = 10
@@ -187,12 +191,17 @@ class MainMenu:
         self.canvas.set_root(self._menu_root)
 
     def _on_play(self):
-        self._result = "play"
-        Renderer.close_request()
+        self._close("play")
 
     def _on_quit(self):
-        self._result = "quit"
-        Renderer.close_request()
+        self._close("quit")
+
+    def _close(self, result: str):
+        """Start the fade-out instead of closing immediately — the
+        frame loop below calls Renderer.close_request() once it
+        finishes."""
+        self._result = result
+        self._fade_out = Transition(650)
 
     def _on_resize(self, win_ptr, width, height):
         self.canvas.set_rect(0, 0, width, height)
@@ -207,11 +216,23 @@ class MainMenu:
             Assets.update()
 
             Input.process_events()
-            self.canvas.update()
+            if self._fade_out is None:
+                self.canvas.update()
             Input.process_actions()
 
             Renderer.clear(0xFF101018)
             self.canvas.render(Renderer)
+
+            if self._fade_in is not None:
+                self._fade_in.draw_fade_in(Renderer)
+                if self._fade_in.done:
+                    self._fade_in = None
+
+            if self._fade_out is not None:
+                self._fade_out.draw_fade_out(Renderer)
+                if self._fade_out.done:
+                    Renderer.close_request()
+
             Renderer.render_present()
 
             # LAST — see the input-subsystem frame-order note: everything

@@ -20,6 +20,7 @@ from assets.code.ui.font_config import (
     ARCADE_FONT_PATH, ARCADE_FONT_CHARSET,
     ARCADE_FONT_CHAR_WIDTH, ARCADE_FONT_CHAR_HEIGHT, ARCADE_FONT_COLUMNS,
 )
+from assets.code.ui.screen_transition import PacmanTransition as Transition
 
 
 class EndScreen:
@@ -39,6 +40,9 @@ class EndScreen:
         self._name = ""
         self._result = None
         self._char_keys = self._build_char_keys()
+
+        self._fade_in = Transition(650)
+        self._fade_out = None  # created once a name is confirmed
 
     @staticmethod
     def _build_char_keys():
@@ -88,16 +92,19 @@ class EndScreen:
     # ----- input -----
 
     def _handle_text_input(self) -> None:
+        if self._fade_out is not None:
+            return  # confirmed already, ignore further typing during fade
+
         if Input.is_key_pressed(Input.KEYS["backspace"]):
             self._name = self._name[:-1]
             return
 
         if Input.is_key_pressed(Input.KEYS["enter"]):
-            self._result = self._name.strip() or self.DEFAULT_NAME
+            self._confirm()
             return
 
         if Input.is_key_pressed(Input.KEYS["escape"]):
-            self._result = self._name.strip() or self.DEFAULT_NAME
+            self._confirm()
             return
 
         for keycode, char in self._char_keys.items():
@@ -106,6 +113,10 @@ class EndScreen:
                         and char in self.ALLOWED_CHARS):
                     self._name += char
                 break  # one character per frame is plenty
+
+    def _confirm(self) -> None:
+        self._result = self._name.strip() or self.DEFAULT_NAME
+        self._fade_out = Transition(650)
 
     # ----- loop -----
 
@@ -118,9 +129,6 @@ class EndScreen:
 
             Input.process_events()
             self._handle_text_input()
-
-            if self._result is not None:
-                Renderer.close_request()
 
             root = self._build_root()
 
@@ -135,6 +143,17 @@ class EndScreen:
             Renderer.clear(0xFF101018)
             root.arrange(0, 0, Renderer.width, Renderer.height)
             root.render(Renderer)
+
+            if self._fade_in is not None:
+                self._fade_in.draw_fade_in(Renderer)
+                if self._fade_in.done:
+                    self._fade_in = None
+
+            if self._fade_out is not None:
+                self._fade_out.draw_fade_out(Renderer)
+                if self._fade_out.done:
+                    Renderer.close_request()
+
             Renderer.render_present()
 
             # LAST — same frame-order note as MainMenu/LevelInstance:

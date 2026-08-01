@@ -14,6 +14,7 @@ from game.game_instance.player_information import PlayerInformation
 from game.levelgen import LevelGenerator, LevelOptions
 from assets.code.actors.player import Player
 from assets.code.ui.gameplay_hud import GameplayHUD
+from assets.code.ui.screen_transition import PacmanTransition as Transition
 from game.levelgen.maze_analyzer import MazeAnalyzer
 
 
@@ -224,6 +225,9 @@ class LevelInstance:
             hud = GameplayHUD()
             pause_hud = PauseHUD()
 
+            fade_in = Transition(650)
+            fade_out = None  # created once Player.game_ended() fires
+
             last_time = time.perf_counter()
             fps_timer = 0.0
             fps_frames = 0
@@ -245,9 +249,11 @@ class LevelInstance:
                 nonlocal fps_timer
                 nonlocal fps_frames
                 nonlocal fps
+                nonlocal fade_in
+                nonlocal fade_out
 
-                if Player.game_ended():
-                    Renderer.close_request()
+                if Player.game_ended() and fade_out is None:
+                    fade_out = Transition(650)
 
                 now = time.perf_counter()
 
@@ -270,13 +276,15 @@ class LevelInstance:
                 Assets.update()
 
                 Input.process_events()
-                Input.process_actions()
+                if fade_out is None:
+                    Input.process_actions()
 
-                Actors.update(dt)
+                if fade_out is None:
+                    Actors.update(dt)
 
-                if not Actors.paused:
-                    Collision.update()
-                    Particles.update(dt)
+                    if not Actors.paused:
+                        Collision.update()
+                        Particles.update(dt)
 
                 Renderer.render_draw(World)
                 Particles.update(dt)
@@ -286,6 +294,17 @@ class LevelInstance:
                 hud.render(Renderer)
                 if Actors.paused:
                     pause_hud.render(Renderer)
+
+                if fade_in is not None:
+                    fade_in.draw_fade_in(Renderer)
+                    if fade_in.done:
+                        fade_in = None
+
+                if fade_out is not None:
+                    fade_out.draw_fade_out(Renderer)
+                    if fade_out.done:
+                        Renderer.close_request()
+
                 Renderer.render_present()
                 Input.update()
 
