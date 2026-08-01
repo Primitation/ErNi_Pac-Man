@@ -801,6 +801,13 @@ class InputSubsystem:
         self.action_callbacks[action_name].append(callback)
         self._logger.debug(f"Registered callback for action '{action_name}'")
 
+    def remove_action_callback(self, action_name: str, callback: Callable) -> None:
+            """Remove a callback for when an action is triggered."""
+            if action_name not in self.action_callbacks:
+                return
+            self.action_callbacks[action_name].remove(callback)
+            self._logger.debug(f"Unregistered callback for action '{action_name}'")
+
     def process_actions(self):
         """Process all action triggers and callbacks."""
         for action_name in self.action_callbacks:
