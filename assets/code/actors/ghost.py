@@ -14,6 +14,9 @@ from ..components.origin_marker_component import OriginMarkerComponent
 
 EDIBLEGHOST_INDEX = 32
 
+# Classic frightened ghosts move slower than usual while edible.
+FRIGHTENED_SPEED_MULTIPLIER = 0.5
+
 class BasicGhost(Actor):
     """A basic ghost Actor."""
 
@@ -102,6 +105,21 @@ class BasicGhost(Actor):
             )
             self.face.enabled = True
 
+        # Not every chase_component necessarily supports fleeing, so
+        # guard with hasattr rather than assuming.
+        if hasattr(self.chase, "set_fleeing"):
+            self.chase.set_fleeing(self.edible)
+
+        # Frightened ghosts crawl; only touch speed if it's not
+        # currently frozen (freeze_input uses 0 as a sentinel).
+        if self.movement.speed != 0:
+            self.movement.speed = self._current_speed()
+
+    def _current_speed(self) -> float:
+        if self.edible:
+            return self._base_speed * FRIGHTENED_SPEED_MULTIPLIER
+        return self._base_speed
+
     def update(self, dt):
         if Input.is_action_triggered("dead"):
             self.dead(self.animation)
@@ -113,7 +131,7 @@ class BasicGhost(Actor):
 
     def freeze_input(self) -> None:
         if self.movement.speed == 0:
-            self.movement.speed = self._base_speed
+            self.movement.speed = self._current_speed()
         else:
             self.movement.speed = 0
 

@@ -1,3 +1,5 @@
+import random
+
 from Engine import Vector2, Input, Component, World
 
 
@@ -438,6 +440,14 @@ class ChaseTargetGridComponent(Component):
         self.target = target
         self.speed_multiplier = speed_multiplier
 
+        # When True, _choose_direction picks the neighbor that moves
+        # AWAY from the target tile instead of toward it — used when
+        # a ghost turns edible and should flee the player rather than
+        # chase it. get_target_cell() (and therefore each subclass's
+        # own personality — ambush, pincer, shy-up-close, ...) is left
+        # untouched; only the sign of the comparison flips.
+        self.fleeing = False
+
     def on_added(self, actor):
         super().on_added(actor)
 
@@ -457,6 +467,14 @@ class ChaseTargetGridComponent(Component):
     def set_target(self, target) -> None:
         """Retarget this component to chase a different Actor."""
         self.target = target
+
+    def set_fleeing(self, fleeing: bool) -> None:
+        """
+        Toggle flee mode. While fleeing, this component still tracks
+        the same target (and the same personality-specific target
+        cell), but steers away from it instead of toward it.
+        """
+        self.fleeing = fleeing
 
     def _auto_target_player(self) -> None:
         """
@@ -520,6 +538,12 @@ class ChaseTargetGridComponent(Component):
         # at each cell rather than every frame.
         pass
 
+    # While fleeing, occasionally take a random valid turn instead of
+    # the mathematically-farthest one, so retreat doesn't look like a
+    # perfectly-computed beeline away from the target (classic
+    # frightened-ghost wobble).
+    FLEE_RANDOMNESS = 0.2
+
     def _choose_direction(self, movement, target_cell):
         current_cell = movement.current_cell
 
@@ -528,9 +552,10 @@ class ChaseTargetGridComponent(Component):
         came_from = movement.direction
 
         best_direction = None
-        best_distance = float("inf")
+        best_score = float("inf")
         fallback_direction = None
-        fallback_distance = float("inf")
+        fallback_score = float("inf")
+        valid_choices = []
 
         for direction in self._DIRECTION_PRIORITY:
             if not movement._can_move_from_cell(current_cell, direction):
@@ -544,22 +569,43 @@ class ChaseTargetGridComponent(Component):
             dy = target_cell.position.y - neighbor.position.y
             distance = dx * dx + dy * dy
 
+            # Fleeing wants the neighbor FARTHEST from the target, not
+            # closest — negate the distance so the same "lower score
+            # wins" comparisons below still pick the right cell.
+            score = -distance if self.fleeing else distance
+
             is_reverse = (
                 (came_from.x != 0 or came_from.y != 0)
                 and direction.x == -came_from.x
                 and direction.y == -came_from.y
             )
 
-            if distance < fallback_distance:
-                fallback_distance = distance
+            if score < fallback_score:
+                fallback_score = score
                 fallback_direction = direction
 
-            if is_reverse:
+            # The no-U-turn rule exists so chasers don't dither back
+            # and forth in a corridor. It actively breaks fleeing
+            # though: in a straight corridor with the target behind
+            # the ghost, reversing is the ONLY direction that moves
+            # away from it — forbidding it would leave the ghost
+            # walking straight toward the thing it's supposed to be
+            # avoiding. So skip the restriction while fleeing.
+            if is_reverse and not self.fleeing:
                 continue
 
-            if distance < best_distance:
-                best_distance = distance
+            valid_choices.append(direction)
+
+            if score < best_score:
+                best_score = score
                 best_direction = direction
+
+        if (
+            self.fleeing
+            and len(valid_choices) > 1
+            and random.random() < self.FLEE_RANDOMNESS
+        ):
+            return random.choice(valid_choices)
 
         # Only reverse into a dead end if there was truly no other option.
         return best_direction or fallback_direction
