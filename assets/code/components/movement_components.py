@@ -4,38 +4,29 @@ from Engine import Vector2, Input, Component, World
 
 
 class MovementComponent(Component):
-    """
-    Generic movement component.
+    """Generic movement component."""
 
-    Does not care where the direction comes from.
-    A player, AI, or other component can call set_direction().
-    """
-
-    def __init__(self, speed: float = 200.0, enabled=True):
+    def __init__(self, speed: float = 200.0, enabled: bool = True):
         super().__init__(enabled)
 
         self.speed = speed
         self.direction = Vector2(0, 0)
 
-    def set_direction(self, direction: Vector2):
-        """
-        Set movement direction.
-
-        Example:
-            movement.set_direction(Vector2(1, 0))
-        """
+    def set_direction(self, direction: Vector2) -> None:
+        """Set movement direction."""
         self.direction = direction
 
-    def stop(self):
+    def stop(self) -> None:
+        """Stop movement."""
         self.direction = Vector2(0, 0)
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
+        """Update movement."""
         if not self.actor:
             return
 
         direction = self.direction
 
-        # Normalize diagonal movement
         length = (direction.x ** 2 + direction.y ** 2) ** 0.5
 
         if length > 0:
@@ -54,11 +45,12 @@ class MovementComponent(Component):
 
 
 class PlayerMovementInput(Component):
+    """Player input for movement."""
 
     def __init__(self):
         super().__init__()
 
-        self.movement = None
+        self.movement: MovementComponent | None = None
 
     def on_added(self, actor):
         super().on_added(actor)
@@ -67,8 +59,8 @@ class PlayerMovementInput(Component):
             MovementComponent
         )
 
-    def update(self, dt):
-
+    def update(self, dt: float) -> None:
+        """Update input."""
         direction = Vector2(0, 0)
 
         if Input.is_action_held("left"):
@@ -87,12 +79,15 @@ class PlayerMovementInput(Component):
             direction.y += 1
             direction.x = 0
 
-        self.movement.set_direction(direction)
+        if self.movement:
+            self.movement.set_direction(direction)
 
 
 class ChasePlayerComponent(Component):
+    """Chase the player."""
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
+        """Update chase."""
         from assets.code.actors.player import Player
 
         movement = self.actor.get_component(
@@ -101,31 +96,24 @@ class ChasePlayerComponent(Component):
 
         player = World.find(Player)
 
-        direction = Vector2(
-            player.position.x - self.actor.position.x,
-            player.position.y - self.actor.position.y
-        )
+        if player and movement:
+            direction = Vector2(
+                player.position.x - self.actor.position.x,
+                player.position.y - self.actor.position.y
+            )
 
-        movement.set_direction(direction)
+            movement.set_direction(direction)
 
 
 class GridMovementComponent(Component):
-    """
-    Pac-Man style grid movement.
+    """Pac-Man style grid movement."""
 
-    The actor moves cell by cell.
-    Input is buffered and applied when reaching the next cell.
-    """
-
-    def __init__(self, speed: float = 200.0, enabled=True):
+    def __init__(self, speed: float = 200.0, enabled: bool = True):
         super().__init__(enabled)
 
-        self.speed = speed/1000
+        self.speed = speed / 1000
 
-        # Current movement direction
         self.direction = Vector2(0, 0)
-
-        # Last player input direction
         self.target_direction = Vector2(0, 0)
 
         self.current_cell = None
@@ -133,22 +121,10 @@ class GridMovementComponent(Component):
 
         self.is_moving = False
 
-        # Optional callable: (movement) -> Vector2 | None.
-        # If set, called exactly when a new direction is needed (on
-        # arrival at a cell), with current_cell already pointing at
-        # the cell just arrived at. Lets AI-driven movement (chase
-        # components) make a fresh, precise decision instead of
-        # relying on a buffered compass direction like player input.
         self.direction_strategy = None
 
-
-
-    def set_direction(self, direction: Vector2):
-        """
-        Store the wanted direction.
-        Only cardinal directions are allowed.
-        """
-
+    def set_direction(self, direction: Vector2) -> None:
+        """Store the wanted direction."""
         if direction.x > 0:
             self.target_direction = Vector2(1, 0)
 
@@ -161,13 +137,12 @@ class GridMovementComponent(Component):
         elif direction.y < 0:
             self.target_direction = Vector2(0, -1)
 
-
-    def stop(self):
+    def stop(self) -> None:
+        """Stop movement."""
         self.direction = Vector2(0, 0)
         self.target_direction = Vector2(0, 0)
         self.target_cell = None
         self.is_moving = False
-
 
     def _get_neighbor_cell(self, cell, direction):
         if not cell:
@@ -187,8 +162,7 @@ class GridMovementComponent(Component):
 
         return None
 
-
-    def _can_move_from_cell(self, cell, direction):
+    def _can_move_from_cell(self, cell, direction) -> bool:
         if not cell:
             return False
 
@@ -206,9 +180,8 @@ class GridMovementComponent(Component):
 
         return False
 
-
-    def set_cell(self, cell=None):
-
+    def set_cell(self, cell=None) -> None:
+        """Set current cell position."""
         if not cell:
             from assets.code.actors.cell import Cell
 
@@ -228,24 +201,16 @@ class GridMovementComponent(Component):
 
             cell = closest
 
-
         if not cell:
             return
-
 
         self.current_cell = cell
         self.actor.position = cell.position
 
-
-    def _start_moving(self, direction):
-        """
-        Start movement if the direction is possible
-        from the current cell.
-        """
-
+    def _start_moving(self, direction) -> bool:
+        """Start movement if possible."""
         if not self.current_cell:
             return False
-
 
         if not self._can_move_from_cell(
             self.current_cell,
@@ -253,16 +218,13 @@ class GridMovementComponent(Component):
         ):
             return False
 
-
         next_cell = self._get_neighbor_cell(
             self.current_cell,
             direction
         )
 
-
         if not next_cell:
             return False
-
 
         self.direction = direction
         self.target_cell = next_cell
@@ -270,20 +232,13 @@ class GridMovementComponent(Component):
 
         return True
 
-
-    def _choose_next_direction(self):
-        """
-        Called when arriving at a cell.
-        Try an AI direction_strategy first (fresh, computed from
-        this exact cell), then buffered input, then continue direction.
-        """
-
+    def _choose_next_direction(self) -> None:
+        """Choose next direction on arrival."""
         if self.direction_strategy:
             direction = self.direction_strategy(self)
             if direction and self._start_moving(direction):
                 return
 
-        # Try player buffered input
         if (
             self.target_direction.x != 0 or
             self.target_direction.y != 0
@@ -291,8 +246,6 @@ class GridMovementComponent(Component):
             if self._start_moving(self.target_direction):
                 return
 
-
-        # Try continuing current direction
         if (
             self.direction.x != 0 or
             self.direction.y != 0
@@ -300,17 +253,13 @@ class GridMovementComponent(Component):
             if self._start_moving(self.direction):
                 return
 
-
-        # Nothing possible
         self.direction = Vector2(0, 0)
         self.is_moving = False
 
-
-    def update(self, dt):
-
+    def update(self, dt: float) -> None:
+        """Update grid movement."""
         if not self.actor:
             return
-
 
         if not self.current_cell:
             self.set_cell()
@@ -318,17 +267,13 @@ class GridMovementComponent(Component):
             if not self.current_cell:
                 return
 
-
         if not self.is_moving:
 
             self._choose_next_direction()
             return
 
-
-
         target = self.target_cell.position
         current = self.actor.position
-
 
         dx = target.x - current.x
         dy = target.y - current.y
@@ -338,13 +283,10 @@ class GridMovementComponent(Component):
             dy * dy
         ) ** 0.5
 
-
         move = self.speed * dt
-
 
         if move >= distance:
 
-            # Arrive exactly on cell
             self.actor.position = target
 
             self.current_cell = self.target_cell
@@ -352,14 +294,10 @@ class GridMovementComponent(Component):
 
             self.is_moving = False
 
-            # Decide next move
             self._choose_next_direction()
 
             return
 
-
-
-        # Move toward target
         self.actor.position = Vector2(
             current.x + (dx / distance) * move,
             current.y + (dy / distance) * move
@@ -371,17 +309,17 @@ class PlayerGridInput(Component):
 
     def __init__(self):
         super().__init__()
-        self.movement = None
+        self.movement: GridMovementComponent | None = None
 
     def on_added(self, actor):
         super().on_added(actor)
         self.movement = actor.get_component(GridMovementComponent)
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
+        """Update input."""
         if not self.movement:
             return
 
-        # Get input direction
         direction = Vector2(0, 0)
 
         if Input.is_action_held("left"):
@@ -405,47 +343,26 @@ class PlayerGridInput(Component):
 
 
 class ChaseTargetGridComponent(Component):
-    """
-    Generic grid-based chase behavior.
+    """Generic grid-based chase behavior."""
 
-    Unlike a component hardcoded to chase the Player, this one chases
-    whatever Actor is set as `target` — the Player, another ghost,
-    anything with a GridMovementComponent. The target can be swapped
-    at runtime with set_target(), which is what lets a "tag" style
-    mode hand the chase off from one ghost to another.
-
-    Movement decisions use the same core idea as the original Pac-Man
-    ghosts: at every intersection, look at each open direction (other
-    than the one just arrived from) and pick whichever one lands on
-    the cell closest to the current target tile. Reversing direction
-    is only allowed when there is no other option (dead end).
-
-    Subclasses only need to override get_target_cell() to reproduce
-    the different ghost personalities (see PinkyChaseComponent,
-    InkyChaseComponent, ClydeChaseComponent below); the movement /
-    intersection logic here stays the same for all of them.
-    """
-
-    # Priority order used to break ties when two directions are
-    # equally close to the target tile.
     _DIRECTION_PRIORITY = (
-        Vector2(0, -1),  # up
-        Vector2(-1, 0),  # left
-        Vector2(0, 1),   # down
-        Vector2(1, 0),   # right
+        Vector2(0, -1),
+        Vector2(-1, 0),
+        Vector2(0, 1),
+        Vector2(1, 0),
     )
 
-    def __init__(self, target=None, speed_multiplier: float = 1.0):
+    FLEE_RANDOMNESS = 0.2
+
+    def __init__(
+        self,
+        target=None,
+        speed_multiplier: float = 1.0
+    ):
         super().__init__()
         self.target = target
         self.speed_multiplier = speed_multiplier
 
-        # When True, _choose_direction picks the neighbor that moves
-        # AWAY from the target tile instead of toward it — used when
-        # a ghost turns edible and should flee the player rather than
-        # chase it. get_target_cell() (and therefore each subclass's
-        # own personality — ambush, pincer, shy-up-close, ...) is left
-        # untouched; only the sign of the comparison flips.
         self.fleeing = False
 
     def on_added(self, actor):
@@ -456,9 +373,6 @@ class ChaseTargetGridComponent(Component):
             if self.speed_multiplier != 1.0:
                 movement.speed *= self.speed_multiplier
 
-            # Decide direction exactly when the ghost needs one
-            # (on arrival at a cell) instead of continuously — see
-            # _decide_direction for why that matters.
             movement.direction_strategy = self._decide_direction
 
         if self.target is None:
@@ -469,21 +383,11 @@ class ChaseTargetGridComponent(Component):
         self.target = target
 
     def set_fleeing(self, fleeing: bool) -> None:
-        """
-        Toggle flee mode. While fleeing, this component still tracks
-        the same target (and the same personality-specific target
-        cell), but steers away from it instead of toward it.
-        """
+        """Toggle flee mode."""
         self.fleeing = fleeing
 
     def _auto_target_player(self) -> None:
-        """
-        Fall back to chasing the Player when nobody explicitly set a
-        target. Kept lazy/best-effort: if the Player doesn't exist
-        yet (spawn order), _decide_direction retries this on every
-        arrival until it succeeds, or until set_target() is called
-        explicitly.
-        """
+        """Fall back to chasing the Player."""
         try:
             from assets.code.actors.player import Player
         except ImportError:
@@ -492,13 +396,7 @@ class ChaseTargetGridComponent(Component):
         self.target = World.find(Player)
 
     def get_target_cell(self):
-        """
-        Return the Cell currently being aimed at.
-
-        Default behavior is a direct chase (Blinky-style): the
-        target's own current cell. Override for ambush-style or
-        other targeting behavior.
-        """
+        """Return the Cell currently being aimed at."""
         if not self.target:
             return None
 
@@ -509,20 +407,7 @@ class ChaseTargetGridComponent(Component):
         return target_movement.current_cell
 
     def _decide_direction(self, movement):
-        """
-        Called by GridMovementComponent's direction_strategy hook —
-        exactly once, right as the ghost arrives at a cell, with
-        movement.current_cell already pointing at that cell.
-
-        This matters: computing the direction on every frame instead
-        (from whatever cell the ghost was last AT, mid-move) means
-        the choice is always one cell stale by the time it's used —
-        a turn that's correct for the cell just left, applied at the
-        cell just entered. Straight corridors hide that; the sharper
-        turns needed to reach an ambush-style target (Pinky, Inky)
-        don't, which is why they drift far off course while a direct
-        chase (Blinky) mostly looks fine.
-        """
+        """Called by GridMovementComponent on arrival."""
         if self.target is None:
             self._auto_target_player()
 
@@ -532,23 +417,13 @@ class ChaseTargetGridComponent(Component):
 
         return self._choose_direction(movement, target_cell)
 
-    def update(self, dt):
-        # No-op: direction decisions happen in _decide_direction via
-        # movement.direction_strategy, called exactly once on arrival
-        # at each cell rather than every frame.
+    def update(self, dt: float) -> None:
+        """No-op: decisions happen in _decide_direction."""
         pass
-
-    # While fleeing, occasionally take a random valid turn instead of
-    # the mathematically-farthest one, so retreat doesn't look like a
-    # perfectly-computed beeline away from the target (classic
-    # frightened-ghost wobble).
-    FLEE_RANDOMNESS = 0.2
 
     def _choose_direction(self, movement, target_cell):
         current_cell = movement.current_cell
 
-        # movement.direction is the direction we're currently moving
-        # in (or just arrived from) — used to forbid reversing.
         came_from = movement.direction
 
         best_direction = None
@@ -569,9 +444,6 @@ class ChaseTargetGridComponent(Component):
             dy = target_cell.position.y - neighbor.position.y
             distance = dx * dx + dy * dy
 
-            # Fleeing wants the neighbor FARTHEST from the target, not
-            # closest — negate the distance so the same "lower score
-            # wins" comparisons below still pick the right cell.
             score = -distance if self.fleeing else distance
 
             is_reverse = (
@@ -584,13 +456,6 @@ class ChaseTargetGridComponent(Component):
                 fallback_score = score
                 fallback_direction = direction
 
-            # The no-U-turn rule exists so chasers don't dither back
-            # and forth in a corridor. It actively breaks fleeing
-            # though: in a straight corridor with the target behind
-            # the ghost, reversing is the ONLY direction that moves
-            # away from it — forbidding it would leave the ghost
-            # walking straight toward the thing it's supposed to be
-            # avoiding. So skip the restriction while fleeing.
             if is_reverse and not self.fleeing:
                 continue
 
@@ -607,26 +472,16 @@ class ChaseTargetGridComponent(Component):
         ):
             return random.choice(valid_choices)
 
-        # Only reverse into a dead end if there was truly no other option.
         return best_direction or fallback_direction
 
 
 class ChasePlayerGridComponent(ChaseTargetGridComponent):
-    """
-    Backward-compatible name: direct chase (Blinky's classic
-    behavior), auto-targeting the Player. Functionally identical to
-    ChaseTargetGridComponent used with no target — kept as an alias
-    so existing code/readability isn't disrupted.
-    """
+    """Direct chase (Blinky's classic behavior)."""
     pass
 
 
 class PinkyChaseComponent(ChaseTargetGridComponent):
-    """
-    Ambush behavior: aims a few cells ahead of the target's current
-    facing direction instead of the target's own cell, so it tries
-    to cut the target off rather than tail it.
-    """
+    """Ambush behavior: aims a few cells ahead."""
 
     AMBUSH_DISTANCE = 4
 
@@ -666,21 +521,21 @@ class PinkyChaseComponent(ChaseTargetGridComponent):
 
 
 class InkyChaseComponent(ChaseTargetGridComponent):
-    """
-    Unpredictable chase: draws a line from a `pivot` Actor
-    (traditionally another ghost, e.g. Blinky) through a point a
-    couple of cells ahead of the target, then doubles that line to
-    get the final target tile. Erratic when the pivot is far from
-    the target, aggressive when it's close.
-    """
+    """Unpredictable chase using a pivot."""
 
     LOOKAHEAD = 2
 
-    def __init__(self, pivot=None, target=None, speed_multiplier=1.0):
+    def __init__(
+        self,
+        pivot=None,
+        target=None,
+        speed_multiplier: float = 1.0
+    ):
         super().__init__(target=target, speed_multiplier=speed_multiplier)
         self.pivot = pivot
 
     def set_pivot(self, pivot) -> None:
+        """Set the pivot actor."""
         self.pivot = pivot
 
     def get_target_cell(self):
@@ -691,8 +546,6 @@ class InkyChaseComponent(ChaseTargetGridComponent):
         if not target_movement or not target_movement.current_cell:
             return None
 
-        # No pivot wired up (e.g. Blinky hasn't been assigned yet) —
-        # fall back to a direct chase rather than freezing in place.
         if not self.pivot:
             return target_movement.current_cell
 
@@ -706,7 +559,8 @@ class InkyChaseComponent(ChaseTargetGridComponent):
 
         cell = target_movement.current_cell
         for _ in range(self.LOOKAHEAD):
-            next_cell = PinkyChaseComponent._neighbor_in_direction(cell, facing)
+            next_cell = PinkyChaseComponent._neighbor_in_direction(cell,
+                                                                   facing)
             if not next_cell:
                 break
             cell = next_cell
@@ -719,7 +573,7 @@ class InkyChaseComponent(ChaseTargetGridComponent):
         return self._closest_cell_to(aim_x, aim_y)
 
     @staticmethod
-    def _closest_cell_to(x, y):
+    def _closest_cell_to(x: float, y: float):
         from assets.code.actors.cell import Cell
 
         closest = None
@@ -738,25 +592,22 @@ class InkyChaseComponent(ChaseTargetGridComponent):
 
 
 class ClydeChaseComponent(ChaseTargetGridComponent):
-    """
-    Chases directly while far from the target, but flees toward
-    `home_cell` once within `flee_distance` *cells* — classic Clyde:
-    aggressive at range, shy up close.
-    """
+    """Chases directly while far, flees when close."""
 
     def __init__(
         self,
         flee_distance: float = 8,
         home_cell=None,
         target=None,
-        speed_multiplier=1.0,
+        speed_multiplier: float = 1.0,
     ):
         super().__init__(target=target, speed_multiplier=speed_multiplier)
         self.flee_distance = flee_distance
         self.home_cell = home_cell
-        self._cell_size = None
+        self._cell_size = 0.0
 
     def set_home_cell(self, cell) -> None:
+        """Set the home cell."""
         self.home_cell = cell
 
     def get_target_cell(self):
@@ -771,22 +622,29 @@ class ClydeChaseComponent(ChaseTargetGridComponent):
         if not movement or not movement.current_cell:
             return None
 
-        dx = target_movement.current_cell.position.x - movement.current_cell.position.x
-        dy = target_movement.current_cell.position.y - movement.current_cell.position.y
+        dx = (
+            target_movement.current_cell.position.x
+            - movement.current_cell.position.x
+        )
+        dy = (
+            target_movement.current_cell.position.y
+            - movement.current_cell.position.y
+        )
         distance = (dx * dx + dy * dy) ** 0.5
 
-        # flee_distance is expressed in cells, but cell positions are
-        # in world units — scale the threshold by the actual spacing
-        # between cells instead of comparing raw pixels to a "8".
-        threshold = self.flee_distance * self._get_cell_size(movement.current_cell)
+        threshold = self.flee_distance * self._get_cell_size(
+            movement.current_cell
+        )
 
         if distance > threshold:
             return target_movement.current_cell
 
-        return self.home_cell or self._find_home_cell(target_movement.current_cell)
+        return self.home_cell or self._find_home_cell(
+            target_movement.current_cell
+        )
 
     def _get_cell_size(self, cell) -> float:
-        if self._cell_size is not None:
+        if self._cell_size != 0.0:
             return self._cell_size
 
         for neighbor in (cell.east, cell.west, cell.north, cell.south):
@@ -799,12 +657,6 @@ class ClydeChaseComponent(ChaseTargetGridComponent):
         return self._cell_size or 1.0
 
     def _find_home_cell(self, target_cell):
-        """
-        No explicit home_cell was set — pick (and cache) whichever
-        maze cell is farthest from the target as a stand-in "corner"
-        to retreat to, so Clyde actually moves away instead of
-        targeting the cell it's already standing on.
-        """
         from assets.code.actors.cell import Cell
 
         farthest = None
@@ -830,12 +682,12 @@ class ScatterGhostComponent(Component):
         super().__init__()
         self.corner_cell = corner_cell
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
+        """Update scatter behavior."""
         movement = self.actor.get_component(GridMovementComponent)
         if not movement or not movement.current_cell:
             return
 
-        # If no corner cell is set, try to find a corner cell
         if not self.corner_cell:
             self._find_corner_cell()
             if not self.corner_cell:
@@ -843,47 +695,44 @@ class ScatterGhostComponent(Component):
 
         current_cell = movement.current_cell
 
-        # Calculate direction to corner cell
         dx = self.corner_cell.position.x - current_cell.position.x
         dy = self.corner_cell.position.y - current_cell.position.y
 
-        # Choose the dominant direction
         if abs(dx) > abs(dy):
             direction = Vector2(1 if dx > 0 else -1, 0)
         else:
             direction = Vector2(0, 1 if dy > 0 else -1)
 
-        # Check if we can move in that direction
         if movement._can_move_from_cell(current_cell, direction):
             movement.set_direction(direction)
         else:
-            # Try the other direction if blocked
-            other_direction = Vector2(0, 1 if dy > 0 else -1) if abs(dx) > abs(dy) else Vector2(1 if dx > 0 else -1, 0)
+            if abs(dx) > abs(dy):
+                other_direction = Vector2(0, 1 if dy > 0 else -1)
+            else:
+                other_direction = Vector2(1 if dx > 0 else -1, 0)
             if movement._can_move_from_cell(current_cell, other_direction):
                 movement.set_direction(other_direction)
 
-    def _find_corner_cell(self):
+    def _find_corner_cell(self) -> None:
         """Find a corner cell in the maze."""
         from assets.code.actors.cell import Cell
 
         cells = World.find_all(Cell)
 
-        # Find cells at corners (where multiple walls meet)
         for cell in cells:
-            # Check if this is a corner cell
-            # A corner cell should have walls in two adjacent directions
             corner_count = 0
-            if not cell.open_north: corner_count += 1
-            if not cell.open_east: corner_count += 1
-            if not cell.open_south: corner_count += 1
-            if not cell.open_west: corner_count += 1
+            if not cell.open_north:
+                corner_count += 1
+            if not cell.open_east:
+                corner_count += 1
+            if not cell.open_south:
+                corner_count += 1
+            if not cell.open_west:
+                corner_count += 1
 
-            # Check if it's a corner (2 or more walls)
             if corner_count >= 2:
-                # Check if it's an outer corner
                 is_outer = False
                 if not cell.open_north and not cell.open_west:
-                    # NW corner - check if it's at the edge
                     if not cell.north or not cell.west:
                         is_outer = True
                 elif not cell.open_north and not cell.open_east:
@@ -904,7 +753,8 @@ class ScatterGhostComponent(Component):
 class FaceDirectionComponent(Component):
     """Face the direction of movement."""
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
+        """Update facing direction."""
         if not self.actor:
             return
 
@@ -912,7 +762,6 @@ class FaceDirectionComponent(Component):
         if not movement:
             return
 
-        # Face based on current direction
         if movement.is_moving:
             direction = movement.direction
         else:
@@ -931,7 +780,8 @@ class FaceDirectionComponent(Component):
 class GhostFaceDirectionComponent(Component):
     """Ghost-specific facing behavior."""
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
+        """Update ghost facing direction."""
         if not self.actor:
             return
 
@@ -944,7 +794,6 @@ class GhostFaceDirectionComponent(Component):
         else:
             direction = movement.target_direction
 
-        # Ghosts always face forward regardless of horizontal direction
         if direction.x != 0:
             self.actor.rotation = 0
         elif direction.y < 0:
