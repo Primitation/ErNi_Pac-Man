@@ -84,7 +84,6 @@ PIP := $(VENV)/bin/pip
 MLX_DIR := minilibx-linux
 MLX_REPO := https://github.com/42school/mlx_CLXV.git
 
-PACKAGE := mazegen
 
 # **************************************************************************** #
 #                                  Actions                                     #
@@ -92,19 +91,29 @@ PACKAGE := mazegen
 
 all: install
 
-install: banner mlx package-install
+install: banner mlx
 	@printf "$(CYAN)"
 	@printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
 	@printf "        Preparing the environement\n"
 	@printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
 	@printf "$(RESET)"
+
 	@test -d $(VENV) || python3 -m venv $(VENV)
+
 	@$(PIP) install --upgrade pip >/dev/null
+
+	@$(PIP) install build >/dev/null
+
 	@$(call spinner,Installing dependencies,$(PIP) install -e . >/dev/null)
-	@$(PIP) install flake8-pyproject mypy build >/dev/null
+
+	@$(PIP) install flake8-pyproject mypy >/dev/null
+
 	@$(call spinner,Installing MLX,$(PIP) install $(MLX_DIR)/*.whl >/dev/null)
-	
+
+	@$(MAKE) package-install
+
 	@printf "\n$(GREEN)🗝  The maze is ready. Good luck!$(RESET)\n"
+
 
 banner:
 	@$(BANNER)
@@ -112,6 +121,7 @@ banner:
 	@printf "$(GREEN)   Welcome to Pac-Man!$(RESET)\n"
 	@printf "$(YELLOW)   Every maze has an exit... find yours.$(RESET)\n"
 	@printf "$(CYAN)═══════════════════════════════════════════════$(RESET)\n\n"
+
 
 mlx:
 	@$(MLXBANNER)
@@ -132,19 +142,10 @@ mlx:
 	@printf "MiniLibX is ready to render the maze.\n"
 	@printf "$(RESET)"
 
-build:
-	$(TITLE) "Building $(PACKAGE) package"
-	@$(call spinner,Building $(PACKAGE) package,$(PYTHON) -m build >/dev/null 2>&1)
-	@find dist -name "*.whl" -exec cp {} . \;
-	@find dist -name "*.tar.gz" -exec cp {} . \;
 
 package-install:
-	@printf "$(CYAN)"
-	@printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-	@printf "        Installing built package\n"
-	@printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-	@printf "$(RESET)"
-	@$(call spinner,Installing built package $(PACKAGE) package,$(PIP) install libs/*.whl --force-reinstall >/dev/null 2>&1)
+	@$(call spinner,Installing mazgen package, $(PIP) install libs/*.whl --force-reinstall >/dev/null)
+
 
 run:
 	@printf "$(BLUE)"
@@ -152,6 +153,7 @@ run:
 	@printf "║         Entering the Maze...         ║\n"
 	@printf "╚══════════════════════════════════════╝\n"
 	@printf "$(RESET)"
+
 	@$(PYTHON) test_game.py
 
 debug:

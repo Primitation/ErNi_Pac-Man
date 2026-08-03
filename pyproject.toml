@@ -93,3 +93,17 @@ per-file-ignores = [
     "*/__init__.py:F401",
 ]
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "Engine*",
+    "game*",
+    "assets*",
+    "mazegenerator*"
+]
+exclude = [
+    "logs*",
+    "libs*",
+    "minilibx-linux*",
+    "tests*"
+]
