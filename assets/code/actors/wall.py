@@ -1,15 +1,10 @@
 from typing import Tuple
-
-from .actor import Actor
 from Engine import Vector2, AActor
 from Engine import AnimatedSpriteComponent
-from ..components.origin_marker_component import OriginMarkerComponent
 
 
 class Wall(AActor):
     """A wall Actor."""
-
-    local_offset_scaling: int = 1
 
     def __init__(
         self,

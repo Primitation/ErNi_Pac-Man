@@ -7,14 +7,12 @@ from game.game_instance.player_information import PlayerInformation
 
 from .actor import Actor
 from Engine import on_end_of_anim
-from Engine import Vector2, Input
+from Engine import Vector2
 from Engine import AnimatedSpriteComponent
 from ..components.movement_components import (
     GridMovementComponent, PlayerGridInput, FaceDirectionComponent)
-from ..components.particle_component import ParticleTrailComponent
-from ..components.origin_marker_component import OriginMarkerComponent
-from time import perf_counter
 from threading import Timer
+
 
 class Player(Actor):
     """A player-controlled Actor, moved via the Input subsystem."""
@@ -50,7 +48,6 @@ class Player(Actor):
             static=static
         )
         self._start_super_pacman: float | None = None
-
 
         # Movement components
         self.movement = self.add_component(GridMovementComponent(speed=100))
@@ -134,7 +131,6 @@ class Player(Actor):
         super().update(dt)
         if self.animation.fps != self.fps:
             self.animation.set_fps(self.fps)
-        self.logger.debug(f"fps : {self.fps}")
         if World.find(Pacgum) is None:
             Log.get("main").success("No more pacgum.")
             Player.end_level = True
@@ -159,7 +155,8 @@ class Player(Actor):
 
     def _on_collision_begin(self, self_collider, other_collider) -> None:
         if Player.current_player is None:
-            Log.get("main").error(f"Player._on_collision_begin: no player registered !")
+            Log.get("main").error("Player._on_collision_begin:"
+                                  "no player registered !")
             return
         if not Player.current_player.is_alive():
             return

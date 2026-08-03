@@ -1,3 +1,4 @@
+# pacgum.py
 from .actor import Actor
 from Engine import Vector2
 from Engine import AnimatedSpriteComponent
@@ -25,8 +26,10 @@ class Pacgum(Actor):
         self.animation = self.add_component(
             AnimatedSpriteComponent(
                 "assets/texture/spritesheets/pacman_hd/PacManAssets-Items.png",
-                frame_width=16, frame_height=16,
-                frame_count=1, start_frame=9,
+                frame_width=16,
+                frame_height=16,
+                frame_count=1,
+                start_frame=9,
                 center=True,
             )
         )
@@ -36,16 +39,16 @@ class Pacgum(Actor):
         if isinstance(other.owner, Player):
             self.destroy()
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
         super().update(dt)
 
-    def destroy(self):
+    def destroy(self) -> None:
         self.logger.debug("destroy")
         super().destroy()
 
 
 class SuperPacgum(Actor):
-    """A pacgum Actor."""
+    """A super pacgum Actor."""
 
     def __init__(
         self,
@@ -66,8 +69,10 @@ class SuperPacgum(Actor):
         self.animation = self.add_component(
             AnimatedSpriteComponent(
                 "assets/texture/spritesheets/pacman_hd/PacManAssets-Items.png",
-                frame_width=16, frame_height=16,
-                frame_count=1, start_frame=9,
+                frame_width=16,
+                frame_height=16,
+                frame_count=1,
+                start_frame=9,
                 center=True,
             )
         )
@@ -77,9 +82,9 @@ class SuperPacgum(Actor):
         if isinstance(other.owner, Player):
             self.destroy()
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
         super().update(dt)
 
-    def destroy(self):
+    def destroy(self) -> None:
         self.logger.debug("destroy")
         super().destroy()

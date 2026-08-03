@@ -101,7 +101,7 @@ install: banner mlx package-install
 	@test -d $(VENV) || python3 -m venv $(VENV)
 	@$(PIP) install --upgrade pip >/dev/null
 	@$(call spinner,Installing dependencies,$(PIP) install -e . >/dev/null)
-	@$(PIP) install flake8 mypy build >/dev/null
+	@$(PIP) install flake8-pyproject mypy build >/dev/null
 	@$(call spinner,Installing MLX,$(PIP) install $(MLX_DIR)/*.whl >/dev/null)
 	
 	@printf "\n$(GREEN)🗝  The maze is ready. Good luck!$(RESET)\n"
@@ -160,9 +160,18 @@ debug:
 
 lint:
 	$(TITLE) "Running lint checks"
-	-flake8 . --exclude .venv,minilibx-linux
-	mypy --warn-return-any --warn-unused-ignores --ignore-missing-imports \
-		--disallow-untyped-defs --check-untyped-defs .
+	@printf "$(BLUE)"
+	@printf "╔══════════════════════════════════════╗\n"
+	@printf "║             Flake Check ...          ║\n"
+	@printf "╚══════════════════════════════════════╝\n"
+	@printf "$(RESET)"
+	-flake8 --exclude=.git,__pycache__,.venv,venv,minilibx-linux .
+	@printf "$(BLUE)"
+	@printf "╔══════════════════════════════════════╗\n"
+	@printf "║              Mypy Check ...          ║\n"
+	@printf "╚══════════════════════════════════════╝\n"
+	@printf "$(RESET)"
+	mypy .
 	$(SUCCESS) "Lint complete!"
 
 clean:
