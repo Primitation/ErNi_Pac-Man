@@ -1,9 +1,11 @@
+# loader.py
 import threading
 import queue
 import traceback
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Any, Dict, Set, Tuple
+
 
 from .. import Log
 
@@ -12,19 +14,19 @@ class AssetLoader(ABC):
     """One loader per asset type."""
 
     @abstractmethod
-    def can_load(self, path) -> bool:
+    def can_load(self, path: Any) -> bool:
         pass
 
     @abstractmethod
-    def load(self, path):
+    def load(self, path: Any) -> Any:
         """Runs on the WORKER thread."""
         pass
 
-    def finalize(self, raw):
+    def finalize(self, raw: Any) -> Any:
         """Runs on the MAIN thread."""
         return raw
 
-    def placeholder(self):
+    def placeholder(self) -> Any:
         """Fallback asset when load()/finalize() raises."""
         return None
 
@@ -32,11 +34,11 @@ class AssetLoader(ABC):
 class MlxContext:
     """Holds the single Mlx() instance + mlx_ptr."""
 
-    def __init__(self):
-        self.mlx = None
-        self.mlx_ptr = None
+    def __init__(self) -> None:
+        self.mlx: Optional[Any] = None
+        self.mlx_ptr: Optional[Any] = None
 
-    def bind(self, mlx, mlx_ptr):
+    def bind(self, mlx: Any, mlx_ptr: Any) -> None:
         self.mlx = mlx
         self.mlx_ptr = mlx_ptr
 
@@ -53,14 +55,14 @@ class Texture:
 
     def __init__(
         self,
-        img,
+        img: Any,
         width: int,
         height: int,
-        data,
+        data: Any,
         bpp: int,
         line_size: int,
         endian: int,
-    ):
+    ) -> None:
         self.img = img
         self.width = width
         self.height = height
@@ -74,14 +76,14 @@ class Texture:
 class TextureLoader(AssetLoader):
     """mlx decodes PNG and XPM formats."""
 
-    def can_load(self, path) -> bool:
-        return isinstance(path, str) and path.lower().endswith((".png",
-                                                                ".xpm"))
+    def can_load(self, path: Any) -> bool:
+        return isinstance(path, str) \
+            and path.lower().endswith((".png", ".xpm"))
 
-    def load(self, path):
+    def load(self, path: Any) -> Any:
         return path
 
-    def finalize(self, path):
+    def finalize(self, path: Any) -> Optional[Texture]:
         if not Context.ready:
             raise RuntimeError(
                 "MLX asset loading used before Context.bind(mlx, mlx_ptr) "
@@ -89,25 +91,33 @@ class TextureLoader(AssetLoader):
                 "mlx_init()."
             )
 
+        mlx = Context.mlx
+        mlx_ptr = Context.mlx_ptr
+
+        if mlx is None or mlx_ptr is None:
+            raise RuntimeError("MLX context not properly initialized")
+
         if path.lower().endswith(".xpm"):
-            img, width, height = Context.mlx.mlx_xpm_file_to_image(
-                Context.mlx_ptr, path
-            )
+            img, width, height = mlx.mlx_xpm_file_to_image(mlx_ptr, path)
         else:
-            img, width, height = Context.mlx.mlx_png_file_to_image(
-                Context.mlx_ptr, path
-            )
+            img, width, height = mlx.mlx_png_file_to_image(mlx_ptr, path)
 
         if img is None:
             raise ValueError(f"mlx failed to load image: {path}")
 
-        data, bpp, line_size, endian = Context.mlx.mlx_get_data_addr(img)
+        data, bpp, line_size, endian = mlx.mlx_get_data_addr(img)
 
         return Texture(img, width, height, data, bpp, line_size, endian)
 
-    def placeholder(self):
+    def placeholder(self) -> Optional[Texture]:
         """Classic magenta/black 'missing texture' checkerboard."""
         if not Context.ready:
+            return None
+
+        mlx = Context.mlx
+        mlx_ptr = Context.mlx_ptr
+
+        if mlx is None or mlx_ptr is None:
             return None
 
         size = 64
@@ -115,11 +125,11 @@ class TextureLoader(AssetLoader):
         magenta = 0xFFFF00FF
         black = 0xFF000000
 
-        img = Context.mlx.mlx_new_image(Context.mlx_ptr, size, size)
+        img = mlx.mlx_new_image(mlx_ptr, size, size)
         if img is None:
             return None
 
-        data, bpp, size_line, _ = Context.mlx.mlx_get_data_addr(img)
+        data, bpp, size_line, _ = mlx.mlx_get_data_addr(img)
         bytes_per_pixel = bpp // 8
 
         for y in range(size):
@@ -128,7 +138,7 @@ class TextureLoader(AssetLoader):
                 offset = y * size_line + x * bytes_per_pixel
                 data[offset:offset + 4] = color.to_bytes(4, "little")
 
-        data, bpp, line_size, endian = Context.mlx.mlx_get_data_addr(img)
+        data, bpp, line_size, endian = mlx.mlx_get_data_addr(img)
         return Texture(img, size, size, data, bpp, line_size, endian)
 
 
@@ -147,9 +157,11 @@ class Animation:
     """Plays back a list of frame Textures at a fixed rate."""
 
     def __init__(self, frames: List[Texture], fps: float = 10.0,
-                 loop: bool = True):
+                 loop: bool = True) -> None:
         self.frames = frames
         self.loop = loop
+        self.fps: float = fps
+        self.frame_duration: float = 0.0
         self.set_fps(fps)
 
     def set_fps(self, fps: float) -> None:
@@ -177,10 +189,10 @@ class Animation:
 class SpriteSheetLoader(AssetLoader):
     """Slices one sprite-sheet image into frames."""
 
-    def can_load(self, key) -> bool:
+    def can_load(self, key: Any) -> bool:
         return isinstance(key, SpriteSheetKey)
 
-    def load(self, key: SpriteSheetKey):
+    def load(self, key: SpriteSheetKey) -> SpriteSheetKey:
         return key
 
     def finalize(self, key: SpriteSheetKey) -> List[Texture]:
@@ -191,22 +203,23 @@ class SpriteSheetLoader(AssetLoader):
                 "mlx_init()."
             )
 
+        mlx = Context.mlx
+        mlx_ptr = Context.mlx_ptr
+
+        if mlx is None or mlx_ptr is None:
+            raise RuntimeError("MLX context not properly initialized")
+
         path = key.path
 
         if path.lower().endswith(".xpm"):
-            img, sheet_w, sheet_h = Context.mlx.mlx_xpm_file_to_image(
-                Context.mlx_ptr, path
-            )
+            img, sheet_w, sheet_h = mlx.mlx_xpm_file_to_image(mlx_ptr, path)
         else:
-            img, sheet_w, sheet_h = Context.mlx.mlx_png_file_to_image(
-                Context.mlx_ptr, path
-            )
+            img, sheet_w, sheet_h = mlx.mlx_png_file_to_image(mlx_ptr, path)
 
         if img is None:
             raise ValueError(f"mlx failed to load sprite sheet: {path}")
 
-        sheet_data, bpp, sheet_line_size, endian = \
-            Context.mlx.mlx_get_data_addr(img)
+        sheet_data, bpp, sheet_line_size, endian = mlx.mlx_get_data_addr(img)
         bytes_per_pixel = bpp // 8
 
         columns = key.columns or max(1, sheet_w // key.frame_width)
@@ -214,12 +227,12 @@ class SpriteSheetLoader(AssetLoader):
         available = columns * rows
         start = min(max(key.start_frame, 0), available)
         remaining = available - start
-        frame_count = key.frame_count if key.frame_count\
-            is not None else remaining
+        frame_count = key.frame_count if key.frame_count is not None \
+            else remaining
         frame_count = min(frame_count, remaining)
 
         frame_line_size = key.frame_width * bytes_per_pixel
-        frames = []
+        frames: List[Texture] = []
 
         for i in range(frame_count):
             idx = start + i
@@ -232,10 +245,8 @@ class SpriteSheetLoader(AssetLoader):
             frame_data = bytearray(frame_line_size * key.frame_height)
 
             for y in range(key.frame_height):
-                src_offset = (
-                    (src_y + y) * sheet_line_size
-                    + src_x * bytes_per_pixel
-                )
+                src_offset = (src_y + y) * sheet_line_size + src_x \
+                    * bytes_per_pixel
                 dst_offset = y * frame_line_size
                 frame_data[dst_offset:dst_offset + frame_line_size] = (
                     sheet_data[src_offset:src_offset + frame_line_size]
@@ -253,9 +264,15 @@ class SpriteSheetLoader(AssetLoader):
 
         return frames
 
-    def placeholder(self):
+    def placeholder(self) -> Optional[List[Texture]]:
         """A single-frame magenta/black placeholder list."""
         if not Context.ready:
+            return None
+
+        mlx = Context.mlx
+        mlx_ptr = Context.mlx_ptr
+
+        if mlx is None or mlx_ptr is None:
             return None
 
         size = 64
@@ -263,11 +280,11 @@ class SpriteSheetLoader(AssetLoader):
         magenta = 0xFFFF00FF
         black = 0xFF000000
 
-        img = Context.mlx.mlx_new_image(Context.mlx_ptr, size, size)
+        img = mlx.mlx_new_image(mlx_ptr, size, size)
         if img is None:
             return None
 
-        data, bpp, size_line, endian = Context.mlx.mlx_get_data_addr(img)
+        data, bpp, size_line, endian = mlx.mlx_get_data_addr(img)
         bytes_per_pixel = bpp // 8
 
         for y in range(size):
@@ -282,29 +299,31 @@ class SpriteSheetLoader(AssetLoader):
 class AssetManager:
     """Manages asset loading with threading."""
 
-    def __init__(self):
-        self._loaders = []
-        self._cache = {}
-        self._pending = set()
+    def __init__(self) -> None:
+        self._loaders: List[AssetLoader] = []
+        self._cache: Dict[str, Any] = {}
+        self._pending: Set[str] = set()
         self._lock = threading.Lock()
         self._logger = Log.get("assets")
-        self._in_queue = queue.Queue()
-        self._out_queue = queue.Queue()
+        self._in_queue: queue.Queue[Tuple[str, AssetLoader]] = queue.Queue()
+        self._out_queue: queue.Queue[Tuple[str, AssetLoader, Any,
+                                     Optional[Exception],
+                                     Optional[str]]] = queue.Queue()
 
         self._worker = threading.Thread(target=self._run, daemon=True)
         self._worker.start()
 
-    def register(self, loader) -> None:
+    def register(self, loader: AssetLoader) -> None:
         self._loaders.append(loader)
 
-    def _find_loader(self, path):
+    def _find_loader(self, path: Any) -> AssetLoader:
         for loader in self._loaders:
             if loader.can_load(path):
                 return loader
         self._logger.error(f"No loader registered for: {path}")
         raise ValueError(f"No loader registered for: {path}")
 
-    def load(self, path: str):
+    def load(self, path: str) -> Any:
         """Synchronous, blocking load."""
         with self._lock:
             if path in self._cache:
@@ -315,8 +334,8 @@ class AssetManager:
         try:
             asset = loader.finalize(loader.load(path))
         except Exception as error:
-            self._logger.error(f"Failed to load {path}: "
-                               f"{error}\n{traceback.format_exc()}")
+            self._logger.error(f"Failed to load {path}: {error}"
+                               f"\n{traceback.format_exc()}")
             asset = loader.placeholder()
 
         with self._lock:
@@ -343,8 +362,8 @@ class AssetManager:
                 raw = loader.load(path)
                 self._out_queue.put((path, loader, raw, None, None))
             except Exception as error:
-                self._out_queue.put((path, loader, None, error,
-                                     traceback.format_exc()))
+                self._out_queue.put((path, loader, None,
+                                     error, traceback.format_exc()))
 
     def update(self) -> None:
         """Call once per frame from the main thread."""
@@ -358,15 +377,15 @@ class AssetManager:
                 try:
                     asset = loader.finalize(raw)
                 except Exception as error:
-                    self._logger.error(f"Failed to finalize {path}: "
-                                       f"{error}\n{traceback.format_exc()}")
+                    self._logger.error(f"Failed to finalize {path}: {error}"
+                                       f"\n{traceback.format_exc()}")
                     asset = loader.placeholder()
 
             with self._lock:
                 self._cache[path] = asset
                 self._pending.discard(path)
 
-    def get(self, path: str):
+    def get(self, path: str) -> Any:
         return self._cache.get(path)
 
     def ready(self, path: str) -> bool:

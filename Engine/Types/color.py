@@ -1,9 +1,14 @@
+# color.py
+from typing import Tuple
+
+
 class Color:
     """r, g, b, a as ints 0-255."""
 
     __slots__ = ("r", "g", "b", "a")
 
-    def __init__(self, r: int = 0, g: int = 0, b: int = 0, a: int = 255):
+    def __init__(self, r: int = 0, g: int = 0,
+                 b: int = 0, a: int = 255) -> None:
         self.r = r
         self.g = g
         self.b = b
@@ -12,7 +17,7 @@ class Color:
     def __repr__(self) -> str:
         return f"Color({self.r}, {self.g}, {self.b}, {self.a})"
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, Color)
             and self.r == other.r
@@ -38,7 +43,7 @@ class Color:
             a=(value >> 24) & 0xFF,
         )
 
-    def to_floats(self) -> tuple[float, float, float, float]:
+    def to_floats(self) -> Tuple[float, float, float, float]:
         return (self.r / 255, self.g / 255, self.b / 255, self.a / 255)
 
     @classmethod

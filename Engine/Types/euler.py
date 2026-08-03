@@ -1,4 +1,9 @@
+# euler.py
 import math
+from typing import Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .quaternion import Quaternion
 
 
 class Euler:
@@ -7,7 +12,7 @@ class Euler:
     __slots__ = ("pitch", "yaw", "roll")
 
     def __init__(self, pitch: float = 0.0, yaw: float = 0.0,
-                 roll: float = 0.0):
+                 roll: float = 0.0) -> None:
         self.pitch = pitch
         self.yaw = yaw
         self.roll = roll
@@ -15,7 +20,7 @@ class Euler:
     def __repr__(self) -> str:
         return f"Euler({self.pitch}, {self.yaw}, {self.roll})"
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, Euler)
             and self.pitch == other.pitch
@@ -27,14 +32,14 @@ class Euler:
     def from_degrees(cls, pitch: float, yaw: float, roll: float) -> "Euler":
         return cls(math.radians(pitch), math.radians(yaw), math.radians(roll))
 
-    def to_degrees(self) -> tuple[float, float, float]:
+    def to_degrees(self) -> Tuple[float, float, float]:
         return (
             math.degrees(self.pitch),
             math.degrees(self.yaw),
             math.degrees(self.roll),
         )
 
-    def to_quaternion(self):
+    def to_quaternion(self) -> "Quaternion":
         """Builds a Quaternion using pitch(X) -> yaw(Y) -> roll(Z)."""
         from .quaternion import Quaternion
 

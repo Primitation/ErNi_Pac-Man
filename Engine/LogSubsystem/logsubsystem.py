@@ -1,15 +1,17 @@
+# logsubsystem.py
 from .logger import Logger, LogMode
 import time
 import functools
+from typing import Any, Optional, Callable, TypeVar, cast
 
 
 class LogSubsystem:
     """Global logging system."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._logger = Logger()
 
-    def get(self, name: str):
+    def get(self, name: str) -> Any:
         return self._logger.get(name)
 
     def verbose(self) -> None:
@@ -37,16 +39,21 @@ class LogSubsystem:
         self._logger.close()
 
 
-def log_timing(label=None, logger_attr="_logger", every: int = 300):
+F = TypeVar('F', bound=Callable[..., Any])
+
+
+def log_timing(label: Optional[str] = None,
+               logger_attr: str = "_logger",
+               every: int = 300) -> Callable[[F], F]:
     """Decorator for subsystem update()/render() methods."""
 
-    def decorator(func):
+    def decorator(func: F) -> F:
         name = label or func.__name__
         counter_name = f"_log_timing_{func.__name__}_counter"
         total_name = f"_log_timing_{func.__name__}_total"
 
         @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
             start = time.perf_counter()
 
             try:
@@ -64,12 +71,12 @@ def log_timing(label=None, logger_attr="_logger", every: int = 300):
                     logger = getattr(self, logger_attr, None)
                     if logger is not None:
                         average_ms = total / counter
-                        logger.debug(f"{name} average took {average_ms:.3f}"
-                                     f" ms ({counter} calls)")
+                        logger.debug(f"{name} average took {average_ms:.3f} "
+                                     f"ms ({counter} calls)")
                     setattr(self, counter_name, 0)
                     setattr(self, total_name, 0.0)
 
-        return wrapper
+        return cast(F, wrapper)
 
     return decorator
 

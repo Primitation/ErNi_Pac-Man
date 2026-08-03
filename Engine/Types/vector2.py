@@ -1,4 +1,6 @@
+# vector2.py
 import math
+from typing import Iterator, Tuple
 
 
 class Vector2:
@@ -6,18 +8,18 @@ class Vector2:
 
     __slots__ = ("x", "y")
 
-    def __init__(self, x: float = 0.0, y: float = 0.0):
+    def __init__(self, x: float = 0.0, y: float = 0.0) -> None:
         self.x = x
         self.y = y
 
     def __repr__(self) -> str:
         return f"Vector2({self.x}, {self.y})"
 
-    def __eq__(self, other) -> bool:
-        return isinstance(other, Vector2) and self.x == other.x \
-            and self.y == other.y
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Vector2) \
+            and self.x == other.x and self.y == other.y
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[float]:
         yield self.x
         yield self.y
 
@@ -57,7 +59,7 @@ class Vector2:
             return Vector2(0, 0)
         return Vector2(self.x / length, self.y / length)
 
-    def to_tuple(self) -> tuple[float, float]:
+    def to_tuple(self) -> Tuple[float, float]:
         return (self.x, self.y)
 
     @classmethod

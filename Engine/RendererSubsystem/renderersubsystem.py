@@ -1,7 +1,7 @@
 # renderersubsystem.py (complete)
 import ctypes
 import numpy as np
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List, Callable, Any, Dict, Union, cast
 from mlx import Mlx
 import math
 from .. import Assets
@@ -12,51 +12,51 @@ from .. import Vector2
 class RendererSubsystem:
     """Owns mlx_init(), the window and the render framebuffer."""
 
-    def __init__(self):
-        self.mlx = None
-        self.mlx_ptr = None
-        self.win_ptr = None
+    def __init__(self) -> None:
+        self.mlx: Optional[Mlx] = None
+        self.mlx_ptr: Optional[Any] = None
+        self.win_ptr: Optional[Any] = None
 
-        self.framebuffer = None
-        self.framebuffer_data = None
-        self.framebuffer_ptr = None
+        self.framebuffer: Optional[Any] = None
+        self.framebuffer_data: Optional[Any] = None
+        self.framebuffer_ptr: Optional[int] = None
 
-        self.width = 0
-        self.height = 0
-        self.title = "PacEngine"
+        self.width: int = 0
+        self.height: int = 0
+        self.title: str = "PacEngine"
 
-        self.bpp = 0
-        self.line_size = 0
-        self.pixel_size = 0
-        self.format = 0
+        self.bpp: int = 0
+        self.line_size: int = 0
+        self.pixel_size: int = 0
+        self.format: int = 0
 
-        self.buffer = None
-        self.buffer_size = 0
-        self.buffer_np = None
-        self._buffer_cbuf = None
-        self._clear_view = None
+        self.buffer: Optional[bytearray] = None
+        self.buffer_size: int = 0
+        self.buffer_np: Optional[np.ndarray] = None
+        self._buffer_cbuf: Optional[Any] = None
+        self._clear_view: Optional[np.ndarray] = None
 
-        self.bake_buffer = None
-        self.bake_np = None
-        self._baked = False
-        self._last_bake_world = None
-        self._last_bake_background_color = 0xFF000000
+        self.bake_buffer: Optional[bytearray] = None
+        self.bake_np: Optional[np.ndarray] = None
+        self._baked: bool = False
+        self._last_bake_world: Optional[List[Any]] = None
+        self._last_bake_background_color: int = 0xFF000000
 
-        self.camera_position = Vector2(0.0, 0.0)
-        self.zoom = 1.0
+        self.camera_position: Vector2 = Vector2(0.0, 0.0)
+        self.zoom: float = 1.0
 
-        self._bake_camera_position = Vector2(0.0, 0.0)
-        self._bake_zoom = 1.0
+        self._bake_camera_position: Vector2 = Vector2(0.0, 0.0)
+        self._bake_zoom: float = 1.0
 
-        self._scale_cache = {}
-        self._resize_listeners = []
+        self._scale_cache: Dict[Tuple[int, int, int], np.ndarray] = {}
+        self._resize_listeners: List[Callable[[Any, int, int], None]] = []
 
         self._logger = Log.get("renderer")
-        self._frame_count = 0
+        self._frame_count: int = 0
 
-        self._debug_draw_colliders = False
-        self._debug_collider_color_map = None
-        self._draw_debug_banner = False
+        self._debug_draw_colliders: bool = False
+        self._debug_collider_color_map: Optional[Any] = None
+        self._draw_debug_banner: bool = False
 
     def init(self, width: int, height: int, title: str = "PacEngine") -> None:
         """Call once, at startup, before anything else touches mlx."""
@@ -65,10 +65,16 @@ class RendererSubsystem:
         self.title = title
 
         self.mlx = Mlx()
-        self.mlx_ptr = self.mlx.mlx_init()
+        if self.mlx is not None:
+            self.mlx_ptr = self.mlx.mlx_init()
+        else:
+            self.mlx_ptr = None
 
         if self.mlx_ptr is None:
             raise RuntimeError("mlx_init() failed — no display available.")
+
+        if self.mlx is None:
+            raise RuntimeError("MLX not initialized")
 
         self.win_ptr = self.mlx.mlx_new_window(
             self.mlx_ptr, width, height, title
@@ -92,23 +98,29 @@ class RendererSubsystem:
         ) = self.mlx.mlx_get_data_addr(self.framebuffer)
 
         self.pixel_size = self.bpp // 8
-        self.framebuffer_ptr = ctypes.addressof(self.framebuffer_data.obj)
+        if self.framebuffer_data is not None:
+            self.framebuffer_ptr = ctypes.addressof(self.framebuffer_data.obj)
+        else:
+            self.framebuffer_ptr = None
         self.buffer_size = self.height * self.line_size
         self.buffer = bytearray(self.buffer_size)
 
-        self.buffer_np = np.frombuffer(self.buffer, dtype=np.uint8).reshape(
-            self.height, self.line_size
-        )
+        if self.buffer is not None:
+            self.buffer_np = np.frombuffer(self.buffer,
+                                           dtype=np.uint8).reshape(
+                self.height, self.line_size
+            )
 
-        self._buffer_cbuf = (ctypes.c_char * self.buffer_size).from_buffer(
-            self.buffer
-        )
+            self._buffer_cbuf = (ctypes.c_char * self.buffer_size).from_buffer(
+                self.buffer
+            )
 
         pixel_dtype = {1: np.uint8, 2: np.uint16, 4: np.uint32}.get(
             self.pixel_size
         )
         if pixel_dtype is not None and self.line_size % self.pixel_size == 0:
-            self._clear_view = self.buffer_np.view(dtype=pixel_dtype)
+            if self.buffer_np is not None:
+                self._clear_view = self.buffer_np.view(dtype=pixel_dtype)
         else:
             self._clear_view = None
 
@@ -117,11 +129,13 @@ class RendererSubsystem:
             f"format={self.format}, pixel_size={self.pixel_size}"
         )
 
-        Assets.init(self.mlx, self.mlx_ptr)
+        if self.mlx is not None:
+            Assets.init(self.mlx, self.mlx_ptr)
 
-        self.mlx.mlx_hook(
-            self.win_ptr, 33, 0, self._close_window, self
-        )
+        if self.win_ptr is not None and self.mlx is not None:
+            self.mlx.mlx_hook(
+                self.win_ptr, 33, 0, self._close_window, self
+            )
 
         self._logger.info(f'Window created: {width}x{height} "{title}"')
 
@@ -163,22 +177,24 @@ class RendererSubsystem:
         screen_y = (y - self.camera_position.y) * self.zoom + self.height / 2.0
         return screen_x, screen_y
 
-    def _get_component_position(self, component) -> Tuple[float, float]:
+    def _get_component_position(self, component: Any) -> Tuple[float, float]:
         """Get the world position of a component."""
         if hasattr(component, 'get_world_position'):
-            return component.get_world_position()
+            pos = component.get_world_position()
+            return (pos.x, pos.y) if hasattr(pos, 'x') else (float(pos[0]),
+                                                             float(pos[1]))
         actor = getattr(component, 'actor', None)
         if actor is not None:
             return (actor.position.x, actor.position.y)
         return (0.0, 0.0)
 
-    def _sprite_for(self, actor):
+    def _sprite_for(self, actor: Any) -> Optional[List[Any]]:
         """Find the actor's current sprite by checking its components."""
         components = getattr(actor, "components", None)
         if not components:
             return None
 
-        out_components = []
+        out_components: List[Any] = []
         for component in components:
             if hasattr(component, "sprite"):
                 out_components.append(component)
@@ -186,6 +202,9 @@ class RendererSubsystem:
 
     def _fill_solid(self, color: int) -> None:
         """One-shot solid color fill."""
+        if self.buffer_np is None:
+            return
+
         if self._clear_view is not None:
             pixel_value = color & ((1 << (self.pixel_size * 8)) - 1)
             self._clear_view[:, :self.width] = pixel_value
@@ -203,13 +222,17 @@ class RendererSubsystem:
 
     def clear(self, color: int = 0xFF000000) -> None:
         """Clears the framebuffer before drawing the next frame."""
+        if self.buffer_np is None or self.bake_np is None:
+            self._fill_solid(color)
+            return
+
         if self._baked and self._camera_matches_bake():
             self.buffer_np[:, :] = self.bake_np
             return
 
         self._fill_solid(color)
 
-    def bake(self, world, background_color: int = 0xFF000000,
+    def bake(self, world: List[Any], background_color: int = 0xFF000000,
              max_wait_ticks: int = 300) -> None:
         """Pre-renders every static actor once into
          an internal background buffer."""
@@ -244,7 +267,7 @@ class RendererSubsystem:
                 "baked background."
             )
 
-        draw_list = []
+        draw_list: List[Tuple[Any, Any]] = []
         for actor in static_actors:
             components = self._sprite_for(actor)
             if components is None:
@@ -275,14 +298,19 @@ class RendererSubsystem:
             except Exception:
                 self._logger.exception(f"Failed to bake actor {actor!r}")
 
+        if self.buffer is None or self.buffer_np is None:
+            return
+
         if self.bake_buffer is None:
             self.bake_buffer = bytearray(self.buffer_size)
-            self.bake_np = np.frombuffer(self.bake_buffer,
-                                         dtype=np.uint8).reshape(
-                self.height, self.line_size
-            )
+            if self.bake_buffer is not None:
+                self.bake_np = np.frombuffer(self.bake_buffer,
+                                             dtype=np.uint8).reshape(
+                    self.height, self.line_size
+                )
 
-        self.bake_np[:, :] = self.buffer_np
+        if self.bake_np is not None:
+            self.bake_np[:, :] = self.buffer_np
         self._baked = True
 
         self._bake_camera_position = Vector2(
@@ -303,42 +331,49 @@ class RendererSubsystem:
 
     def put_pixel(self, x: float, y: float, color: int) -> None:
         """Writes a pixel into the framebuffer."""
-        screen_x, screen_y = self.world_to_screen(x, y)
-        x, y = int(screen_x), int(screen_y)
-
-        if x < 0 or y < 0 or x >= self.width or y >= self.height:
+        if self.buffer_np is None:
             return
 
-        offset = x * self.pixel_size
-        self.buffer_np[y, offset:offset + self.pixel_size] = np.frombuffer(
+        screen_x, screen_y = self.world_to_screen(x, y)
+        x_int, y_int = int(screen_x), int(screen_y)
+
+        if x_int < 0 or y_int < 0 or x_int >= self.width \
+                or y_int >= self.height:
+            return
+
+        offset = x_int * self.pixel_size
+        self.buffer_np[y_int, offset:offset + self.pixel_size] = np.frombuffer(
             color.to_bytes(self.pixel_size, "little"), dtype=np.uint8
         )
 
     def draw_rect(self, x: float, y: float, width: float, height: float,
                   color: int) -> None:
         """Fill an axis-aligned rect with a solid color."""
-        screen_x, screen_y = self.world_to_screen(x, y)
-        x, y = int(screen_x), int(screen_y)
-        width = int(width * self.zoom)
-        height = int(height * self.zoom)
-
-        if width <= 0 or height <= 0:
+        if self.buffer_np is None:
             return
 
-        clip_x0 = max(0, -x)
-        clip_y0 = max(0, -y)
-        x = max(0, x)
-        y = max(0, y)
+        screen_x, screen_y = self.world_to_screen(x, y)
+        x_int, y_int = int(screen_x), int(screen_y)
+        width_int = int(width * self.zoom)
+        height_int = int(height * self.zoom)
 
-        dw = min(width - clip_x0, self.width - x)
-        dh = min(height - clip_y0, self.height - y)
+        if width_int <= 0 or height_int <= 0:
+            return
+
+        clip_x0 = max(0, -x_int)
+        clip_y0 = max(0, -y_int)
+        x_int = max(0, x_int)
+        y_int = max(0, y_int)
+
+        dw = min(width_int - clip_x0, self.width - x_int)
+        dh = min(height_int - clip_y0, self.height - y_int)
 
         if dw <= 0 or dh <= 0:
             return
 
         dest_view = self.buffer_np[
-            y:y + dh,
-            x * self.pixel_size: (x + dw) * self.pixel_size,
+            y_int:y_int + dh,
+            x_int * self.pixel_size: (x_int + dw) * self.pixel_size,
         ].reshape(dh, dw, self.pixel_size)
 
         pixel_bytes = np.frombuffer(
@@ -360,7 +395,9 @@ class RendererSubsystem:
         blended[..., 3] = 255
         dest_view[:, :, :] = blended.astype(np.uint8)
 
-    def draw_sprite(self, texture, position, scale, rotation: float = 0.0,
+    def draw_sprite(self, texture: Any, position: Any,
+                    scale: Union[float, Any],
+                    rotation: float = 0.0,
                     pivot: Tuple[float, float] = (0.5, 0.5)) -> None:
         """Draws a texture into the framebuffer with scaling and rotation."""
         if hasattr(scale, 'x') and hasattr(scale, 'y'):
@@ -403,11 +440,11 @@ class RendererSubsystem:
             self._blit(texture, dest_x, dest_y, scaled_width, scaled_height)
 
     @staticmethod
-    def _get_texture_array(texture):
+    def _get_texture_array(texture: Any) -> np.ndarray:
         """Returns a numpy (H, W, bpp) view over texture.data."""
         cached = getattr(texture, "_np_cache", None)
         if cached is not None:
-            return cached
+            return cast(np.ndarray, cached)
 
         raw = np.frombuffer(texture.data, dtype=np.uint8)
         raw = raw[: texture.line_size * texture.height].reshape(
@@ -424,23 +461,27 @@ class RendererSubsystem:
 
         return arr
 
-    def _blit(self, texture, dest_x: int, dest_y: int,
+    def _blit(self, texture: Any, dest_x: int, dest_y: int,
               scaled_width: Optional[int] = None,
               scaled_height: Optional[int] = None) -> None:
         """Vectorized blit."""
+        if self.buffer_np is None:
+            return
+
         tex = self._get_texture_array(texture)
 
         if scaled_width is None:
             region = tex
         else:
-            cache_key = (id(texture), scaled_width, scaled_height)
+            # Ensure scaled_width and scaled_height are not None
+            sw = scaled_width
+            sh = scaled_height if scaled_height is not None else scaled_width
+            cache_key = (id(texture), sw, sh)
             region = self._scale_cache.get(cache_key)
 
             if region is None:
-                src_ys = (np.arange(scaled_height) * texture.height
-                          // scaled_height)
-                src_xs = (np.arange(scaled_width) * texture.width
-                          // scaled_width)
+                src_ys = (np.arange(sh) * texture.height // sh)
+                src_xs = (np.arange(sw) * texture.width // sw)
                 src_ys = src_ys.clip(0, texture.height - 1)
                 src_xs = src_xs.clip(0, texture.width - 1)
                 region = tex[np.ix_(src_ys, src_xs)]
@@ -505,7 +546,7 @@ class RendererSubsystem:
         else:
             dest_view[:, :, :] = region[:, :, :self.pixel_size]
 
-    def _blit_rotated(self, texture, dest_x: int, dest_y: int,
+    def _blit_rotated(self, texture: Any, dest_x: int, dest_y: int,
                       angle_degrees: float, pivot_x: float = 0.5,
                       pivot_y: float = 0.5, local_width: Optional[int] = None,
                       local_height: Optional[int] = None,
@@ -552,9 +593,12 @@ class RendererSubsystem:
         self._blit_region(region, dest_x, dest_y, out_width, out_height,
                           texture.bytes_per_pixel)
 
-    def _blit_region(self, region, dest_x: int, dest_y: int,
+    def _blit_region(self, region: np.ndarray, dest_x: int, dest_y: int,
                      region_w: int, region_h: int, bpp: int) -> None:
         """Internal method to blit a pre-processed region."""
+        if self.buffer_np is None:
+            return
+
         clip_x0, clip_y0 = 0, 0
         clip_x1, clip_y1 = region_w, region_h
 
@@ -612,7 +656,7 @@ class RendererSubsystem:
         else:
             dest_view[:, :, :] = region[:, :, :self.pixel_size]
 
-    def render_draw(self, world) -> None:
+    def render_draw(self, world: List[Any]) -> None:
         """Draw all actors into the framebuffer (no presentation)."""
         if self.win_ptr is None:
             raise RuntimeError("RendererSubsystem.render_draw()"
@@ -622,7 +666,7 @@ class RendererSubsystem:
 
         baked_valid = self._baked and self._camera_matches_bake()
 
-        draw_list = []
+        draw_list: List[Tuple[Any, Any]] = []
         for actor in world:
             if baked_valid and getattr(actor, "static", False):
                 continue
@@ -674,11 +718,13 @@ class RendererSubsystem:
                     f"Lives  {Player.current_player.lives}   "
                     f"Level  {Player.current_level}    "
                     f"Time  {max(0, round(Actors.remaining_time, 1))}")
-            self.mlx.mlx_string_put(
-                self.mlx_ptr, self.win_ptr, 20,
-                self.height - 50,
-                0x000000FF,
-                text)
+            if self.mlx is not None and self.mlx_ptr is not None \
+                    and self.win_ptr is not None:
+                self.mlx.mlx_string_put(
+                    self.mlx_ptr, self.win_ptr, 20,
+                    self.height - 50,
+                    0x000000FF,
+                    text)
         except Exception:
             self._logger.exception("Failed to draw level banner")
 
@@ -688,67 +734,82 @@ class RendererSubsystem:
             raise RuntimeError("RendererSubsystem.render_present()"
                                " called before .init().")
 
+        if self.framebuffer_ptr is None or self._buffer_cbuf is None:
+            return
+
         ctypes.memmove(
             self.framebuffer_ptr,
             ctypes.addressof(self._buffer_cbuf),
             self.buffer_size
         )
 
-        self.mlx.mlx_put_image_to_window(
-            self.mlx_ptr,
-            self.win_ptr,
-            self.framebuffer,
-            0,
-            0,
-        )
+        if self.mlx is not None and self.mlx_ptr is not None:
+            self.mlx.mlx_put_image_to_window(
+                self.mlx_ptr,
+                self.win_ptr,
+                self.framebuffer,
+                0,
+                0,
+            )
         if self._draw_debug_banner:
             self.render_level_banner()
 
-    def render(self, world) -> None:
+    def render(self, world: List[Any]) -> None:
         """Legacy method - draws and presents in one call."""
         self.render_draw(world)
         self.render_present()
 
-    def hook_loop(self, callback, param=None) -> None:
+    def hook_loop(self, callback: Callable[..., Any],
+                  param: Any = None) -> None:
         """Registers callback to run once per mlx event-loop tick."""
-        self.mlx.mlx_loop_hook(self.mlx_ptr, callback, param)
+        if self.mlx is not None and self.mlx_ptr is not None:
+            self.mlx.mlx_loop_hook(self.mlx_ptr, callback, param)
 
-    def hook_close(self, callback, param=None) -> None:
+    def hook_close(self, callback: Callable[..., Any],
+                   param: Any = None) -> None:
         """Registers a custom close callback."""
-        self.mlx.mlx_hook(self.win_ptr, 33, 0, callback, param)
+        if self.mlx is not None and self.win_ptr is not None:
+            self.mlx.mlx_hook(self.win_ptr, 33, 0, callback, param)
 
-    def _close_window(self, param) -> None:
+    def _close_window(self, param: Any) -> None:
         """Default window close handler."""
         self._logger.info("Window close requested.")
-        self.mlx.mlx_loop_exit(self.mlx_ptr)
+        if self.mlx is not None and self.mlx_ptr is not None:
+            self.mlx.mlx_loop_exit(self.mlx_ptr)
 
     def loop(self) -> None:
         """Starts the mlx event loop."""
         self._logger.info("Starting MLX event loop...")
-        result = self.mlx.mlx_loop(self.mlx_ptr)
-        self._logger.info(f"MLX event loop exited with: {result}")
+        if self.mlx is not None and self.mlx_ptr is not None:
+            result = self.mlx.mlx_loop(self.mlx_ptr)
+            self._logger.info(f"MLX event loop exited with: {result}")
 
     def close(self) -> None:
         """Destroys the window."""
-        if self.win_ptr is not None:
+        if self.win_ptr is not None and self.mlx is not None \
+                and self.mlx_ptr is not None:
             self.mlx.mlx_destroy_window(self.mlx_ptr, self.win_ptr)
             self.win_ptr = None
 
     def close_request(self) -> None:
         """Request the MLX loop to exit."""
         self._logger.info("Quit requested.")
-        if self.mlx_ptr is not None:
+        if self.mlx is not None and self.mlx_ptr is not None:
             self.mlx.mlx_loop_exit(self.mlx_ptr)
 
-    def on_resize(self, callback) -> None:
+    def on_resize(self, callback: Callable[[Any, int, int], None]) -> None:
         """Register a callback to be notified after resize()."""
         self._resize_listeners.append(callback)
 
-    def resize(self, width: int, height: int, title: str = None) -> None:
+    def resize(self, width: int, height: int,
+               title: Optional[str] = None) -> None:
         """Resize the window and framebuffer to a new width/height."""
         if self.win_ptr is None:
             raise RuntimeError("RendererSubsystem.resize()"
                                " called before .init().")
+
+        if self.mlx is None or self.mlx_ptr is None:
+            raise RuntimeError("MLX not initialized")
 
         if title is None:
             title = self.title
@@ -781,22 +842,28 @@ class RendererSubsystem:
         ) = self.mlx.mlx_get_data_addr(self.framebuffer)
 
         self.pixel_size = self.bpp // 8
-        self.framebuffer_ptr = ctypes.addressof(self.framebuffer_data.obj)
+        if self.framebuffer_data is not None:
+            self.framebuffer_ptr = ctypes.addressof(self.framebuffer_data.obj)
+        else:
+            self.framebuffer_ptr = None
         self.buffer_size = self.height * self.line_size
         self.buffer = bytearray(self.buffer_size)
 
-        self.buffer_np = np.frombuffer(self.buffer, dtype=np.uint8).reshape(
-            self.height, self.line_size
-        )
-        self._buffer_cbuf = (ctypes.c_char * self.buffer_size).from_buffer(
-            self.buffer
-        )
+        if self.buffer is not None:
+            self.buffer_np = np.frombuffer(self.buffer,
+                                           dtype=np.uint8).reshape(
+                self.height, self.line_size
+            )
+            self._buffer_cbuf = (ctypes.c_char * self.buffer_size).from_buffer(
+                self.buffer
+            )
 
         pixel_dtype = {1: np.uint8, 2: np.uint16, 4: np.uint32}.get(
             self.pixel_size
         )
         if pixel_dtype is not None and self.line_size % self.pixel_size == 0:
-            self._clear_view = self.buffer_np.view(dtype=pixel_dtype)
+            if self.buffer_np is not None:
+                self._clear_view = self.buffer_np.view(dtype=pixel_dtype)
         else:
             self._clear_view = None
 
@@ -812,9 +879,10 @@ class RendererSubsystem:
                 self._logger.exception("Failed to rebake "
                                        "background after resize")
 
-        self.mlx.mlx_hook(
-            self.win_ptr, 33, 0, self._close_window, self
-        )
+        if self.win_ptr is not None:
+            self.mlx.mlx_hook(
+                self.win_ptr, 33, 0, self._close_window, self
+            )
 
         self._logger.info(f'Window resized: {width}x{height} "{title}"')
 
@@ -836,6 +904,9 @@ class RendererSubsystem:
                           height: float, color: int = 0xFFFF0000,
                           thickness: int = 1) -> None:
         """Draw a rectangle outline in WORLD-space."""
+        if self.buffer_np is None:
+            return
+
         if width <= 0 or height <= 0:
             return
 
@@ -894,22 +965,26 @@ class RendererSubsystem:
     def draw_rect_screen(self, x: int, y: int, width: int, height: int,
                          color: int) -> None:
         """Fill a rect in SCREEN-space pixels."""
-        x, y, width, height = int(x), int(y), int(width), int(height)
-        if width <= 0 or height <= 0:
+        if self.buffer_np is None:
             return
 
-        clip_x0 = max(0, -x)
-        clip_y0 = max(0, -y)
-        x, y = max(0, x), max(0, y)
-        dw = min(width - clip_x0, self.width - x)
-        dh = min(height - clip_y0, self.height - y)
+        x_int, y_int, width_int, height_int = int(x), int(y), \
+            int(width), int(height)
+        if width_int <= 0 or height_int <= 0:
+            return
+
+        clip_x0 = max(0, -x_int)
+        clip_y0 = max(0, -y_int)
+        x_int, y_int = max(0, x_int), max(0, y_int)
+        dw = min(width_int - clip_x0, self.width - x_int)
+        dh = min(height_int - clip_y0, self.height - y_int)
 
         if dw <= 0 or dh <= 0:
             return
 
         dest_view = self.buffer_np[
-            y:y + dh,
-            x * self.pixel_size:(x + dw) * self.pixel_size,
+            y_int:y_int + dh,
+            x_int * self.pixel_size:(x_int + dw) * self.pixel_size,
         ].reshape(dh, dw, self.pixel_size)
 
         pixel_bytes = np.frombuffer(
@@ -931,7 +1006,7 @@ class RendererSubsystem:
         blended[..., 3] = 255
         dest_view[:, :, :] = blended.astype(np.uint8)
 
-    def draw_texture_region_screen(self, texture, src_x: int, src_y: int,
+    def draw_texture_region_screen(self, texture: Any, src_x: int, src_y: int,
                                    src_w: int, src_h: int, dest_x: int,
                                    dest_y: int, dest_w: Optional[int] = None,
                                    dest_h: Optional[int] = None) -> None:
@@ -949,21 +1024,22 @@ class RendererSubsystem:
 
         region = tex[src_y0:src_y1, src_x0:src_x1]
 
-        dest_w = int(dest_w) if dest_w is not None else region.shape[1]
-        dest_h = int(dest_h) if dest_h is not None else region.shape[0]
+        dest_w_int = int(dest_w) if dest_w is not None else region.shape[1]
+        dest_h_int = int(dest_h) if dest_h is not None else region.shape[0]
 
-        if dest_w != region.shape[1] or dest_h != region.shape[0]:
+        if dest_w_int != region.shape[1] or dest_h_int != region.shape[0]:
             rh, rw = region.shape[0], region.shape[1]
-            if dest_w <= 0 or dest_h <= 0:
+            if dest_w_int <= 0 or dest_h_int <= 0:
                 return
-            ys = (np.arange(dest_h) * rh // dest_h).clip(0, rh - 1)
-            xs = (np.arange(dest_w) * rw // dest_w).clip(0, rw - 1)
+            ys = (np.arange(dest_h_int) * rh // dest_h_int).clip(0, rh - 1)
+            xs = (np.arange(dest_w_int) * rw // dest_w_int).clip(0, rw - 1)
             region = region[np.ix_(ys, xs)]
 
-        self._blit_region(region, int(dest_x), int(dest_y), dest_w, dest_h,
+        self._blit_region(region, int(dest_x), int(dest_y),
+                          dest_w_int, dest_h_int,
                           texture.bytes_per_pixel)
 
-    def draw_sprite_screen(self, texture, x: int, y: int,
+    def draw_sprite_screen(self, texture: Any, x: int, y: int,
                            width: Optional[int] = None,
                            height: Optional[int] = None) -> None:
         """Draw a texture at SCREEN-space pixel (x, y)."""

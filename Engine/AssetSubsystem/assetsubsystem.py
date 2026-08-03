@@ -1,25 +1,27 @@
+# assetsubsystem.py
+from typing import Any, Dict, Set, Optional
 from .loader import AssetManager, TextureLoader, SpriteSheetLoader, Context
 
 
 class AssetSubsystem:
     """Global asset management system."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._manager = AssetManager()
         self._manager.register(TextureLoader())
         self._manager.register(SpriteSheetLoader())
-        self._cache = {}
-        self._loading = set()
+        self._cache: Dict[str, Any] = {}
+        self._loading: Set[str] = set()
 
-    def init(self, mlx, mlx_ptr):
+    def init(self, mlx: Any, mlx_ptr: Any) -> None:
         """Call once, right after mlx_init()."""
         Context.bind(mlx, mlx_ptr)
 
-    def register(self, loader):
+    def register(self, loader: Any) -> None:
         """Register a new asset loader."""
         self._manager.register(loader)
 
-    def load(self, path: str):
+    def load(self, path: str) -> Any:
         """Immediately load an asset."""
         if path in self._cache:
             return self._cache[path]
@@ -28,7 +30,7 @@ class AssetSubsystem:
         self._cache[path] = asset
         return asset
 
-    def queue(self, path: str):
+    def queue(self, path: str) -> None:
         """Queue an asset for loading."""
         if path in self._cache:
             return
@@ -37,7 +39,7 @@ class AssetSubsystem:
         self._loading.add(path)
         self._manager.queue(path)
 
-    def update(self):
+    def update(self) -> None:
         """Updates asynchronous loaders."""
         self._manager.update()
         finished = [
@@ -48,7 +50,7 @@ class AssetSubsystem:
             self._cache[path] = self._manager.get(path)
             self._loading.remove(path)
 
-    def get(self, path: str):
+    def get(self, path: str) -> Optional[Any]:
         """Returns the cached asset, or None."""
         return self._cache.get(path)
 

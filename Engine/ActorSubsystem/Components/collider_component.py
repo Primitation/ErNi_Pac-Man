@@ -1,5 +1,10 @@
+from typing import Any, Callable, List, Optional, TYPE_CHECKING
+
 from .component import Component
 from Engine import Collision
+
+if TYPE_CHECKING:
+    from ...CollisionSubsystem.collider import Collider, Rect, Signal
 
 
 class ColliderComponent(Component):
@@ -7,19 +12,19 @@ class ColliderComponent(Component):
 
     def __init__(
         self,
-        get_rect=None,
+        get_rect: Optional[Callable[[], "Rect"]] = None,
         tag: str = "default",
-        collides_with=None,
+        collides_with: Optional[List[str]] = None,
         blocking: bool = False,
         bounce: float = 0.0,
         static: bool = False,
         enabled: bool = True,
         offset_x: float = 0.0,
         offset_y: float = 0.0,
-        width: float = None,
-        height: float = None,
-    ):
-        self._collider = None
+        width: Optional[float] = None,
+        height: Optional[float] = None,
+    ) -> None:
+        self._collider: Optional["Collider"] = None
         self._get_rect_override = get_rect
         self.tag = tag
         self.collides_with = collides_with
@@ -34,7 +39,7 @@ class ColliderComponent(Component):
 
         super().__init__(enabled)
 
-    def on_added(self, actor) -> None:
+    def on_added(self, actor: Any) -> None:
         super().on_added(actor)
 
         self._collider = Collision.register(
@@ -48,7 +53,7 @@ class ColliderComponent(Component):
             enabled=self.enabled,
         )
 
-    def _find_sprite_component(self):
+    def _find_sprite_component(self) -> Optional[Any]:
         """Find the first component that has a get_rect method."""
         if self.actor is None:
             return None
@@ -60,7 +65,7 @@ class ColliderComponent(Component):
                 return component
         return None
 
-    def _default_get_rect(self):
+    def _default_get_rect(self) -> "Rect":
         sprite = self._find_sprite_component()
 
         if sprite is not None:
@@ -96,18 +101,24 @@ class ColliderComponent(Component):
         )
 
     @property
-    def collider(self):
+    def collider(self) -> Optional["Collider"]:
         return self._collider
 
     @property
-    def on_begin_overlap(self):
+    def on_begin_overlap(self) -> "Signal":
+        assert self._collider is not None, \
+            "ColliderComponent has not been added to an actor yet"
         return self._collider.on_begin_overlap
 
     @property
-    def on_end_overlap(self):
+    def on_end_overlap(self) -> "Signal":
+        assert self._collider is not None, \
+            "ColliderComponent has not been added to an actor yet"
         return self._collider.on_end_overlap
 
-    def rect(self):
+    def rect(self) -> "Rect":
+        assert self._collider is not None, \
+            "ColliderComponent has not been added to an actor yet"
         return self._collider.rect()
 
     @property

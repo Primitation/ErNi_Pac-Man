@@ -1,28 +1,32 @@
+# actorsubsystem.py
 import threading
 from functools import wraps
-from typing import TypeVar, Type, Callable
+from typing import TypeVar, Type, Callable, List, Optional, Tuple, Any
 
 from .. import Log
 from .. import Vector2
-from .. import World
+from ..World.world import World
 
 
 class Event:
     """Simple pub/sub event."""
 
-    def __init__(self):
-        self._listeners = []
+    def __init__(self) -> None:
+        self._listeners: List[Callable[..., None]] = []
 
-    def subscribe(self, callback: Callable) -> None:
+    def subscribe(self, callback: Callable[..., None]) -> None:
         self._listeners.append(callback)
 
-    def unsubscribe(self, callback: Callable) -> None:
+    def unsubscribe(self, callback: Callable[..., None]) -> None:
         if callback in self._listeners:
             self._listeners.remove(callback)
 
-    def emit(self, *args, **kwargs) -> None:
+    def emit(self, *args: Any, **kwargs: Any) -> None:
         for callback in list(self._listeners):
             callback(*args, **kwargs)
+
+
+T = TypeVar("T", bound="AActor")
 
 
 class AActor:
@@ -30,42 +34,47 @@ class AActor:
 
     def __init__(
         self,
-        position: Vector2 | None = None,
-        scale: Vector2 | None = None,
+        position: Optional[Vector2] = None,
+        scale: Optional[Vector2] = None,
         static: bool = False,
-    ):
-        self.alive = True
-        self.static = static
+    ) -> None:
+        self.alive: bool = True
+        self.static: bool = static
 
-        self.position = position if position is not None else Vector2.zero()
-        self.scale = scale if scale is not None else Vector2(1, 1)
+        self.position: Vector2 = position \
+            if position is not None else Vector2.zero()
+        self.scale: Vector2 = scale if scale is not None else Vector2(1, 1)
 
-        self.components = []
+        self.components: List[Any] = []
         self.logger = Log.get(self.__class__.__name__)
+
+        self._rotation: float = 0.0
+        self._pivot: Tuple[float, float] = (0.5, 0.5)
 
         Actors.add(self)
 
-    def add_component(self, component):
+    def add_component(self, component: Any) -> Any:
         self.components.append(component)
         component.on_added(self)
         return component
 
-    def remove_component(self, component) -> None:
+    def remove_component(self, component: Any) -> None:
         if component in self.components:
             self.components.remove(component)
         component.destroy()
 
-    def get_component(self, component_type):
+    def get_component(self, component_type: Type[T]) -> Optional[T]:
         for component in self.components:
             if isinstance(component, component_type):
                 return component
         return None
 
-    def get_components(self, component_type):
-        return [
-            component for component in self.components
-            if isinstance(component, component_type)
-        ]
+    def get_components(self, component_type: Type[T]) -> List[T]:
+        result: List[T] = []
+        for component in self.components:
+            if isinstance(component, component_type):
+                result.append(component)
+        return result
 
     @property
     def rotation(self) -> float:
@@ -76,11 +85,11 @@ class AActor:
         self._rotation = float(value)
 
     @property
-    def pivot(self) -> tuple[float, float]:
+    def pivot(self) -> Tuple[float, float]:
         return getattr(self, '_pivot', (0.5, 0.5))
 
     @pivot.setter
-    def pivot(self, value: tuple[float, float]) -> None:
+    def pivot(self, value: Tuple[float, float]) -> None:
         self._pivot = value
 
     def _tick(self, dt: float) -> None:
@@ -99,19 +108,16 @@ class AActor:
         self.alive = False
 
 
-T = TypeVar("T", bound=AActor)
-
-
 class ActorSubsystem:
     """Ticks every registered actor once per frame."""
 
-    def __init__(self):
-        self._actors: list[AActor] = []
+    def __init__(self) -> None:
+        self._actors: List[AActor] = []
         self._lock = threading.Lock()
         self.tick = Event()
-        self.paused = False
-        self.remaining_time = 0.0
-        self.time_stop = False
+        self.paused: bool = False
+        self.remaining_time: float = 0.0
+        self.time_stop: bool = False
         self._logger = Log.get("actors")
 
     def init(self) -> None:
@@ -169,29 +175,37 @@ class ActorSubsystem:
     def close(self) -> None:
         pass
 
-    def spawn(self, actor_class: Type[T], *args, **kwargs) -> T:
+    def spawn(self, actor_class: Type[T], *args: Any, **kwargs: Any) -> T:
         random_spawn = kwargs.pop("random_spawn", False)
         actor = actor_class(*args, **kwargs)
 
         if random_spawn and hasattr(actor, "get_rect"):
-            x, y, width, height = actor.get_rect()
-            existing = [
-                a.get_rect() for a in self._actors
-                if hasattr(a, "get_rect") and a is not actor
-            ]
-            spawn_x, spawn_y = self.find_spawn_position(width, height,
-                                                        existing)
-            actor.position.x = spawn_x
-            actor.position.y = spawn_y
+            rect = actor.get_rect()
+            if isinstance(rect, tuple) and len(rect) == 4:
+                x, y, width, height = rect
+                existing = [
+                    a.get_rect() for a in self._actors
+                    if hasattr(a, "get_rect") and a is not actor
+                ]
+                spawn_x, spawn_y = self.find_spawn_position(width, height,
+                                                            existing)
+                actor.position.x = spawn_x
+                actor.position.y = spawn_y
 
         World.add(actor)
         return actor
 
-    def find_spawn_position(self, width: float, height: float, existing: list,
-                            max_attempts: int = 30) -> tuple[float, float]:
+    def find_spawn_position(
+        self,
+        width: float,
+        height: float,
+        existing: List[Any],
+        max_attempts: int = 30
+    ) -> Tuple[float, float]:
         import random
         from Engine import Renderer
 
+        x, y = 0.0, 0.0
         for _ in range(max_attempts):
             x = random.uniform(0, Renderer.width - width)
             y = random.uniform(0, Renderer.height - height)
@@ -201,39 +215,41 @@ class ActorSubsystem:
         return x, y
 
     @staticmethod
-    def rects_overlap(r1: tuple, r2: tuple) -> bool:
+    def rects_overlap(r1: Tuple[float, float, float, float],
+                      r2: Tuple[float, float, float, float]) -> bool:
         return not (
-            r1[0] + r1[2] <= r2[0] or
-            r2[0] + r2[2] <= r1[0] or
-            r1[1] + r1[3] <= r2[1] or
-            r2[1] + r2[3] <= r1[1]
+            r1[0] + r1[2] <= r2[0]
+            or r2[0] + r2[2] <= r1[0]
+            or r1[1] + r1[3] <= r2[1]
+            or r2[1] + r2[3] <= r1[1]
         )
 
     def set_level_time(self, level_time: float) -> None:
         self.remaining_time = level_time
 
 
-def on_end_of_anim(callback: Callable) -> Callable:
+def on_end_of_anim(callback: Callable[..., None]) -> Callable[..., Any]:
     """Decorator for animation completion callbacks."""
 
-    def decorator(func):
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(self, component, *args, **kwargs):
+        def wrapper(self: Any, component: Any, *args: Any,
+                    **kwargs: Any) -> Any:
             logger = Log.get(self.__class__.__name__)
             original_set_animation = component.set_animation
 
             if hasattr(callback, "__self__"):
                 cb = callback
             else:
-                def cb():
+                def cb() -> None:
                     callback(self)
 
-            def intercepted_set_animation(*args, **kwargs):
+            def intercepted_set_animation(*args: Any, **kwargs: Any) -> Any:
                 logger.debug("Intercepted set_animation "
                              f"for {self.__class__.__name__}")
                 existing = kwargs.get("on_complete")
 
-                def chained_callback():
+                def chained_callback() -> None:
                     logger.info("Animation complete callback "
                                 f"fired on {self.__class__.__name__}")
                     if existing:

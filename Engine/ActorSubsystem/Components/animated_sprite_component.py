@@ -1,3 +1,5 @@
+# animated_sprite_component.py
+from typing import Optional, Callable, Tuple, Any
 from .component import Component
 from ... import Assets, SpriteSheetKey, Animation
 
@@ -10,29 +12,29 @@ class AnimatedSpriteComponent(Component):
         path: str,
         frame_width: int,
         frame_height: int,
-        frame_count: int = None,
-        columns: int = None,
+        frame_count: Optional[int] = None,
+        columns: Optional[int] = None,
         start_frame: int = 0,
         fps: float = 10.0,
         loop: bool = True,
-        on_complete=None,
+        on_complete: Optional[Callable[[], None]] = None,
         enabled: bool = True,
-        local_offset=(0.0, 0.0),
+        local_offset: Tuple[float, float] = (0.0, 0.0),
         offset_rotates: bool = True,
         center: bool = False,
         local_rotation: float = 0.0,
-        scale=(1.0, 1.0),
+        scale: Tuple[float, float] = (1.0, 1.0),
         render_layer: int = 0,
-    ):
+    ) -> None:
         super().__init__(enabled, local_scale=scale, render_layer=render_layer)
 
-        self._key = None
-        self._animation = None
-        self._time = 0.0
-        self._fps = fps
-        self._loop = loop
-        self._on_complete = on_complete
-        self._complete_fired = False
+        self._key: Optional[SpriteSheetKey] = None
+        self._animation: Optional[Animation] = None
+        self._time: float = 0.0
+        self._fps: float = fps
+        self._loop: bool = loop
+        self._on_complete: Optional[Callable[[], None]] = on_complete
+        self._complete_fired: bool = False
         self.local_position = local_offset
         self.offset_rotates = offset_rotates
         self.center = center
@@ -48,12 +50,12 @@ class AnimatedSpriteComponent(Component):
         path: str,
         frame_width: int,
         frame_height: int,
-        frame_count: int = None,
-        columns: int = None,
+        frame_count: Optional[int] = None,
+        columns: Optional[int] = None,
         start_frame: int = 0,
         fps: float = 10.0,
         loop: bool = True,
-        on_complete=None,
+        on_complete: Optional[Callable[[], None]] = None,
     ) -> None:
         """Switch to a different sheet/slicing/clip."""
         self._key = SpriteSheetKey(
@@ -66,7 +68,8 @@ class AnimatedSpriteComponent(Component):
         self._on_complete = on_complete
         self._complete_fired = False
 
-        Assets.queue(self._key)
+        if self._key is not None:
+            Assets.queue(self._key)  # type: ignore[arg-type]
 
     @property
     def fps(self) -> float:
@@ -79,13 +82,15 @@ class AnimatedSpriteComponent(Component):
             self._animation.set_fps(fps)
 
     @property
-    def sprite(self):
-        if self._animation is None:
-            frames = Assets.get(self._key)
+    def sprite(self) -> Optional[Any]:
+        if self._animation is None and self._key is not None:
+            frames = Assets.get(self._key)  # type: ignore[arg-type]
             if frames is None:
                 return None
             self._animation = Animation(frames, fps=self._fps, loop=self._loop)
-        return self._animation.frame_at(self._time)
+        if self._animation is not None:
+            return self._animation.frame_at(self._time)
+        return None
 
     @property
     def width(self) -> int:
@@ -97,7 +102,7 @@ class AnimatedSpriteComponent(Component):
         sprite = self.sprite
         return sprite.height if sprite is not None else 0
 
-    def get_world_position(self) -> tuple[float, float]:
+    def get_world_position(self) -> Tuple[float, float]:
         """Get world position with centering support."""
         x, y = super().get_world_position()
 
@@ -110,7 +115,7 @@ class AnimatedSpriteComponent(Component):
 
         return (x, y)
 
-    def get_rect(self) -> tuple[float, float, float, float]:
+    def get_rect(self) -> Tuple[float, float, float, float]:
         """Rect (x, y, width, height) from the actor's position."""
         world_pos = self.get_world_position()
         world_scale = self.get_world_scale()
@@ -129,5 +134,5 @@ class AnimatedSpriteComponent(Component):
         ):
             self._complete_fired = True
 
-            if self._on_complete:
+            if self._on_complete is not None:
                 self._on_complete()

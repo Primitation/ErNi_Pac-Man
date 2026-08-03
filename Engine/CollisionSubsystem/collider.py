@@ -1,27 +1,29 @@
-from typing import Callable, Any
-
+# collider.py
+from typing import Optional, List, Dict, Callable, Any, Tuple, Set
 from .. import Log
 from .. import Vector2
 
+Rect = Tuple[float, float, float, float]
 
-def rect_collide_rect(rect1: tuple, rect2: tuple) -> bool:
+
+def rect_collide_rect(rect1: Rect, rect2: Rect) -> bool:
     """Check if two rects overlap."""
-    return not (rect1[0] + rect1[2] <= rect2[0] or
-                rect2[0] + rect2[2] <= rect1[0] or
-                rect1[1] + rect1[3] <= rect2[1] or
-                rect2[1] + rect2[3] <= rect1[1])
+    return not (rect1[0] + rect1[2] <= rect2[0]
+                or rect2[0] + rect2[2] <= rect1[0]
+                or rect1[1] + rect1[3] <= rect2[1]
+                or rect2[1] + rect2[3] <= rect1[1])
 
 
-def rect_overlap_amount(rect1: tuple, rect2: tuple) -> tuple[float, float]:
+def rect_overlap_amount(rect1: Rect, rect2: Rect) -> Tuple[float, float]:
     """Return (overlap_x, overlap_y) between two rects."""
-    overlap_x = min(rect1[0] + rect1[2], rect2[0]
-                    + rect2[2]) - max(rect1[0], rect2[0])
-    overlap_y = min(rect1[1] + rect1[3], rect2[1]
-                    + rect2[3]) - max(rect1[1], rect2[1])
+    overlap_x = min(rect1[0] + rect1[2], rect2[0] + rect2[2]) \
+        - max(rect1[0], rect2[0])
+    overlap_y = min(rect1[1] + rect1[3], rect2[1] + rect2[3]) \
+        - max(rect1[1], rect2[1])
     return overlap_x, overlap_y
 
 
-def rect_center(rect: tuple) -> tuple[float, float]:
+def rect_center(rect: Rect) -> Tuple[float, float]:
     """Return center (x, y) of a rect."""
     return (rect[0] + rect[2] / 2, rect[1] + rect[3] / 2)
 
@@ -29,18 +31,18 @@ def rect_center(rect: tuple) -> tuple[float, float]:
 class Signal:
     """Minimal multicast delegate."""
 
-    def __init__(self):
-        self._listeners = []
+    def __init__(self) -> None:
+        self._listeners: List[Callable[..., None]] = []
         self._logger = Log.get("collision")
 
-    def bind(self, callback: Callable) -> None:
+    def bind(self, callback: Callable[..., None]) -> None:
         self._listeners.append(callback)
 
-    def unbind(self, callback: Callable) -> None:
+    def unbind(self, callback: Callable[..., None]) -> None:
         if callback in self._listeners:
             self._listeners.remove(callback)
 
-    def broadcast(self, *args, **kwargs) -> None:
+    def broadcast(self, *args: Any, **kwargs: Any) -> None:
         for callback in list(self._listeners):
             try:
                 callback(*args, **kwargs)
@@ -55,14 +57,14 @@ class Collider:
     def __init__(
         self,
         owner: Any,
-        get_rect: Callable,
+        get_rect: Callable[[], Rect],
         tag: str = "default",
-        collides_with: list[str] | None = None,
+        collides_with: Optional[List[str]] = None,
         blocking: bool = False,
         bounce: float = 0.0,
         static: bool = False,
         enabled: bool = True
-    ):
+    ) -> None:
         self.owner = owner
         self.get_rect = get_rect
         self.tag = tag
@@ -75,19 +77,16 @@ class Collider:
         self.on_begin_overlap = Signal()
         self.on_end_overlap = Signal()
 
-    def rect(self) -> tuple:
+    def rect(self) -> Rect:
         """Returns the rect as (x, y, width, height)."""
-        rect = self.get_rect()
-        if isinstance(rect, (tuple, list)):
-            return rect
-        return (rect.x, rect.y, rect.width, rect.height)
+        return self.get_rect()
 
     def can_collide_with(self, other: "Collider") -> bool:
         if self.collides_with is None:
             return True
         return other.tag in self.collides_with
 
-    def draw_debug(self, renderer, color: int = 0xFFFF0000,
+    def draw_debug(self, renderer: Any, color: int = 0xFFFF0000,
                    thickness: int = 1) -> None:
         if not self.enabled:
             return
@@ -99,14 +98,14 @@ class Collider:
 class SpatialGrid:
     """Uniform spatial hash used as a broad phase."""
 
-    def __init__(self, cell_size: int = 128):
+    def __init__(self, cell_size: int = 128) -> None:
         self.cell_size = cell_size
-        self._cells: dict[tuple[int, int], list] = {}
+        self._cells: Dict[Tuple[int, int], List[Collider]] = {}
 
     def clear(self) -> None:
         self._cells.clear()
 
-    def _cell_range(self, rect: tuple) -> tuple[int, int, int, int]:
+    def _cell_range(self, rect: Rect) -> Tuple[int, int, int, int]:
         x, y, w, h = rect
         cs = self.cell_size
         cx0 = int(x // cs)
@@ -115,14 +114,14 @@ class SpatialGrid:
         cy1 = int((y + h) // cs)
         return cx0, cy0, cx1, cy1
 
-    def insert(self, collider: Collider, rect: tuple) -> None:
+    def insert(self, collider: Collider, rect: Rect) -> None:
         cx0, cy0, cx1, cy1 = self._cell_range(rect)
         for cx in range(cx0, cx1 + 1):
             for cy in range(cy0, cy1 + 1):
                 self._cells.setdefault((cx, cy), []).append(collider)
 
-    def candidate_pairs(self):
-        seen = set()
+    def candidate_pairs(self) -> Any:
+        seen: Set[Tuple[Collider, Collider]] = set()
         for bucket in self._cells.values():
             n = len(bucket)
             if n < 2:
@@ -142,11 +141,11 @@ class CollisionManager:
     """Manages collision detection and resolution."""
 
     def __init__(self, cell_size: int = 128,
-                 max_correction_per_frame: float = 64.0):
-        self._colliders: list[Collider] = []
-        self._active_overlaps: set[tuple[Collider, Collider]] = set()
-        self.width: int | None = None
-        self.height: int | None = None
+                 max_correction_per_frame: float = 64.0) -> None:
+        self._colliders: List[Collider] = []
+        self._active_overlaps: Set[Tuple[Collider, Collider]] = set()
+        self.width: Optional[int] = None
+        self.height: Optional[int] = None
         self.max_correction_per_frame = max_correction_per_frame
         self._grid = SpatialGrid(cell_size)
         self._logger = Log.get("collision")
@@ -156,10 +155,17 @@ class CollisionManager:
         self.width = width
         self.height = height
 
-    def register(self, owner: Any, get_rect: Callable, tag: str = "default",
-                 collides_with: list[str] | None = None,
-                 blocking: bool = False, bounce: float = 0.0,
-                 static: bool = False, enabled: bool = True) -> Collider:
+    def register(
+        self,
+        owner: Any,
+        get_rect: Callable[[], Rect],
+        tag: str = "default",
+        collides_with: Optional[List[str]] = None,
+        blocking: bool = False,
+        bounce: float = 0.0,
+        static: bool = False,
+        enabled: bool = True
+    ) -> Collider:
         collider = Collider(owner, get_rect, tag, collides_with,
                             blocking, bounce, static, enabled)
         self._colliders.append(collider)
@@ -179,19 +185,19 @@ class CollisionManager:
         if len(active) < 1:
             return
 
-        rects = {}
+        rects: Dict[Collider, Rect] = {}
         for c in active:
             try:
                 rects[c] = c.rect()
             except Exception:
-                self._logger.exception(f"rect() failed for {c.owner!r}"
-                                       " skipping")
+                self._logger.exception(f"rect() failed for {c.owner!r} "
+                                       "skipping")
 
         active = [c for c in active if c in rects]
 
         self._resolve_boundaries(active, rects)
 
-        current_overlaps: set[tuple[Collider, Collider]] = set()
+        current_overlaps: Set[Tuple[Collider, Collider]] = set()
 
         if len(active) >= 2:
             self._grid.clear()
@@ -297,7 +303,7 @@ class CollisionManager:
         velocity = getattr(collider.owner, "velocity", None)
         if velocity is None:
             return True
-        return velocity.dot(normal) < 0
+        return bool(velocity.dot(normal) < 0)
 
     @staticmethod
     def _bounce(collider: Collider, normal: Vector2) -> None:
@@ -308,8 +314,11 @@ class CollisionManager:
         if into_surface < 0:
             velocity -= (1 + collider.bounce) * into_surface * normal
 
-    def _resolve_boundaries(self, colliders: list[Collider],
-                            rects: dict | None = None) -> None:
+    def _resolve_boundaries(
+        self,
+        colliders: List[Collider],
+        rects: Optional[Dict[Collider, Rect]] = None
+    ) -> None:
         if self.width is None or self.height is None:
             if not self._warned_no_bounds:
                 self._logger.warning(
@@ -328,7 +337,8 @@ class CollisionManager:
             if not hasattr(owner, "position"):
                 continue
 
-    def draw_debug(self, renderer, color_map: dict | None = None) -> None:
+    def draw_debug(self, renderer: Any,
+                   color_map: Optional[Dict[str, int]] = None) -> None:
         if color_map is None:
             color_map = {
                 "default": 0xFFFF0000,

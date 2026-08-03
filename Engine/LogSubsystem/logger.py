@@ -1,3 +1,4 @@
+# logger.py
 from __future__ import annotations
 
 import queue
@@ -7,6 +8,7 @@ import traceback
 from enum import Enum
 from pathlib import Path
 from dataclasses import dataclass
+from typing import Optional, Dict, Set, Any
 
 
 class LogType(Enum):
@@ -55,7 +57,7 @@ class LogMessage:
 class NamedLogger:
     """Named logger instance."""
 
-    def __init__(self, parent: "Logger", name: str):
+    def __init__(self, parent: Logger, name: str) -> None:
         self.parent = parent
         self.name = name
 
@@ -91,19 +93,19 @@ class Logger:
     def __init__(
         self,
         mode: LogMode = LogMode.DEBUG,
-        file: str | None = "logs/latest.log",
+        file: Optional[str] = "logs/latest.log",
         console: bool = True
-    ):
+    ) -> None:
         self.mode = mode
         self.console = console
 
-        self.loggers: dict[str, NamedLogger] = {}
-        self.queue: queue.Queue[LogMessage | None] = queue.Queue()
+        self.loggers: Dict[str, NamedLogger] = {}
+        self.queue: queue.Queue[Optional[LogMessage]] = queue.Queue()
 
-        self.enabled_categories: set[str] = set()
-        self.disabled_categories: set[str] = set()
+        self.enabled_categories: Set[str] = set()
+        self.disabled_categories: Set[str] = set()
 
-        self.file = None
+        self.file: Optional[Any] = None
         self.file_lock = threading.Lock()
 
         if file:
@@ -169,9 +171,7 @@ class Logger:
             return True
         if self.mode == LogMode.RELEASE:
             return type.value >= LogType.INFO.value
-        if self.mode == LogMode.QUIET:
-            return type.value >= LogType.WARNING.value
-        return True
+        return type.value >= LogType.WARNING.value
 
     def _worker(self) -> None:
         while self.running:

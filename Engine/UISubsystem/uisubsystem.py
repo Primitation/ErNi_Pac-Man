@@ -3,8 +3,11 @@ UI Subsystem v2: a small widget tree (Canvas -> Box(es) -> leaf widgets),
 laid out with a flexbox-lite algorithm and drawn in screen space.
 """
 
-from typing import Callable, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, TYPE_CHECKING, Tuple, Union
 from .. import Log
+
+if TYPE_CHECKING:
+    from ..InputSubsystem.inputsubsystem import InputSubsystem
 
 CHAR_WIDTH = 6
 CHAR_HEIGHT = 10
@@ -13,7 +16,7 @@ CHAR_HEIGHT = 10
 class Widget:
     """Base class for anything placed in the UI tree."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.rect: Tuple[int, int, int, int] = (0, 0, 0, 0)
         self.visible: bool = True
 
@@ -25,7 +28,7 @@ class Widget:
         """Called by the parent with the space it decided to give."""
         self.rect = (x, y, w, h)
 
-    def render(self, renderer) -> None:
+    def render(self, renderer: Any) -> None:
         pass
 
     def collect_focusable(self, out: List["Button"]) -> None:
@@ -163,7 +166,7 @@ class Box(Widget):
 
             cursor += main_size + self.spacing + extra_gap
 
-    def render(self, renderer) -> None:
+    def render(self, renderer: Any) -> None:
         if not self.visible:
             return
         if self.background_color is not None:
@@ -234,7 +237,7 @@ class Text(Widget):
     def measure(self) -> Tuple[int, int]:
         return (len(self.text) * self.char_width, self.char_height)
 
-    def render(self, renderer) -> None:
+    def render(self, renderer: Any) -> None:
         if not self.visible or not self.text:
             return
         x, y, w, h = self.rect
@@ -249,7 +252,7 @@ class BitmapText(Widget):
     def __init__(
         self,
         text: str,
-        font_texture,
+        font_texture: Any,
         char_width: int,
         char_height: int,
         charset: str,
@@ -282,7 +285,7 @@ class BitmapText(Widget):
             return (0, ch)
         return (n * cw + (n - 1) * self.spacing, ch)
 
-    def render(self, renderer) -> None:
+    def render(self, renderer: Any) -> None:
         if not self.visible or not self.text or self.font_texture is None:
             return
         x, y, w, h = self.rect
@@ -312,7 +315,7 @@ class BitmapText(Widget):
 class Image(Widget):
     """Image widget drawn from a texture."""
 
-    def __init__(self, texture, width: Optional[int] = None,
+    def __init__(self, texture: Any, width: Optional[int] = None,
                  height: Optional[int] = None):
         super().__init__()
         self.texture = texture
@@ -324,7 +327,7 @@ class Image(Widget):
         h = self._height if self._height is not None else self.texture.height
         return (w, h)
 
-    def render(self, renderer) -> None:
+    def render(self, renderer: Any) -> None:
         if not self.visible or self.texture is None:
             return
         x, y, w, h = self.rect
@@ -337,7 +340,7 @@ class Button(Widget):
     def __init__(
         self,
         label: str,
-        callback: Optional[Callable] = None,
+        callback: Optional[Callable[[], None]] = None,
         min_width: int = 0,
         min_height: int = 0,
         padding: int = 10,
@@ -346,7 +349,7 @@ class Button(Widget):
         color_focused: int = 0xCC4488FF,
         color_disabled: int = 0x44222222,
         text_color: int = 0x00FFFFFF,
-        font_texture=None,
+        font_texture: Any = None,
         char_width: int = 0,
         char_height: int = 0,
         charset: str = "",
@@ -363,6 +366,7 @@ class Button(Widget):
         self.color_focused = color_focused
         self.color_disabled = color_disabled
 
+        self._text: Union[Text, BitmapText]
         if font_texture is not None:
             self._text = BitmapText(
                 label, font_texture, char_width, char_height,
@@ -392,7 +396,7 @@ class Button(Widget):
         text_x = x + max(self.padding, (w - tw) // 2)
         self._text.arrange(text_x, y, w, h)
 
-    def render(self, renderer) -> None:
+    def render(self, renderer: Any) -> None:
         if not self.visible:
             return
         x, y, w, h = self.rect
@@ -424,7 +428,7 @@ class Canvas:
         self.root: Optional[Widget] = None
         self.visible: bool = True
         self._focused: Optional[Button] = None
-        self._input = None
+        self._input: Optional["InputSubsystem"] = None
 
     def _ensure_input(self) -> None:
         if self._input is None:
@@ -473,6 +477,8 @@ class Canvas:
             return
 
         self._ensure_input()
+        assert self._input is not None
+        input_subsystem = self._input
 
         buttons: List[Button] = []
         self.root.collect_focusable(buttons)
@@ -482,19 +488,19 @@ class Canvas:
 
         if self._focused is not None:
             for direction, vec in self._DIRECTIONS.items():
-                if self._input.is_action_triggered(direction):
+                if input_subsystem.is_action_triggered(direction):
                     neighbor = self._find_neighbor(buttons, self._focused, vec)
                     if neighbor is not None:
                         self._focused = neighbor
                     break
 
-            if self._input.is_action_triggered("confirm"):
+            if input_subsystem.is_action_triggered("confirm"):
                 self._focused.activate()
 
         for b in buttons:
             b.focused = (b is self._focused)
 
-    def render(self, renderer) -> None:
+    def render(self, renderer: Any) -> None:
         if not self.visible or self.root is None:
             return
         self.root.measure()

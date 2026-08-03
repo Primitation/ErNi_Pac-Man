@@ -1,5 +1,7 @@
+# particlessubsystem.py
 import math
 import random
+from typing import Optional, List, Any, Dict, Tuple, Union
 
 from .. import Vector2, Log, log_timing
 from .. import Assets, SpriteSheetKey, Animation
@@ -18,11 +20,23 @@ class Particle:
     )
 
     def __init__(
-        self, position, velocity, color, size, life, gravity, fade,
-        rotation=0.0, angular_velocity=0.0, face_velocity=False,
-        sprite_path=None, scale=1.0,
-        animation_key=None, fps=10.0, loop=True,
-    ):
+        self,
+        position: Vector2,
+        velocity: Vector2,
+        color: int,
+        size: float,
+        life: float,
+        gravity: float,
+        fade: bool,
+        rotation: float = 0.0,
+        angular_velocity: float = 0.0,
+        face_velocity: bool = False,
+        sprite_path: Optional[str] = None,
+        scale: float = 1.0,
+        animation_key: Optional[SpriteSheetKey] = None,
+        fps: float = 10.0,
+        loop: bool = True,
+    ) -> None:
         self.position = position
         self.velocity = velocity
         self.color = color
@@ -40,7 +54,7 @@ class Particle:
         self.scale = scale
 
         self._animation_key = animation_key
-        self._animation = None
+        self._animation: Optional[Animation] = None
         self._animation_time = 0.0
         self._fps = fps
         self._loop = loop
@@ -53,17 +67,19 @@ class Particle:
         return 1.0 - max(0.0, self.life) / self.max_life
 
     @property
-    def sprite(self):
+    def sprite(self) -> Optional[Any]:
         """This particle's current sprite, or None."""
         if self.sprite_path is not None:
             return Assets.get(self.sprite_path)
 
         if self._animation_key is not None:
             if self._animation is None:
-                frames = Assets.get(self._animation_key)
+                frames = \
+                    Assets.get(self._animation_key)  # type: ignore[arg-type]
                 if frames is None:
                     return None
-                self._animation = Animation(frames, fps=self._fps,
+                self._animation = Animation(frames,
+                                            fps=self._fps,
                                             loop=self._loop)
             return self._animation.frame_at(self._animation_time)
 
@@ -73,28 +89,28 @@ class Particle:
 class ParticleSubsystem:
     """One-shot particle bursts for visual feedback."""
 
-    def __init__(self, max_particles: int = 2000):
-        self._particles = []
+    def __init__(self, max_particles: int = 2000) -> None:
+        self._particles: List[Particle] = []
         self.max_particles = max_particles
         self._logger = Log.get("particles")
 
     def emit(
         self,
-        position,
+        position: Vector2,
         count: int = 12,
-        color=0xFFFFFFFF,
-        speed=(50.0, 150.0),
-        size=(2.0, 4.0),
-        life=(0.25, 0.5),
+        color: Union[int, List[int], Tuple[int, ...]] = 0xFFFFFFFF,
+        speed: Tuple[float, float] = (50.0, 150.0),
+        size: Tuple[float, float] = (2.0, 4.0),
+        life: Tuple[float, float] = (0.25, 0.5),
         direction: float = 0.0,
         spread: float = 360.0,
         gravity: float = 0.0,
         fade: bool = True,
-        sprite=None,
-        animation: dict = None,
-        scale=(1.0, 1.0),
-        rotation=(0.0, 0.0),
-        angular_velocity=(0.0, 0.0),
+        sprite: Optional[Union[str, List[str], Tuple[str, ...]]] = None,
+        animation: Optional[Dict[str, Any]] = None,
+        scale: Tuple[float, float] = (1.0, 1.0),
+        rotation: Tuple[float, float] = (0.0, 0.0),
+        angular_velocity: Tuple[float, float] = (0.0, 0.0),
         face_velocity: bool = False,
     ) -> None:
         """Spawn a one-shot burst of particles."""
@@ -104,14 +120,14 @@ class ParticleSubsystem:
         colors = color if isinstance(color, (list, tuple)) else (color,)
         count = min(count, self.max_particles - len(self._particles))
 
-        sprite_paths = None
+        sprite_paths: Optional[Tuple[str, ...]] = None
         if sprite is not None:
-            sprite_paths = sprite if isinstance(sprite,
-                                                (list, tuple)) else (sprite,)
+            sprite_paths = tuple(sprite) \
+                if isinstance(sprite, (list, tuple)) else (sprite,)
             for path in sprite_paths:
                 Assets.queue(path)
 
-        animation_key = None
+        animation_key: Optional[SpriteSheetKey] = None
         anim_fps, anim_loop = 10.0, True
 
         if sprite_paths is None and animation is not None:
@@ -125,7 +141,7 @@ class ParticleSubsystem:
             )
             anim_fps = animation.get("fps", 10.0)
             anim_loop = animation.get("loop", True)
-            Assets.queue(animation_key)
+            Assets.queue(animation_key)  # type: ignore[arg-type]
 
         for _ in range(count):
             spawn_angle = direction + random.uniform(-spread / 2, spread / 2)
@@ -134,8 +150,8 @@ class ParticleSubsystem:
 
             velocity = Vector2(math.cos(angle) * spd, math.sin(angle) * spd)
 
-            start_rotation = spawn_angle if face_velocity \
-                else random.uniform(*rotation)
+            start_rotation = spawn_angle \
+                if face_velocity else random.uniform(*rotation)
 
             self._particles.append(
                 Particle(
@@ -149,8 +165,8 @@ class ParticleSubsystem:
                     rotation=start_rotation,
                     angular_velocity=random.uniform(*angular_velocity),
                     face_velocity=face_velocity,
-                    sprite_path=random.choice(sprite_paths) if sprite_paths
-                    else None,
+                    sprite_path=random.choice(sprite_paths)
+                    if sprite_paths else None,
                     scale=random.uniform(*scale),
                     animation_key=animation_key,
                     fps=anim_fps,
@@ -166,7 +182,7 @@ class ParticleSubsystem:
     def update(self, dt: float) -> None:
         """Call once per frame, dt in ms."""
         seconds = dt / 1000.0
-        alive = []
+        alive: List[Particle] = []
 
         for particle in self._particles:
             particle.life -= seconds
@@ -190,7 +206,7 @@ class ParticleSubsystem:
 
         self._particles = alive
 
-    def render(self, renderer) -> None:
+    def render(self, renderer: Any) -> None:
         """Call once per frame."""
         for particle in self._particles:
             sprite = particle.sprite

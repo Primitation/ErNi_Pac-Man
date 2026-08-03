@@ -1,4 +1,6 @@
-from .collider import CollisionManager, Collider
+# collisionsubsystem.py
+from typing import Any, Optional, List, Dict, Callable
+from .collider import CollisionManager, Collider, Rect
 from .. import log_timing, Log
 
 
@@ -6,7 +8,7 @@ class CollisionSubsystem:
     """Global collision system."""
 
     def __init__(self, cell_size: int = 128,
-                 max_correction_per_frame: float = 64.0):
+                 max_correction_per_frame: float = 64.0) -> None:
         self._manager = CollisionManager(cell_size, max_correction_per_frame)
         self._logger = Log.get("collision")
 
@@ -15,10 +17,10 @@ class CollisionSubsystem:
 
     def register(
         self,
-        owner,
-        get_rect,
+        owner: Any,
+        get_rect: Callable[[], Rect],
         tag: str = "default",
-        collides_with=None,
+        collides_with: Optional[List[str]] = None,
         blocking: bool = False,
         bounce: float = 0.0,
         static: bool = False,
@@ -45,7 +47,8 @@ class CollisionSubsystem:
         """Call once per frame."""
         self._manager.update()
 
-    def draw_debug(self, renderer, color_map=None) -> None:
+    def draw_debug(self, renderer: Any,
+                   color_map: Optional[Dict[str, int]] = None) -> None:
         """Draw all registered colliders for debug visualization."""
         self._manager.draw_debug(renderer, color_map)
 

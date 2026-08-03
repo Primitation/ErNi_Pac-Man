@@ -1,6 +1,11 @@
+# quaternion.py
 import math
+from typing import Any, Union, TYPE_CHECKING, overload
 
 from .vector3 import Vector3
+
+if TYPE_CHECKING:
+    from .euler import Euler
 
 
 class Quaternion:
@@ -8,8 +13,8 @@ class Quaternion:
 
     __slots__ = ("w", "x", "y", "z")
 
-    def __init__(self, w: float = 1.0, x: float = 0.0, y: float = 0.0,
-                 z: float = 0.0):
+    def __init__(self, w: float = 1.0, x: float = 0.0,
+                 y: float = 0.0, z: float = 0.0) -> None:
         self.w = w
         self.x = x
         self.y = y
@@ -18,7 +23,7 @@ class Quaternion:
     def __repr__(self) -> str:
         return f"Quaternion({self.w}, {self.x}, {self.y}, {self.z})"
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, Quaternion)
             and self.w == other.w
@@ -27,7 +32,15 @@ class Quaternion:
             and self.z == other.z
         )
 
-    def __mul__(self, other):
+    @overload
+    def __mul__(self, other: "Quaternion") -> "Quaternion":
+        ...
+
+    @overload
+    def __mul__(self, other: Vector3) -> Vector3:
+        ...
+
+    def __mul__(self, other: Any) -> Union["Quaternion", Vector3]:
         """Quaternion * Quaternion = combined rotation."""
         if isinstance(other, Quaternion):
             return Quaternion(
@@ -69,7 +82,7 @@ class Quaternion:
             self.y / length, self.z / length,
         )
 
-    def to_euler(self):
+    def to_euler(self) -> "Euler":
         """Returns an Euler in radians."""
         from .euler import Euler
 

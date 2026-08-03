@@ -1,4 +1,6 @@
+# vector3.py
 import math
+from typing import Iterator, Tuple
 
 
 class Vector3:
@@ -6,7 +8,7 @@ class Vector3:
 
     __slots__ = ("x", "y", "z")
 
-    def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
+    def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0) -> None:
         self.x = x
         self.y = y
         self.z = z
@@ -14,7 +16,7 @@ class Vector3:
     def __repr__(self) -> str:
         return f"Vector3({self.x}, {self.y}, {self.z})"
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, Vector3)
             and self.x == other.x
@@ -22,7 +24,7 @@ class Vector3:
             and self.z == other.z
         )
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[float]:
         yield self.x
         yield self.y
         yield self.z
@@ -66,7 +68,7 @@ class Vector3:
             return Vector3(0, 0, 0)
         return Vector3(self.x / length, self.y / length, self.z / length)
 
-    def to_tuple(self) -> tuple[float, float, float]:
+    def to_tuple(self) -> Tuple[float, float, float]:
         return (self.x, self.y, self.z)
 
     @classmethod

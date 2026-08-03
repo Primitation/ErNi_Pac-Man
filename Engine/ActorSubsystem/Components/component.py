@@ -1,5 +1,7 @@
+# component.py
 from abc import ABC
 import math
+from typing import Optional, Tuple, Union, Any
 
 from ... import Vector2
 
@@ -10,19 +12,20 @@ class Component(ABC):
     def __init__(
         self,
         enabled: bool = True,
-        local_scale=Vector2(1.0, 1.0),
+        local_scale: Union[Vector2, Tuple[float, float]] = Vector2(1.0, 1.0),
         render_layer: int = 0
-    ):
-        self.actor = None
+    ) -> None:
+        self.actor: Optional[Any] = None
         self.enabled = enabled
         self.alive = True
-        self.local_position = Vector2(0.0, 0.0)
+        self.local_position: Union[Vector2, Tuple[float, float]] = \
+            Vector2(0.0, 0.0)
         self.local_rotation = 0.0
         self.offset_rotates = True
         self.local_scale = local_scale
         self.render_layer = render_layer
 
-    def on_added(self, actor) -> None:
+    def on_added(self, actor: Any) -> None:
         """Called once by AActor.add_component()."""
         self.actor = actor
 
@@ -34,7 +37,7 @@ class Component(ABC):
         """Override to release anything external."""
         self.alive = False
 
-    def get_world_position(self) -> tuple[float, float]:
+    def get_world_position(self) -> Tuple[float, float]:
         """Get the world position of this component."""
         if self.actor is None:
             return (0.0, 0.0)
@@ -43,10 +46,10 @@ class Component(ABC):
         pos_y = self.actor.position.y
 
         offset = self.local_position
-        offset_x, offset_y = (
-            (offset.x, offset.y) if hasattr(offset, "x") else (offset[0],
-                                                               offset[1])
-        )
+        if isinstance(offset, Vector2):
+            offset_x, offset_y = offset.x, offset.y
+        else:
+            offset_x, offset_y = offset[0], offset[1]
 
         if offset_x != 0.0 or offset_y != 0.0:
             if self.offset_rotates:
@@ -68,9 +71,10 @@ class Component(ABC):
     def get_world_scale(self) -> Vector2:
         """World-space scale = local_scale * actor.scale."""
         scale = self.local_scale
-        scale_x, scale_y = (
-            (scale.x, scale.y) if hasattr(scale, "x") else (scale[0], scale[1])
-        )
+        if isinstance(scale, Vector2):
+            scale_x, scale_y = scale.x, scale.y
+        else:
+            scale_x, scale_y = scale[0], scale[1]
 
         actor_scale = getattr(self.actor, "scale", None) if self.actor \
             is not None else None

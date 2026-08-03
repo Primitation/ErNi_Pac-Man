@@ -1,6 +1,5 @@
-# inputsubsystem.py (continued from where it left off)
 from enum import Enum, auto
-from typing import Dict, Set, Optional, Callable, List, Tuple
+from typing import Dict, Set, Optional, Callable, List, Tuple, Any
 from dataclasses import dataclass
 import queue
 import threading
@@ -94,10 +93,10 @@ class InputSubsystem:
 
     KEY_NAMES = {v: k for k, v in KEYS.items()}
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._logger = Log.get("input")
         self._initialized = False
-        self._mlx_callbacks = {}
+        self._mlx_callbacks: Dict[str, Callable[..., None]] = {}
 
         self.key_states: Dict[int, KeyState] = {}
         self.active_keys: Set[int] = set()
@@ -121,13 +120,22 @@ class InputSubsystem:
         self.action_mappings: Dict[str, List[int]] = {}
         self.combo_actions: Set[str] = set()
 
-        self.key_press_callbacks: Dict[int, List[Callable]] = {}
-        self.key_release_callbacks: Dict[int, List[Callable]] = {}
-        self.mouse_callbacks: Dict[MouseButton, List[Callable]] = {}
-        self.action_callbacks: Dict[str, List[Callable]] = {}
-        self.any_key_callbacks: List[Callable] = []
-        self.any_mouse_callbacks: List[Callable] = []
-        self.close_callbacks: List[Callable] = []
+        self.key_press_callbacks: Dict[
+            int, List[Callable[[KeyState, int], None]]
+        ] = {}
+
+        self.key_release_callbacks: Dict[
+            int, List[Callable[[KeyState, int], None]]
+        ] = {}
+
+        self.mouse_callbacks: Dict[
+            MouseButton, List[Callable[[KeyState, int, int], None]]
+        ] = {}
+        self.action_callbacks: Dict[str, List[Callable[[], None]]] = {}
+        self.any_key_callbacks: List[Callable[[KeyState, int], None]] = []
+        self.any_mouse_callbacks: List[Callable[[MouseButton, KeyState, int,
+                                                 int], None]] = []
+        self.close_callbacks: List[Callable[[], None]] = []
 
         self.input_buffer: List[InputEvent] = []
         self.buffer_size: int = 100
@@ -135,8 +143,14 @@ class InputSubsystem:
 
         self._frame_count = 0
         self._debug_print_keys = False
-        self._event_queue = queue.SimpleQueue()
+        self._event_queue: queue.SimpleQueue[Tuple[Any, ...]] \
+            = queue.SimpleQueue()
         self._state_lock = threading.Lock()
+
+        self._renderer: Optional[Any] = None
+        self.mlx: Optional[Any] = None
+        self.mlx_ptr: Optional[Any] = None
+        self.win_ptr: Optional[Any] = None
 
     def init(self) -> None:
         from .. import Renderer
@@ -149,20 +163,22 @@ class InputSubsystem:
         self.mlx_ptr = Renderer.mlx_ptr
         self.win_ptr = Renderer.win_ptr
 
-        self.mlx.mlx_do_key_autorepeatoff(self.mlx_ptr)
+        if self.mlx is not None and self.mlx_ptr is not None:
+            self.mlx.mlx_do_key_autorepeatoff(self.mlx_ptr)
 
         self._setup_input()
         self._register_mlx_hooks()
 
         self._initialized = True
         self._logger.info("Input subsystem initialized")
-        self._renderer.on_resize(self.resize)
+        if self._renderer is not None:
+            self._renderer.on_resize(self.resize)
 
-    def resize(self, win_ptr, width: int, height: int) -> None:
+    def resize(self, win_ptr: Any, width: int, height: int) -> None:
         self.win_ptr = win_ptr
         self._register_mlx_hooks()
-        self._logger.info("Input hooks rebound "
-                          f"to new window ({width}x{height})")
+        self._logger.info("Input hooks rebound to "
+                          f"new window ({width}x{height})")
 
     def start_input_thread(self) -> None:
         pass
@@ -171,13 +187,17 @@ class InputSubsystem:
         pass
 
     def close(self) -> None:
-        if self._initialized and self.mlx_ptr is not None:
+        if self._initialized and self.mlx is not None \
+                and self.mlx_ptr is not None:
             self.mlx.mlx_do_key_autorepeaton(self.mlx_ptr)
 
     def _register_mlx_hooks(self) -> None:
+        if self.mlx is None or self.win_ptr is None:
+            return
+
         self._mlx_callbacks = {}
 
-        def on_key_press(keycode, param):
+        def on_key_press(keycode: int, param: Any) -> None:
             self._event_queue.put(("key_press", keycode))
 
         self._mlx_callbacks["key_press"] = on_key_press
@@ -189,7 +209,7 @@ class InputSubsystem:
             self
         )
 
-        def on_key_release(keycode, param):
+        def on_key_release(keycode: int, param: Any) -> None:
             self._event_queue.put(("key_release", keycode))
 
         self._mlx_callbacks["key_release"] = on_key_release
@@ -199,7 +219,7 @@ class InputSubsystem:
             self
         )
 
-        def on_mouse_press(button, x, y, param):
+        def on_mouse_press(button: int, x: int, y: int, param: Any) -> None:
             self._event_queue.put(("mouse_press", button, x, y))
 
         self._mlx_callbacks["mouse_press"] = on_mouse_press
@@ -209,7 +229,7 @@ class InputSubsystem:
             self
         )
 
-        def on_mouse_release(button, x, y, param):
+        def on_mouse_release(button: int, x: int, y: int, param: Any) -> None:
             self._event_queue.put(("mouse_release", button, x, y))
 
         self._mlx_callbacks["mouse_release"] = on_mouse_release
@@ -221,7 +241,7 @@ class InputSubsystem:
             self
         )
 
-        def on_mouse_motion(x, y, param):
+        def on_mouse_motion(x: int, y: int, param: Any) -> None:
             self._event_queue.put(("motion", x, y))
 
         self._mlx_callbacks["mouse_motion"] = on_mouse_motion
@@ -233,7 +253,7 @@ class InputSubsystem:
             self
         )
 
-        def on_destroy(param):
+        def on_destroy(param: Any) -> None:
             for callback in self.close_callbacks:
                 callback()
 
@@ -269,10 +289,10 @@ class InputSubsystem:
         self.on_close(Renderer.close_request)
         self._logger.debug("Default input bindings set up")
 
-    def _handle_key_press(self, keycode: int, param) -> None:
+    def _handle_key_press(self, keycode: int, param: Any) -> None:
         self._set_key_state(keycode, True)
 
-    def _handle_key_release(self, keycode: int, param) -> None:
+    def _handle_key_release(self, keycode: int, param: Any) -> None:
         self._set_key_state(keycode, False)
 
     def _set_key_state(self, keycode: int, pressed: bool) -> None:
@@ -297,7 +317,7 @@ class InputSubsystem:
                         callback(KeyState.PRESSED, keycode)
 
                 for callback in self.any_key_callbacks:
-                    callback(keycode, KeyState.PRESSED)
+                    callback(KeyState.PRESSED, keycode)
             else:
                 if keycode in self.key_states:
                     self.key_states[keycode] = KeyState.RELEASED
@@ -311,9 +331,10 @@ class InputSubsystem:
                             callback(KeyState.RELEASED, keycode)
 
                     for callback in self.any_key_callbacks:
-                        callback(keycode, KeyState.RELEASED)
+                        callback(KeyState.RELEASED, keycode)
 
-    def _handle_mouse_press(self, button: int, x: int, y: int, param) -> None:
+    def _handle_mouse_press(self, button: int, x: int, y: int,
+                            param: Any) -> None:
         self.mouse_position = (x, y)
 
         if button == 4:
@@ -334,11 +355,11 @@ class InputSubsystem:
             for callback in self.mouse_callbacks[mouse_button]:
                 callback(KeyState.PRESSED, x, y)
 
-        for callback in self.any_mouse_callbacks:
-            callback(mouse_button, KeyState.PRESSED, x, y)
+        for any_callback in self.any_mouse_callbacks:
+            any_callback(mouse_button, KeyState.PRESSED, x, y)
 
-    def _handle_mouse_release(self, button: int, x: int,
-                              y: int, param) -> None:
+    def _handle_mouse_release(self, button: int, x: int, y: int,
+                              param: Any) -> None:
         self.mouse_position = (x, y)
 
         try:
@@ -352,10 +373,10 @@ class InputSubsystem:
             for callback in self.mouse_callbacks[mouse_button]:
                 callback(KeyState.RELEASED, x, y)
 
-        for callback in self.any_mouse_callbacks:
-            callback(mouse_button, KeyState.RELEASED, x, y)
+        for any_callback in self.any_mouse_callbacks:
+            any_callback(mouse_button, KeyState.RELEASED, x, y)
 
-    def _handle_motion(self, x: int, y: int, param) -> None:
+    def _handle_motion(self, x: int, y: int, param: Any) -> None:
         self.mouse_position = (x, y)
 
     def update(self) -> None:
@@ -444,8 +465,8 @@ class InputSubsystem:
     def bind_action_combo(self, action_name: str, combo: List[int]) -> None:
         self.action_mappings[action_name] = combo
         self.combo_actions.add(action_name)
-        self._logger.debug(f"Bound combo action '{action_name}'"
-                           f" to keys: {combo}")
+        self._logger.debug(f"Bound combo action '{action_name}' "
+                           f"to keys: {combo}")
 
     def is_action_triggered(self, action_name: str) -> bool:
         if action_name not in self.action_mappings:
@@ -479,14 +500,14 @@ class InputSubsystem:
         return any(self.is_key_released(key) for key in keys)
 
     def register_action_callback(self, action_name: str,
-                                 callback: Callable) -> None:
+                                 callback: Callable[[], None]) -> None:
         if action_name not in self.action_callbacks:
             self.action_callbacks[action_name] = []
         self.action_callbacks[action_name].append(callback)
         self._logger.debug(f"Registered callback for action '{action_name}'")
 
     def remove_action_callback(self, action_name: str,
-                               callback: Callable) -> None:
+                               callback: Callable[[], None]) -> None:
         if action_name not in self.action_callbacks:
             return
         self.action_callbacks[action_name].remove(callback)
@@ -498,28 +519,34 @@ class InputSubsystem:
                 for callback in self.action_callbacks[action_name]:
                     callback()
 
-    def on_key_press(self, key: int, callback: Callable) -> None:
-        if key not in self.key_press_callbacks:
-            self.key_press_callbacks[key] = []
-        self.key_press_callbacks[key].append(callback)
+    def on_key_press(self, keycode: int, param: Any) -> None:
+        self._event_queue.put(("key_press", keycode))
 
-    def on_key_release(self, key: int, callback: Callable) -> None:
-        if key not in self.key_release_callbacks:
-            self.key_release_callbacks[key] = []
-        self.key_release_callbacks[key].append(callback)
+    def on_key_release(self, keycode: int, param: Any) -> None:
+        self._event_queue.put(("key_release", keycode))
 
-    def on_any_key(self, callback: Callable) -> None:
+    def on_any_key(
+        self,
+        callback: Callable[[KeyState, int], None]
+    ) -> None:
         self.any_key_callbacks.append(callback)
 
-    def on_mouse_click(self, button: MouseButton, callback: Callable) -> None:
+    def on_mouse_click(
+        self,
+        button: MouseButton,
+        callback: Callable[[KeyState, int, int], None]
+    ) -> None:
         if button not in self.mouse_callbacks:
             self.mouse_callbacks[button] = []
         self.mouse_callbacks[button].append(callback)
 
-    def on_any_mouse(self, callback: Callable) -> None:
+    def on_any_mouse(
+        self,
+        callback: Callable[[MouseButton, KeyState, int, int], None]
+    ) -> None:
         self.any_mouse_callbacks.append(callback)
 
-    def on_close(self, callback: Callable) -> None:
+    def on_close(self, callback: Callable[[], None]) -> None:
         self.close_callbacks.append(callback)
 
     def start_recording(self) -> None:
@@ -529,12 +556,12 @@ class InputSubsystem:
 
     def stop_recording(self) -> List[InputEvent]:
         self.recording = False
-        self._logger.info(f"Stopped input recording: {len(self.input_buffer)}"
-                          " events")
+        self._logger.info("Stopped input recording: "
+                          f"{len(self.input_buffer)} events")
         return self.input_buffer.copy()
 
     def play_recorded_input(self, events: List[InputEvent],
-                            callback: Callable) -> None:
+                            callback: Callable[[InputEvent], None]) -> None:
         for event in events:
             callback(event)
 
