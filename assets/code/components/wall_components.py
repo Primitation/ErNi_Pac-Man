@@ -1,4 +1,3 @@
-# wall_components.py
 from Engine import AnimatedSpriteComponent, Vector2
 
 

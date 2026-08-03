@@ -1,17 +1,15 @@
-"""Main menu screen — example usage of the UI subsystem (Canvas/Box/Button/Text).
-
-Mirrors the shape of LevelInstance: builds a widget tree once, then runs its
-own mlx loop via Renderer.hook_loop() until a button sets a result and closes
-the window. Shows:
-  - VBox/HBox nesting
-  - Button navigation (up/down/left/right/confirm — already bound by Input)
-  - Swapping the Canvas's root to move between a menu screen and a
-    sub-screen (Options) without needing a second Canvas
-  - Keeping the canvas full-screen across a window resize
-"""
+"""Main menu screen."""
 
 from Engine import Assets, Input, Log, Renderer
-from Engine.UISubsystem.uisubsystem import BitmapText, Canvas, VBox, HBox, Text, Button, Spacer
+from Engine.UISubsystem.uisubsystem import (
+    BitmapText,
+    Canvas,
+    VBox,
+    HBox,
+    Text,
+    Button,
+    Spacer
+)
 from assets.code.ui.font_config import (
     ARCADE_FONT_PATH as BUTTON_FONT_PATH,
     ARCADE_FONT_CHARSET as BUTTON_FONT_CHARSET,
@@ -24,16 +22,15 @@ from assets.code.ui.screen_transition import PacmanTransition as Transition
 
 
 class MainMenu:
-    """Call .show() to run the menu loop. Returns "play", "quit", or None
-    (window closed some other way) once the loop exits."""
+    """Call .show() to run the menu loop."""
 
     def __init__(self, scores: Scores):
         self._logger = Log.get("menu")
-        self._result = None
+        self._result: str | None = None
         self._font_texture = Assets.load(BUTTON_FONT_PATH)
 
         self._fade_in = Transition(650)
-        self._fade_out = None  # created on demand, see _close()
+        self._fade_out: Transition | None = None
 
         self._scores = scores
         self.SHOW_MAX_SCORES = 10
@@ -47,25 +44,37 @@ class MainMenu:
 
         Renderer.on_resize(self._on_resize)
 
-    # ----- screens -----
-
-    def _button(self, label: str, callback, min_width=220, min_height=48, font_scale=10) -> Button:
-        """Menu buttons all use the same sprite-sheet font — small
-        helper so each Button() call below doesn't repeat the font_*
-        arguments."""
+    def _button(
+        self,
+        label: str,
+        callback,
+        min_width: int = 220,
+        min_height: int = 48,
+        font_scale: int = 10
+    ) -> Button:
         return Button(
-            label, callback=callback, min_width=min_width, min_height=min_height,
+            label,
+            callback=callback,
+            min_width=min_width,
+            min_height=min_height,
             font_texture=self._font_texture,
-            char_width=BUTTON_FONT_CHAR_WIDTH, char_height=BUTTON_FONT_CHAR_HEIGHT,
-            charset=BUTTON_FONT_CHARSET, columns=BUTTON_FONT_COLUMNS,
-            font_scale=font_scale, color_normal=0xFF000000, color_focused=0xFFFFFF00
+            char_width=BUTTON_FONT_CHAR_WIDTH,
+            char_height=BUTTON_FONT_CHAR_HEIGHT,
+            charset=BUTTON_FONT_CHARSET,
+            columns=BUTTON_FONT_COLUMNS,
+            font_scale=font_scale,
+            color_normal=0xFF000000,
+            color_focused=0xFFFFFF00
         )
 
     def _label(self, text: str, text_scale: float = 2.0) -> BitmapText:
         return BitmapText(
-            text, self._font_texture,
-            char_width=BUTTON_FONT_CHAR_WIDTH, char_height=BUTTON_FONT_CHAR_HEIGHT,
-            charset=BUTTON_FONT_CHARSET, columns=BUTTON_FONT_COLUMNS,
+            text,
+            self._font_texture,
+            char_width=BUTTON_FONT_CHAR_WIDTH,
+            char_height=BUTTON_FONT_CHAR_HEIGHT,
+            charset=BUTTON_FONT_CHARSET,
+            columns=BUTTON_FONT_COLUMNS,
             scale=text_scale,
         )
 
@@ -82,7 +91,8 @@ class MainMenu:
         buttons.add(self._button("PLAY", self._on_play), align="center")
         buttons.add(self._button("OPTIONS", self._on_options), align="center")
         buttons.add(self._button("SCORES", self._on_scores), align="center")
-        buttons.add(self._button("INSTRUCTIONS", self._on_instructions), align="center")
+        buttons.add(self._button("INSTRUCTIONS", self._on_instructions),
+                    align="center")
         buttons.add(self._button("QUIT", self._on_quit), align="center")
         root.add(buttons, align="center")
 
@@ -90,36 +100,50 @@ class MainMenu:
 
     def _build_options_root(self) -> VBox:
         root = VBox(spacing=20, justify="center")
-        root.add(Text("OPTIONS", color=0x00FFEE55, char_width=10, char_height=18), align="center")
+        root.add(
+            Text("OPTIONS", color=0x00FFEE55, char_width=10, char_height=18),
+            align="center"
+        )
         root.add(Spacer(height=10))
 
-        self._music_label = Text(f"Music: {self.music_volume}%", color=0x00FFFFFF)
+        self._music_label = Text(f"Music: {self.music_volume}%",
+                                 color=0x00FFFFFF)
         music_row = HBox(spacing=10, justify="center")
-        music_row.add(Button("-", callback=self._on_music_down, min_width=40, min_height=40))
+        music_row.add(Button("-", callback=self._on_music_down, min_width=40,
+                             min_height=40))
         music_row.add(self._music_label, align="center")
-        music_row.add(Button("+", callback=self._on_music_up, min_width=40, min_height=40))
+        music_row.add(Button("+", callback=self._on_music_up, min_width=40,
+                             min_height=40))
         root.add(music_row, align="center")
 
         self._sfx_label = Text(f"SFX:   {self.sfx_volume}%", color=0x00FFFFFF)
         sfx_row = HBox(spacing=10, justify="center")
-        sfx_row.add(Button("-", callback=self._on_sfx_down, min_width=40, min_height=40))
+        sfx_row.add(Button("-", callback=self._on_sfx_down, min_width=40,
+                           min_height=40))
         sfx_row.add(self._sfx_label, align="center")
-        sfx_row.add(Button("+", callback=self._on_sfx_up, min_width=40, min_height=40))
+        sfx_row.add(Button("+", callback=self._on_sfx_up, min_width=40,
+                           min_height=40))
         root.add(sfx_row, align="center")
 
         root.add(Spacer(height=10))
-        root.add(Button("Back", callback=self._on_back, min_width=140, min_height=42), align="center")
+        root.add(Button("Back", callback=self._on_back, min_width=140,
+                        min_height=42), align="center")
 
         return root
 
     def _build_scores_root(self) -> VBox:
         root = VBox(spacing=20, justify="center", background_color=0xFF000000)
         root.add(self._label("SCORES", text_scale=10.0), align="center")
-        text_scale = 7.0  # TODO: better size ?
+        text_scale = 7.0
         for rank, player_score in enumerate(
                 self._scores.get_top_scores(self.SHOW_MAX_SCORES)):
-            root.add(self._label(f"{rank + 1} {player_score[0]} - {player_score[1]}",
-                                 text_scale=text_scale), align="center")
+            root.add(
+                self._label(
+                    f"{rank + 1} {player_score[0]} - {player_score[1]}",
+                    text_scale=text_scale
+                ),
+                align="center"
+            )
             text_scale = max(4.0, text_scale - 1)
         root.add(Spacer(height=10))
 
@@ -155,62 +179,52 @@ class MainMenu:
         root.add(self._button("BACK", callback=self._on_back), align="center")
         return root
 
-    # ----- volume state (kept simple: plain ints on the instance) -----
-
     music_volume = 80
     sfx_volume = 80
 
-    def _on_music_down(self):
+    def _on_music_down(self) -> None:
         self.music_volume = max(0, self.music_volume - 10)
         self._music_label.text = f"Music: {self.music_volume}%"
 
-    def _on_music_up(self):
+    def _on_music_up(self) -> None:
         self.music_volume = min(100, self.music_volume + 10)
         self._music_label.text = f"Music: {self.music_volume}%"
 
-    def _on_sfx_down(self):
+    def _on_sfx_down(self) -> None:
         self.sfx_volume = max(0, self.sfx_volume - 10)
         self._sfx_label.text = f"SFX:   {self.sfx_volume}%"
 
-    def _on_sfx_up(self):
+    def _on_sfx_up(self) -> None:
         self.sfx_volume = min(100, self.sfx_volume + 10)
         self._sfx_label.text = f"SFX:   {self.sfx_volume}%"
 
-    # ----- navigation between screens -----
-
-    def _on_options(self):
+    def _on_options(self) -> None:
         self.canvas.set_root(self._options_root)
 
-    def _on_scores(self):
+    def _on_scores(self) -> None:
         self.canvas.set_root(self._scores_root)
 
-    def _on_instructions(self):
+    def _on_instructions(self) -> None:
         self.canvas.set_root(self._instructions_root)
 
-    def _on_back(self):
+    def _on_back(self) -> None:
         self.canvas.set_root(self._menu_root)
 
-    def _on_play(self):
+    def _on_play(self) -> None:
         self._close("play")
 
-    def _on_quit(self):
+    def _on_quit(self) -> None:
         self._close("quit")
 
-    def _close(self, result: str):
-        """Start the fade-out instead of closing immediately — the
-        frame loop below calls Renderer.close_request() once it
-        finishes."""
+    def _close(self, result: str) -> None:
         self._result = result
         self._fade_out = Transition(650)
 
-    def _on_resize(self, win_ptr, width, height):
+    def _on_resize(self, win_ptr, width: int, height: int) -> None:
         self.canvas.set_rect(0, 0, width, height)
 
-    # ----- loop -----
-
     def show(self) -> str:
-        """Runs its own mlx loop until Play/Quit is chosen. Blocks until
-        Renderer.close_request() fires (same pattern LevelInstance uses)."""
+        """Runs its own mlx loop until Play/Quit is chosen."""
 
         def frame(_param):
             Assets.update()
@@ -235,13 +249,10 @@ class MainMenu:
 
             Renderer.render_present()
 
-            # LAST — see the input-subsystem frame-order note: everything
-            # above needs PRESSED/RELEASED still intact, so update() has
-            # to run after all of it, not before.
             Input.update()
 
         Renderer.hook_loop(frame)
         self._logger.info("Entering menu loop.")
         Renderer.loop()
 
-        return self._result
+        return self._result or "quit"

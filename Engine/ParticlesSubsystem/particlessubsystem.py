@@ -6,17 +6,7 @@ from .. import Assets, SpriteSheetKey, Animation
 
 
 class Particle:
-    """Plain data — no Component/Actor machinery. A burst can be
-    dozens of these at once and they only live a fraction of a
-    second, so keeping them cheap matters more than giving them the
-    full actor lifecycle.
-
-    Draws as a flat-colored square by default. Optionally carries a
-    static sprite (sprite_path) or a sprite-sheet animation
-    (_animation_key) instead — see ParticleSubsystem.emit()'s
-    sprite=/animation= params. `sprite` (the property below) is what
-    ParticleSubsystem.render() actually checks each frame; it's None
-    for flat-color particles."""
+    """Plain data — no Component/Actor machinery."""
 
     __slots__ = (
         "position", "velocity", "color", "size",
@@ -56,22 +46,15 @@ class Particle:
         self._loop = loop
 
     @property
-    def t(self):
-        """0.0 at spawn, 1.0 the instant it dies — drives the fade
-        curve in ParticleSubsystem.render()."""
+    def t(self) -> float:
+        """0.0 at spawn, 1.0 the instant it dies."""
         if self.max_life <= 0:
             return 1.0
         return 1.0 - max(0.0, self.life) / self.max_life
 
     @property
     def sprite(self):
-        """This particle's current sprite, or None to fall back to a
-        flat-colored square. A static sprite_path takes priority;
-        otherwise resolves the shared Animation for _animation_key —
-        same caching model as AnimatedSpriteComponent, frames sliced
-        once per unique key and shared across every particle (and
-        every actor) using that sheet."""
-
+        """This particle's current sprite, or None."""
         if self.sprite_path is not None:
             return Assets.get(self.sprite_path)
 
@@ -80,31 +63,15 @@ class Particle:
                 frames = Assets.get(self._animation_key)
                 if frames is None:
                     return None
-                self._animation = Animation(frames, fps=self._fps, loop=self._loop)
+                self._animation = Animation(frames, fps=self._fps,
+                                            loop=self._loop)
             return self._animation.frame_at(self._animation_time)
 
         return None
 
 
 class ParticleSubsystem:
-    """One-shot particle bursts for visual feedback — impacts,
-    deaths, pickups, whatever needs a bit of juice. Not tied to
-    Actors/Components at all: emit() fires a burst of plain
-    position/velocity/color/lifetime particles that this subsystem
-    itself ticks and draws.
-
-    By default particles draw as flat-colored squares
-    (Renderer.draw_rect) — cheap, no asset needed. Pass sprite= or
-    animation= to emit() to draw real (optionally animated) sprites
-    instead, using the normal alpha-blended Renderer.draw_sprite
-    path and AssetSubsystem's usual caching.
-
-    Call update(dt) once per frame (same dt-in-ms convention as
-    ActorSubsystem/CollisionSubsystem) and render(Renderer) once per
-    frame — after render_draw(world) and before render_present(), so
-    particles land in the same frame instead of one that's already
-    been presented (see RendererSubsystem.render_draw/render_present).
-    """
+    """One-shot particle bursts for visual feedback."""
 
     def __init__(self, max_particles: int = 2000):
         self._particles = []
@@ -129,70 +96,8 @@ class ParticleSubsystem:
         rotation=(0.0, 0.0),
         angular_velocity=(0.0, 0.0),
         face_velocity: bool = False,
-    ):
-        """Spawn a one-shot burst of `count` particles at `position`
-        (a Vector2 — copied per-particle, not shared/mutated).
-
-        speed / size / life: (min, max) ranges. Each particle rolls
-        its own value uniformly inside that range so a burst doesn't
-        look perfectly uniform. `size` only matters for flat-color
-        particles (see sprite/animation below) — sprite particles use
-        their sprite's own native size instead.
-
-        direction: center angle in degrees the burst is aimed along
-        (0 = +x/right, 90 = +y/down — same convention as
-        AActor.rotation). spread: total cone width in degrees around
-        direction — 360 (default) scatters evenly in every direction;
-        a small spread gives a directional spray, e.g. sparks off a
-        wall bounce.
-
-        color: a single 0xAARRGGBB int, or a list/tuple of them to
-        pick from randomly per particle. Ignored (except as the fade
-        source, see below) for sprite/animation particles — the
-        sprite's own pixels draw as-is, there's no tint/multiply.
-
-        gravity: units/sec^2 added to vertical velocity every frame —
-        0 for particles that just drift on their initial velocity,
-        positive to have them arc/fall.
-
-        fade: if True, alpha ramps from the color's own alpha down to
-        0 over the particle's lifetime. For flat-color particles this
-        blends smoothly; for sprite/animation particles there's no
-        partial-alpha draw_sprite path, so a faded sprite particle
-        just disappears (skips drawing) once its rolled alpha would
-        be ~0 rather than really fading out pixel-by-pixel.
-
-        sprite: a static image path (or list of paths to pick from
-        randomly per particle) to draw each particle as, instead of a
-        flat-colored square. Takes priority over `animation` if both
-        are given.
-
-        animation: dict describing a sprite-sheet clip to play per
-        particle — {"path", "frame_width", "frame_height",
-        "frame_count", "columns", "start_frame", "fps", "loop"}.
-        Frames are sliced once per unique combo and shared across
-        every particle (and actor) using it, same caching model as
-        AnimatedSpriteComponent. Each particle plays independently
-        from frame 0.
-
-        scale: (min, max) uniform scale factor applied to the
-        sprite's/animation's native size. Ignored for flat-color
-        particles (which use `size` instead).
-
-        rotation: (min, max) degrees — fixed starting rotation,
-        rolled once per particle. Ignored if face_velocity=True.
-
-        angular_velocity: (min, max) degrees/sec — constant spin,
-        applied every frame on top of rotation (still applies even
-        with face_velocity=True, e.g. a spark that both flies forward
-        and tumbles).
-
-        face_velocity: if True, rotation instead continuously tracks
-        the particle's current velocity direction — good for
-        streaks/sparks that should visually point where they're
-        flying, rather than holding a fixed rotation.
-        """
-
+    ) -> None:
+        """Spawn a one-shot burst of particles."""
         if len(self._particles) >= self.max_particles:
             return
 
@@ -201,7 +106,8 @@ class ParticleSubsystem:
 
         sprite_paths = None
         if sprite is not None:
-            sprite_paths = sprite if isinstance(sprite, (list, tuple)) else (sprite,)
+            sprite_paths = sprite if isinstance(sprite,
+                                                (list, tuple)) else (sprite,)
             for path in sprite_paths:
                 Assets.queue(path)
 
@@ -228,7 +134,8 @@ class ParticleSubsystem:
 
             velocity = Vector2(math.cos(angle) * spd, math.sin(angle) * spd)
 
-            start_rotation = spawn_angle if face_velocity else random.uniform(*rotation)
+            start_rotation = spawn_angle if face_velocity \
+                else random.uniform(*rotation)
 
             self._particles.append(
                 Particle(
@@ -242,7 +149,8 @@ class ParticleSubsystem:
                     rotation=start_rotation,
                     angular_velocity=random.uniform(*angular_velocity),
                     face_velocity=face_velocity,
-                    sprite_path=random.choice(sprite_paths) if sprite_paths else None,
+                    sprite_path=random.choice(sprite_paths) if sprite_paths
+                    else None,
                     scale=random.uniform(*scale),
                     animation_key=animation_key,
                     fps=anim_fps,
@@ -250,16 +158,13 @@ class ParticleSubsystem:
                 )
             )
 
-    def clear(self):
-        """Kill every live particle immediately (e.g. on level
-        reset)."""
+    def clear(self) -> None:
+        """Kill every live particle immediately."""
         self._particles.clear()
 
     @log_timing()
-    def update(self, dt):
-        """Call once per frame, dt in ms — same convention as
-        ActorSubsystem.update(dt)."""
-
+    def update(self, dt: float) -> None:
+        """Call once per frame, dt in ms."""
         seconds = dt / 1000.0
         alive = []
 
@@ -281,17 +186,12 @@ class ParticleSubsystem:
                 )
 
             particle.rotation += particle.angular_velocity * seconds
-
             alive.append(particle)
 
         self._particles = alive
 
-    def render(self, renderer):
-        """Call once per frame — draws every live particle, fading
-        alpha out over its lifetime when fade=True. Call this after
-        renderer.render_draw(world) and before renderer.render_present()
-        so particles land in the same presented frame."""
-
+    def render(self, renderer) -> None:
+        """Call once per frame."""
         for particle in self._particles:
             sprite = particle.sprite
 
@@ -302,9 +202,6 @@ class ParticleSubsystem:
                         if isinstance(particle.color, int) else 255
                     )
                     if base_alpha * (1.0 - particle.t) < 1:
-                        # Faded below ~invisible — skip the draw
-                        # entirely (draw_sprite has no partial-alpha
-                        # tint of its own to fade smoothly with).
                         continue
 
                 width = sprite.width * particle.scale
@@ -341,9 +238,8 @@ class ParticleSubsystem:
             )
 
     @property
-    def count(self):
+    def count(self) -> int:
         return len(self._particles)
 
 
-# Global particle system
 Particles = ParticleSubsystem()

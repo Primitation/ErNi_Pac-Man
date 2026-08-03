@@ -9,10 +9,6 @@ from pathlib import Path
 from dataclasses import dataclass
 
 
-# =========================
-# Enums
-# =========================
-
 class LogType(Enum):
     DEBUG = 0
     INFO = 1
@@ -23,18 +19,13 @@ class LogType(Enum):
 
 
 class LogMode(Enum):
-    DEBUG = 0       # Everything
-    RELEASE = 1     # INFO+
-    QUIET = 2       # WARNING+
+    DEBUG = 0
+    RELEASE = 1
+    QUIET = 2
 
-
-# =========================
-# Colors
-# =========================
 
 class Color:
     RESET = "\033[0m"
-
     GREY = "\033[90m"
     GREEN = "\033[92m"
     YELLOW = "\033[93m"
@@ -53,10 +44,6 @@ COLORS = {
 }
 
 
-# =========================
-# Internal message
-# =========================
-
 @dataclass
 class LogMessage:
     logger: str
@@ -65,62 +52,32 @@ class LogMessage:
     time: datetime.datetime
 
 
-# =========================
-# Child Logger
-# =========================
-
 class NamedLogger:
-    def __init__(
-        self,
-        parent: "Logger",
-        name: str
-    ):
+    """Named logger instance."""
+
+    def __init__(self, parent: "Logger", name: str):
         self.parent = parent
         self.name = name
 
-    def debug(self, message: str):
-        self.parent._push(
-            self.name,
-            LogType.DEBUG,
-            message
-        )
+    def debug(self, message: str) -> None:
+        self.parent._push(self.name, LogType.DEBUG, message)
 
-    def info(self, message: str):
-        self.parent._push(
-            self.name,
-            LogType.INFO,
-            message
-        )
+    def info(self, message: str) -> None:
+        self.parent._push(self.name, LogType.INFO, message)
 
-    def success(self, message: str):
-        self.parent._push(
-            self.name,
-            LogType.SUCCESS,
-            message
-        )
+    def success(self, message: str) -> None:
+        self.parent._push(self.name, LogType.SUCCESS, message)
 
-    def warning(self, message: str):
-        self.parent._push(
-            self.name,
-            LogType.WARNING,
-            message
-        )
+    def warning(self, message: str) -> None:
+        self.parent._push(self.name, LogType.WARNING, message)
 
-    def error(self, message: str):
-        self.parent._push(
-            self.name,
-            LogType.ERROR,
-            message
-        )
+    def error(self, message: str) -> None:
+        self.parent._push(self.name, LogType.ERROR, message)
 
-    def fatal(self, message: str):
-        self.parent._push(
-            self.name,
-            LogType.FATAL,
-            message
-        )
+    def fatal(self, message: str) -> None:
+        self.parent._push(self.name, LogType.FATAL, message)
 
-    def exception(self, message: str):
+    def exception(self, message: str) -> None:
         self.parent._push(
             self.name,
             LogType.ERROR,
@@ -128,11 +85,8 @@ class NamedLogger:
         )
 
 
-# =========================
-# Main Logger
-# =========================
-
 class Logger:
+    """Main logging system."""
 
     def __init__(
         self,
@@ -140,12 +94,10 @@ class Logger:
         file: str | None = "logs/latest.log",
         console: bool = True
     ):
-
         self.mode = mode
         self.console = console
 
         self.loggers: dict[str, NamedLogger] = {}
-
         self.queue: queue.Queue[LogMessage | None] = queue.Queue()
 
         self.enabled_categories: set[str] = set()
@@ -156,86 +108,31 @@ class Logger:
 
         if file:
             path = Path(file)
-            path.parent.mkdir(
-                parents=True,
-                exist_ok=True
-            )
-
-            self.file = open(
-                path,
-                "w",
-                encoding="utf-8"
-            )
+            path.parent.mkdir(parents=True, exist_ok=True)
+            self.file = open(path, "w", encoding="utf-8")
 
         self.running = True
-
-        self.thread = threading.Thread(
-            target=self._worker,
-            daemon=True
-        )
-
+        self.thread = threading.Thread(target=self._worker, daemon=True)
         self.thread.start()
 
-    # -------------------------
-    # Get child logger
-    # -------------------------
-
     def get(self, name: str) -> NamedLogger:
-
         if name not in self.loggers:
-            self.loggers[name] = NamedLogger(
-                self,
-                name
-            )
-
+            self.loggers[name] = NamedLogger(self, name)
         return self.loggers[name]
 
-    # -------------------------
-    # Mode control
-    # -------------------------
-
-    def set_mode(
-        self,
-        mode: LogMode
-    ):
-
+    def set_mode(self, mode: LogMode) -> None:
         self.mode = mode
 
-    # -------------------------
-    # Console output control
-    # -------------------------
-
-    def enable_console(self):
-        """Start printing log output to the console."""
-
+    def enable_console(self) -> None:
         self.console = True
 
-    def disable_console(self):
-        """Stop printing log output to the console."""
-
+    def disable_console(self) -> None:
         self.console = False
 
-    # -------------------------
-    # File output control
-    # -------------------------
-
-    def enable_file(
-        self,
-        file: str = "logs/latest.log"
-    ):
-        """Start (or redirect) writing log output to a file."""
-
+    def enable_file(self, file: str = "logs/latest.log") -> None:
         path = Path(file)
-        path.parent.mkdir(
-            parents=True,
-            exist_ok=True
-        )
-
-        new_file = open(
-            path,
-            "w",
-            encoding="utf-8"
-        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        new_file = open(path, "w", encoding="utf-8")
 
         with self.file_lock:
             old_file = self.file
@@ -244,9 +141,7 @@ class Logger:
         if old_file:
             old_file.close()
 
-    def disable_file(self):
-        """Stop writing log output to a file."""
-
+    def disable_file(self) -> None:
         with self.file_lock:
             old_file = self.file
             self.file = None
@@ -254,20 +149,9 @@ class Logger:
         if old_file:
             old_file.close()
 
-    # -------------------------
-    # Add message
-    # -------------------------
-
-    def _push(
-        self,
-        logger: str,
-        type: LogType,
-        message: str
-    ):
-
+    def _push(self, logger: str, type: LogType, message: str) -> None:
         if logger in self.disabled_categories:
             return
-
         if not self._allowed(type):
             return
 
@@ -280,34 +164,17 @@ class Logger:
             )
         )
 
-    # -------------------------
-    # Level filtering
-    # -------------------------
-
-    def _allowed(
-        self,
-        type: LogType
-    ):
-
+    def _allowed(self, type: LogType) -> bool:
         if self.mode == LogMode.DEBUG:
             return True
-
         if self.mode == LogMode.RELEASE:
             return type.value >= LogType.INFO.value
-
         if self.mode == LogMode.QUIET:
             return type.value >= LogType.WARNING.value
-
         return True
 
-    # -------------------------
-    # Background thread
-    # -------------------------
-
-    def _worker(self):
-
+    def _worker(self) -> None:
         while self.running:
-
             item = self.queue.get()
 
             if item is None:
@@ -316,52 +183,21 @@ class Logger:
             text = self._format(item)
 
             if self.console:
-                print(
-                    COLORS[item.type]
-                    + text
-                    + Color.RESET
-                )
+                print(COLORS[item.type] + text + Color.RESET)
 
             if self.file:
-
                 with self.file_lock:
                     if self.file:
-                        self.file.write(
-                            text + "\n"
-                        )
-
+                        self.file.write(text + "\n")
                         self.file.flush()
 
-    # -------------------------
-    # Formatting
-    # -------------------------
+    def _format(self, msg: LogMessage) -> str:
+        time = msg.time.strftime("%H:%M:%S")
+        return f"[{time}] [{msg.type.name: ^9}] [{msg.logger}] {msg.message}"
 
-    def _format(
-        self,
-        msg: LogMessage
-    ):
-
-        time = msg.time.strftime(
-            "%H:%M:%S"
-        )
-
-        return (
-            f"[{time}] "
-            f"[{msg.type.name: ^9}] "
-            f"[{msg.logger}] "
-            f"{msg.message}"
-        )
-
-    # -------------------------
-    # Shutdown
-    # -------------------------
-
-    def close(self):
-
+    def close(self) -> None:
         self.running = False
-
         self.queue.put(None)
-
         self.thread.join()
 
         if self.file:

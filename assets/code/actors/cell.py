@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from Engine import AActor, Vector2
-from ..components.wall_components import (  # type: ignore
+from ..components.wall_components import (
     Wall_Component,
     Corner_Component,
     Inner_Corner_Component,

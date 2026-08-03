@@ -122,7 +122,7 @@ class GameInstance:
         while True:
             result = MainMenu(self._scores).show()
             self.log.info(f"Menu closed with result: {result}")
- 
+
             if result == "play":
                 normal_end = self.page_current_normal_levels()
                 if normal_end:

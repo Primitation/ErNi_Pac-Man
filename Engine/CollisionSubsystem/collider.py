@@ -1,96 +1,72 @@
-import itertools
+from typing import Callable, Any
 
 from .. import Log
 from .. import Vector2
 
 
-def rect_collide_rect(rect1, rect2):
-    """Check if two rects (x, y, w, h) overlap."""
+def rect_collide_rect(rect1: tuple, rect2: tuple) -> bool:
+    """Check if two rects overlap."""
     return not (rect1[0] + rect1[2] <= rect2[0] or
                 rect2[0] + rect2[2] <= rect1[0] or
                 rect1[1] + rect1[3] <= rect2[1] or
                 rect2[1] + rect2[3] <= rect1[1])
 
 
-def rect_overlap_amount(rect1, rect2):
+def rect_overlap_amount(rect1: tuple, rect2: tuple) -> tuple[float, float]:
     """Return (overlap_x, overlap_y) between two rects."""
-    overlap_x = min(rect1[0] + rect1[2], rect2[0] + rect2[2]) - max(rect1[0], rect2[0])
-    overlap_y = min(rect1[1] + rect1[3], rect2[1] + rect2[3]) - max(rect1[1], rect2[1])
+    overlap_x = min(rect1[0] + rect1[2], rect2[0]
+                    + rect2[2]) - max(rect1[0], rect2[0])
+    overlap_y = min(rect1[1] + rect1[3], rect2[1]
+                    + rect2[3]) - max(rect1[1], rect2[1])
     return overlap_x, overlap_y
 
 
-def rect_center(rect):
+def rect_center(rect: tuple) -> tuple[float, float]:
     """Return center (x, y) of a rect."""
     return (rect[0] + rect[2] / 2, rect[1] + rect[3] / 2)
 
 
 class Signal:
-    """Minimal multicast delegate — the same idea as Unreal's
-    dynamic multicast delegates (OnComponentBeginOverlap, etc).
-    Bind any number of callables, broadcast() calls them all. A
-    handler that raises is logged and skipped, it won't stop the
-    other handlers from running."""
+    """Minimal multicast delegate."""
 
     def __init__(self):
-
         self._listeners = []
         self._logger = Log.get("collision")
 
-    def bind(self, callback):
-
+    def bind(self, callback: Callable) -> None:
         self._listeners.append(callback)
 
-    def unbind(self, callback):
-
+    def unbind(self, callback: Callable) -> None:
         if callback in self._listeners:
             self._listeners.remove(callback)
 
-    def broadcast(self, *args, **kwargs):
-
+    def broadcast(self, *args, **kwargs) -> None:
         for callback in list(self._listeners):
-
             try:
                 callback(*args, **kwargs)
             except Exception:
-                self._logger.exception(
-                    f"Collision event handler {callback!r} raised"
-                )
+                self._logger.exception(f"Collision event handler {callback!r} "
+                                       "raised")
 
 
 class Collider:
-    """A collidable region tied to an owner. get_rect is a callable
-    returning the current rect as (x, y, width, height) — pass e.g.
-    a lambda that returns a tuple, so the collider always reflects
-    the sprite's live position/size with no manual syncing.
-
-    blocking: if True on BOTH colliders in a pair, overlap gets
-    physically resolved each frame (pushed apart + bounced) instead
-    of just firing overlap events. Needs owner.position (and
-    owner.velocity, for bounce) to exist — a plain Vector2
-    attribute, same as Player already has.
-
-    bounce: restitution, 0..1. 0 = velocity into the surface is
-    absorbed (stops dead on that axis), 1 = fully elastic bounce.
-
-    static: this collider never moves when resolving a block, even
-    if it has a position (e.g. walls, floors)."""
+    """A collidable region tied to an owner."""
 
     def __init__(
         self,
-        owner,
-        get_rect,
-        tag="default",
-        collides_with=None,
-        blocking=False,
-        bounce=0.0,
-        static=False,
-        enabled=True
+        owner: Any,
+        get_rect: Callable,
+        tag: str = "default",
+        collides_with: list[str] | None = None,
+        blocking: bool = False,
+        bounce: float = 0.0,
+        static: bool = False,
+        enabled: bool = True
     ):
-
         self.owner = owner
         self.get_rect = get_rect
         self.tag = tag
-        self.collides_with = collides_with  # None = collides with any tag
+        self.collides_with = collides_with
         self.blocking = blocking
         self.bounce = bounce
         self.static = static
@@ -99,52 +75,38 @@ class Collider:
         self.on_begin_overlap = Signal()
         self.on_end_overlap = Signal()
 
-    def rect(self):
+    def rect(self) -> tuple:
         """Returns the rect as (x, y, width, height)."""
         rect = self.get_rect()
-        # If it's already a tuple/list, return it
         if isinstance(rect, (tuple, list)):
             return rect
-        # If it's some other object with x, y, width, height attributes
         return (rect.x, rect.y, rect.width, rect.height)
 
-    def can_collide_with(self, other):
-
+    def can_collide_with(self, other: "Collider") -> bool:
         if self.collides_with is None:
             return True
-
         return other.tag in self.collides_with
 
-    def draw_debug(self, renderer, color: int = 0xFFFF0000, thickness: int = 1):
-        """Draw this collider's rect for debug visualization."""
+    def draw_debug(self, renderer, color: int = 0xFFFF0000,
+                   thickness: int = 1) -> None:
         if not self.enabled:
             return
         rect = self.rect()
-        # Draw a filled semi-transparent version for better visibility
-        # renderer.draw_rect(rect[0], rect[1], rect[2], rect[3], 0x22FF0000)  # Semi-transparent fill
-        renderer.draw_rect_outline(rect[0], rect[1], rect[2], rect[3], color, thickness)
+        renderer.draw_rect_outline(rect[0], rect[1], rect[2], rect[3],
+                                   color, thickness)
+
 
 class SpatialGrid:
-    """Uniform spatial hash used as a broad phase. Colliders are
-    bucketed by the cell(s) their rect touches; only colliders
-    sharing a cell are ever checked against each other in the
-    narrow phase. This turns the naive O(n^2) all-pairs check into
-    roughly O(n) for scenes where actors aren't all crammed on top
-    of each other.
+    """Uniform spatial hash used as a broad phase."""
 
-    cell_size should be in the same ballpark as your typical actor
-    size — too small and actors span many cells (more insert work),
-    too large and cells degrade back toward the whole world being
-    one bucket (more candidate pairs)."""
-
-    def __init__(self, cell_size=128):
+    def __init__(self, cell_size: int = 128):
         self.cell_size = cell_size
-        self._cells = {}
+        self._cells: dict[tuple[int, int], list] = {}
 
-    def clear(self):
+    def clear(self) -> None:
         self._cells.clear()
 
-    def _cell_range(self, rect):
+    def _cell_range(self, rect: tuple) -> tuple[int, int, int, int]:
         x, y, w, h = rect
         cs = self.cell_size
         cx0 = int(x // cs)
@@ -153,16 +115,13 @@ class SpatialGrid:
         cy1 = int((y + h) // cs)
         return cx0, cy0, cx1, cy1
 
-    def insert(self, collider, rect):
+    def insert(self, collider: Collider, rect: tuple) -> None:
         cx0, cy0, cx1, cy1 = self._cell_range(rect)
         for cx in range(cx0, cx1 + 1):
             for cy in range(cy0, cy1 + 1):
                 self._cells.setdefault((cx, cy), []).append(collider)
 
     def candidate_pairs(self):
-        """Yields each unique pair of colliders that share at least
-        one cell. A pair spanning multiple shared cells is only
-        yielded once."""
         seen = set()
         for bucket in self._cells.values():
             n = len(bucket)
@@ -180,98 +139,61 @@ class SpatialGrid:
 
 
 class CollisionManager:
+    """Manages collision detection and resolution."""
 
-    def __init__(self, cell_size=128, max_correction_per_frame=64.0):
-
-        self._colliders = []
-        self._active_overlaps = set()  # set of (collider, collider) pairs
-
-        self.width = None
-        self.height = None
-
+    def __init__(self, cell_size: int = 128,
+                 max_correction_per_frame: float = 64.0):
+        self._colliders: list[Collider] = []
+        self._active_overlaps: set[tuple[Collider, Collider]] = set()
+        self.width: int | None = None
+        self.height: int | None = None
         self.max_correction_per_frame = max_correction_per_frame
-
         self._grid = SpatialGrid(cell_size)
-
         self._logger = Log.get("collision")
         self._warned_no_bounds = False
 
-    def init(self, width, height):
-        """Call once at startup so boundary resolution has a world
-        size to clamp against. Without this, boundary resolution is
-        skipped entirely (colliders simply won't be clamped to any
-        edge)."""
-
+    def init(self, width: int, height: int) -> None:
         self.width = width
         self.height = height
 
-    def register(
-        self,
-        owner,
-        get_rect,
-        tag="default",
-        collides_with=None,
-        blocking=False,
-        bounce=0.0,
-        static=False,
-        enabled=True
-    ) -> Collider:
-
-        collider = Collider(
-            owner,
-            get_rect,
-            tag,
-            collides_with,
-            blocking,
-            bounce,
-            static,
-            enabled
-        )
-
+    def register(self, owner: Any, get_rect: Callable, tag: str = "default",
+                 collides_with: list[str] | None = None,
+                 blocking: bool = False, bounce: float = 0.0,
+                 static: bool = False, enabled: bool = True) -> Collider:
+        collider = Collider(owner, get_rect, tag, collides_with,
+                            blocking, bounce, static, enabled)
         self._colliders.append(collider)
-
         return collider
 
-    def unregister(self, collider):
-
+    def unregister(self, collider: Collider) -> None:
         if collider in self._colliders:
             self._colliders.remove(collider)
-
         self._active_overlaps = {
             pair for pair in self._active_overlaps
             if collider not in pair
         }
 
-    def update(self):
-        """Call once per frame."""
-
+    def update(self) -> None:
         active = [c for c in self._colliders if c.enabled]
 
         if len(active) < 1:
             return
 
-        # Snapshot rects once up front (needed for the initial boundary
-        # pass and to seed the spatial grid). If a collider's rect()
-        # raises, log it once and drop it for this frame instead of
-        # letting it blow up every pair it would have participated in.
         rects = {}
         for c in active:
             try:
                 rects[c] = c.rect()
             except Exception:
-                self._logger.exception(
-                    f"rect() failed for {c.owner!r}, skipping this frame"
-                )
+                self._logger.exception(f"rect() failed for {c.owner!r}"
+                                       " skipping")
 
         active = [c for c in active if c in rects]
 
         self._resolve_boundaries(active, rects)
 
-        current_overlaps = set()
+        current_overlaps: set[tuple[Collider, Collider]] = set()
 
         if len(active) >= 2:
-            # Refresh rects after boundary resolution may have moved things,
-            # then build the broad-phase grid from the current positions.
             self._grid.clear()
             for c in active:
                 rect = c.rect()
@@ -281,22 +203,16 @@ class CollisionManager:
             for a, b in self._grid.candidate_pairs():
                 if not (a.enabled and b.enabled):
                     continue
-
                 if not (a.can_collide_with(b) and b.can_collide_with(a)):
                     continue
 
                 try:
-                    # Live calls here (not the cached snapshot) so that
-                    # resolving one pair earlier in this loop is reflected
-                    # when checking later pairs in the same frame — same
-                    # behavior as the original all-pairs version.
                     rect_a = a.rect()
                     rect_b = b.rect()
                     overlapping = rect_collide_rect(rect_a, rect_b)
                 except Exception:
-                    self._logger.exception(
-                        f"Collision check failed between {a.owner!r} and {b.owner!r}"
-                    )
+                    self._logger.exception("Collision check failed between "
+                                           f"{a.owner!r} and {b.owner!r}")
                     continue
 
                 if not overlapping:
@@ -308,7 +224,6 @@ class CollisionManager:
                 if a.blocking and b.blocking:
                     self._resolve_block(a, b)
 
-        # Resolve boundaries again after object-object collisions
         self._resolve_boundaries(active)
 
         began = current_overlaps - self._active_overlaps
@@ -324,21 +239,13 @@ class CollisionManager:
 
         self._active_overlaps = current_overlaps
 
-    def _resolve_block(self, a, b):
-        """Push a pair of blocking colliders apart along whichever
-        axis (x or y) has the least overlap, then bounce each
-        side's velocity off that axis. A collider only moves/bounces
-        if it isn't static and its owner has a .position (and, for
-        bounce, a .velocity) attribute."""
-
+    def _resolve_block(self, a: Collider, b: Collider) -> None:
         try:
             rect_a = a.rect()
             rect_b = b.rect()
         except Exception:
-            self._logger.exception(
-                f"Collision resolve failed between "
-                f"{a.owner!r} and {b.owner!r}"
-            )
+            self._logger.exception(f"Collision resolve failed between "
+                                   f"{a.owner!r} and {b.owner!r}")
             return
 
         overlap_x, overlap_y = rect_overlap_amount(rect_a, rect_b)
@@ -353,19 +260,8 @@ class CollisionManager:
         dy = center_a[1] - center_b[1]
 
         if dx == 0 and dy == 0:
-            # Perfectly coincident centers — e.g. two actors spawned on
-            # the exact same position. There's no meaningful direction
-            # to separate along, so break the tie deterministically
-            # (based on identity, so it's stable frame to frame) rather
-            # than always picking the same axis for every coincident pair.
             dx = 1.0 if (id(a) ^ id(b)) & 1 else -1.0
 
-        # normal points AWAY from b, toward a — i.e. the direction `a`
-        # needs to move to separate from `b`. Using > here (not <) is
-        # the fix: the previous version pointed the normal toward the
-        # other object instead of away from it, which pushed already-
-        # overlapping actors deeper into each other instead of apart —
-        # most visible when actors spawn stacked on the same position.
         if overlap_x < overlap_y:
             normal = Vector2(1, 0) if dx > 0 else Vector2(-1, 0)
             penetration = overlap_x
@@ -374,10 +270,6 @@ class CollisionManager:
             penetration = overlap_y
 
         if self.max_correction_per_frame is not None:
-            # Cap how much overlap gets resolved in a single frame. A
-            # large initial overlap (actors spawned on top of each
-            # other) then bleeds off over a few frames instead of
-            # snapping them apart in one violent jump.
             penetration = min(penetration, self.max_correction_per_frame)
 
         a_movable = not a.static and hasattr(a.owner, "position")
@@ -400,54 +292,29 @@ class CollisionManager:
             b.owner.position -= normal * penetration * b_share
             self._bounce(b, -normal)
 
-    def _should_resolve(self, collider, normal):
-        """
-        Returns True only if the collider is moving into the surface.
-
-        normal points away from the collider it hit.
-        """
-
+    @staticmethod
+    def _should_resolve(collider: Collider, normal: Vector2) -> bool:
         velocity = getattr(collider.owner, "velocity", None)
-
         if velocity is None:
             return True
+        return velocity.dot(normal) < 0
 
-        # Moving away from the surface
-        if velocity.dot(normal) >= 0:
-            return False
-
-        return True
-
-    def _bounce(self, collider, normal):
-        """Reflect the owner's velocity off `normal` (which points
-        away from the other collider), scaled by this collider's
-        bounce. Only the velocity component heading into the
-        surface is affected."""
-
+    @staticmethod
+    def _bounce(collider: Collider, normal: Vector2) -> None:
         velocity = getattr(collider.owner, "velocity", None)
-
         if velocity is None:
             return
-
         into_surface = velocity.dot(normal)
-
         if into_surface < 0:
             velocity -= (1 + collider.bounce) * into_surface * normal
 
-    def _resolve_boundaries(self, colliders, rects=None):
-        """Resolve colliders against screen boundaries.
-
-        Skips: disabled colliders, static colliders (walls/floors
-        should never get clamped/moved), and colliders whose owner
-        has no .position. Does nothing at all if init(width, height)
-        was never called — better than silently clamping everything
-        to a 0x0 world.
-        """
-
+    def _resolve_boundaries(self, colliders: list[Collider],
+                            rects: dict | None = None) -> None:
         if self.width is None or self.height is None:
             if not self._warned_no_bounds:
                 self._logger.warning(
-                    "CollisionManager.update() called before init(width, height) — "
+                    "CollisionManager.update() "
+                    "called before init(width, height) — "
                     "boundary resolution is disabled until init() is called."
                 )
                 self._warned_no_bounds = True
@@ -461,28 +328,15 @@ class CollisionManager:
             if not hasattr(owner, "position"):
                 continue
 
-            rect = rects[collider] if rects is not None and collider in rects else collider.rect()
-            position = owner.position
-            velocity = getattr(owner, "velocity", None)
-
-    def draw_debug(self, renderer, color_map=None):
-        """
-        Draw all registered collider rectangles for debug visualization.
-
-        Uses the exact rectangle returned by Collider.rect(),
-        which is the same rectangle used for collision detection.
-
-        color_map: dict mapping tag -> color (0xAARRGGBB format).
-        """
-
+    def draw_debug(self, renderer, color_map: dict | None = None) -> None:
         if color_map is None:
             color_map = {
-                "default": 0xFFFF0000,  # Red
-                "player": 0xFF00FF00,   # Green
-                "wall": 0xFFFF8800,     # Orange
-                "floor": 0xFF8888FF,    # Light Blue
-                "trigger": 0xFF00FFFF,  # Cyan
-                "enemy": 0xFFFF00FF,    # Magenta
+                "default": 0xFFFF0000,
+                "player": 0xFF00FF00,
+                "wall": 0xFFFF8800,
+                "floor": 0xFF8888FF,
+                "trigger": 0xFF00FFFF,
+                "enemy": 0xFFFF00FF,
             }
 
         for collider in self._colliders:
@@ -490,18 +344,10 @@ class CollisionManager:
                 continue
 
             rect = collider.rect()
-
             color = color_map.get(collider.tag, 0xFFFFFF00)
 
-            # Non-blocking colliders are displayed transparent
             if not collider.blocking:
                 color &= 0x88FFFFFF
 
-            renderer.draw_rect_outline(
-                rect[0],
-                rect[1],
-                rect[2],
-                rect[3],
-                color,
-                thickness=1
-            )
+            renderer.draw_rect_outline(rect[0], rect[1], rect[2], rect[3],
+                                       color, thickness=1)

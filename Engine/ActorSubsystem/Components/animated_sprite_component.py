@@ -3,24 +3,7 @@ from ... import Assets, SpriteSheetKey, Animation
 
 
 class AnimatedSpriteComponent(Component):
-    """Sprite-sheet animation — walking, spawning, dying, whatever.
-
-    Frames are sliced once per unique (path, frame_width,
-    frame_height, frame_count, columns, start_frame) combo and
-    shared across every actor using the same sheet + slicing, same
-    caching model as SpriteComponent.
-
-    start_frame lets several animations (e.g. walk vs. death) or
-    several characters (e.g. each ghost color) share one sheet —
-    it's the row-major index of the first frame to slice, so a death
-    animation starting right after 4 walk frames would use
-    start_frame=4.
-
-    loop=False plays through once and holds on the last frame — use
-    on_complete for a one-shot spawn/death animation to fire a
-    callback (e.g. switch to a walk animation, or actor.destroy())
-    the moment it finishes.
-    """
+    """Sprite-sheet animation component."""
 
     def __init__(
         self,
@@ -35,9 +18,9 @@ class AnimatedSpriteComponent(Component):
         on_complete=None,
         enabled: bool = True,
         local_offset=(0.0, 0.0),
-        offset_rotates=True,
+        offset_rotates: bool = True,
         center: bool = False,
-        local_rotation=0,
+        local_rotation: float = 0.0,
         scale=(1.0, 1.0),
         render_layer: int = 0,
     ):
@@ -71,9 +54,8 @@ class AnimatedSpriteComponent(Component):
         fps: float = 10.0,
         loop: bool = True,
         on_complete=None,
-    ):
-        """Switch to a different sheet/slicing/clip. Resets playback
-        to frame 0 and clears the completed flag."""
+    ) -> None:
+        """Switch to a different sheet/slicing/clip."""
         self._key = SpriteSheetKey(
             path, frame_width, frame_height, frame_count, columns, start_frame
         )
@@ -91,10 +73,7 @@ class AnimatedSpriteComponent(Component):
         return self._fps
 
     def set_fps(self, fps: float) -> None:
-        """Change playback speed in place — unlike set_animation,
-        this keeps the current frame/time and completed state, so
-        it's safe to call every frame (e.g. to speed up/slow down
-        or pause an animation) without restarting the clip."""
+        """Change playback speed in place."""
         self._fps = fps
         if self._animation is not None:
             self._animation.set_fps(fps)
@@ -109,25 +88,17 @@ class AnimatedSpriteComponent(Component):
         return self._animation.frame_at(self._time)
 
     @property
-    def width(self):
+    def width(self) -> int:
         sprite = self.sprite
         return sprite.width if sprite is not None else 0
 
     @property
-    def height(self):
+    def height(self) -> int:
         sprite = self.sprite
         return sprite.height if sprite is not None else 0
 
-    def get_world_position(self):
-        """Same centering behavior as SpriteComponent.get_world_position —
-        see that docstring. Component.get_world_position() gives the
-        actor position plus any rotate-with-actor local_offset; if
-        center=True this then applies an ADDITIONAL, deliberately
-        UNROTATED shift by half this frame's scaled width/height, so
-        the sprite's own draw_sprite rotation (around its box center)
-        doesn't get compounded with a second, spurious rotation of
-        the centering shift itself."""
-
+    def get_world_position(self) -> tuple[float, float]:
+        """Get world position with centering support."""
         x, y = super().get_world_position()
 
         if self.center and self.actor is not None:
@@ -139,17 +110,16 @@ class AnimatedSpriteComponent(Component):
 
         return (x, y)
 
-    def get_rect(self):
-        """Rect (x, y, width, height) from the actor's position and
-        this component's world scale (actor.scale * local_scale) —
-        same convenience as SpriteComponent.get_rect()."""
+    def get_rect(self) -> tuple[float, float, float, float]:
+        """Rect (x, y, width, height) from the actor's position."""
         world_pos = self.get_world_position()
         world_scale = self.get_world_scale()
         width = self.width * world_scale.x
         height = self.height * world_scale.y
         return (world_pos[0], world_pos[1], width, height)
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
+        """Update animation."""
         self._time += dt
 
         if (

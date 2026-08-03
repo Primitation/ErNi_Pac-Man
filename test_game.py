@@ -24,7 +24,7 @@ WIDTH, HEIGHT = 1000, 1000
 
 
 def main():
-    Renderer.init(WIDTH*1, HEIGHT*1, "Engine smoke test")
+    Renderer.init(WIDTH, HEIGHT, "Engine smoke test")
     Input.init()
 
     game_config = GameConfigParser.parse("config.json")

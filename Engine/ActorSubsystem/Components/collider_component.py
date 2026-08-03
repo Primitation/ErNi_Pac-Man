@@ -8,16 +8,16 @@ class ColliderComponent(Component):
     def __init__(
         self,
         get_rect=None,
-        tag="default",
+        tag: str = "default",
         collides_with=None,
-        blocking=False,
-        bounce=0.0,
-        static=False,
-        enabled=True,
-        offset_x=0.0,
-        offset_y=0.0,
-        width=None,
-        height=None,
+        blocking: bool = False,
+        bounce: float = 0.0,
+        static: bool = False,
+        enabled: bool = True,
+        offset_x: float = 0.0,
+        offset_y: float = 0.0,
+        width: float = None,
+        height: float = None,
     ):
         self._collider = None
         self._get_rect_override = get_rect
@@ -26,7 +26,7 @@ class ColliderComponent(Component):
         self.blocking = blocking
         self.bounce = bounce
         self.static = static
-        
+
         self.offset_x = offset_x
         self.offset_y = offset_y
         self.manual_width = width
@@ -34,7 +34,7 @@ class ColliderComponent(Component):
 
         super().__init__(enabled)
 
-    def on_added(self, actor):
+    def on_added(self, actor) -> None:
         super().on_added(actor)
 
         self._collider = Collision.register(
@@ -52,7 +52,7 @@ class ColliderComponent(Component):
         """Find the first component that has a get_rect method."""
         if self.actor is None:
             return None
-        
+
         for component in self.actor.components:
             if component is self:
                 continue
@@ -70,7 +70,8 @@ class ColliderComponent(Component):
             center_y = rect[1] + rect[3] / 2
 
             w = self.manual_width if self.manual_width is not None else rect[2]
-            h = self.manual_height if self.manual_height is not None else rect[3]
+            h = self.manual_height if self.manual_height \
+                is not None else rect[3]
 
             return (
                 center_x - w / 2 + self.offset_x,
@@ -110,16 +111,16 @@ class ColliderComponent(Component):
         return self._collider.rect()
 
     @property
-    def enabled(self):
+    def enabled(self) -> bool:
         return self._enabled
 
     @enabled.setter
-    def enabled(self, value):
+    def enabled(self, value: bool) -> None:
         self._enabled = value
         if self._collider is not None:
             self._collider.enabled = value
 
-    def destroy(self):
+    def destroy(self) -> None:
         if self._collider is not None:
             Collision.unregister(self._collider)
             self._collider = None

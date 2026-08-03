@@ -2,24 +2,20 @@ import math
 
 
 class Euler:
-    """Rotation as three axis angles, in radians. pitch = rotation
-    around X, yaw = rotation around Y, roll = rotation around Z.
-    Mainly a human-readable/editable form — for combining rotations
-    or rotating vectors, convert to Quaternion first (Euler.to_quaternion()),
-    since chained Euler angles are order-dependent and prone to
-    gimbal lock."""
+    """Rotation as three axis angles, in radians."""
 
     __slots__ = ("pitch", "yaw", "roll")
 
-    def __init__(self, pitch=0.0, yaw=0.0, roll=0.0):
+    def __init__(self, pitch: float = 0.0, yaw: float = 0.0,
+                 roll: float = 0.0):
         self.pitch = pitch
         self.yaw = yaw
         self.roll = roll
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Euler({self.pitch}, {self.yaw}, {self.roll})"
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return (
             isinstance(other, Euler)
             and self.pitch == other.pitch
@@ -28,10 +24,10 @@ class Euler:
         )
 
     @classmethod
-    def from_degrees(cls, pitch, yaw, roll):
+    def from_degrees(cls, pitch: float, yaw: float, roll: float) -> "Euler":
         return cls(math.radians(pitch), math.radians(yaw), math.radians(roll))
 
-    def to_degrees(self):
+    def to_degrees(self) -> tuple[float, float, float]:
         return (
             math.degrees(self.pitch),
             math.degrees(self.yaw),
@@ -39,10 +35,7 @@ class Euler:
         )
 
     def to_quaternion(self):
-        """Builds a Quaternion using pitch(X) -> yaw(Y) -> roll(Z)
-        intrinsic rotation order. Import is local to avoid a circular
-        import between euler.py and quaternion.py."""
-
+        """Builds a Quaternion using pitch(X) -> yaw(Y) -> roll(Z)."""
         from .quaternion import Quaternion
 
         cp = math.cos(self.pitch * 0.5)
@@ -60,5 +53,5 @@ class Euler:
         )
 
     @classmethod
-    def zero(cls):
+    def zero(cls) -> "Euler":
         return cls(0.0, 0.0, 0.0)
