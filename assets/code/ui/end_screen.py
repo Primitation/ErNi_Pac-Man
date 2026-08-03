@@ -1,5 +1,7 @@
 """End screen — win/lose result page."""
 
+from typing import Any, Dict
+
 from Engine import Assets, Input, Log, Renderer
 from Engine.UISubsystem.uisubsystem import VBox, HBox, BitmapText, Spacer
 from assets.code.ui.font_config import (
@@ -28,11 +30,11 @@ class EndScreen:
         self._result: str | None = None
         self._char_keys = self._build_char_keys()
 
-        self._fade_in = Transition(650)
+        self._fade_in: Transition | None = Transition(650)
         self._fade_out: Transition | None = None
 
     @staticmethod
-    def _build_char_keys():
+    def _build_char_keys() -> Dict[Any, str]:
         """keycode -> character it types."""
         keys = {}
         for ch in "abcdefghijklmnopqrstuvwxyz":
@@ -110,7 +112,7 @@ class EndScreen:
     def show(self) -> str:
         """Runs its own mlx loop until Enter/Escape confirms a name."""
 
-        def frame(_param):
+        def frame(_param: Any) -> None:
             Assets.update()
 
             Input.process_events()

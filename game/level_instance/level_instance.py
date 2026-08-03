@@ -1,6 +1,7 @@
 """Level instance."""
 
 import time
+from typing import Any, Dict, List, Optional
 
 from Engine import (Assets, Collision, Input, Log,
                     Renderer, World, Vector2, Actors)
@@ -21,7 +22,7 @@ from assets.code.ui.gameplay_hud import GameplayHUD
 from assets.code.ui.screen_transition import PacmanTransition as Transition
 
 from game.game_instance.player_information import PlayerInformation
-from game.levelgen import LevelGenerator, LevelOptions
+from game.levelgen import LevelGenerator, LevelOptions, LevelStructure
 
 
 class LevelInstance:
@@ -31,9 +32,9 @@ class LevelInstance:
 
     def __init__(self, level_options: LevelOptions) -> None:
         self._level_options = level_options
-        self._level_structure = None
+        self._level_structure: Optional[LevelStructure] = None
         self._name = None
-        self.cells = []
+        self.cells: List[List[Cell]] = []
 
     def load(self) -> None:
         """Load level structure."""
@@ -72,7 +73,7 @@ class LevelInstance:
         self._spawn_level()
         self._setup_camera()
 
-        Renderer.bake(World)
+        Renderer.bake(list(World))
 
         self._run_game_loop()
 
@@ -100,6 +101,8 @@ class LevelInstance:
             self._level_options.level_time
         )
 
+        assert self._level_structure is not None
+
         width = (
             self._level_structure.width
             * self.TILE_SIZE
@@ -123,19 +126,15 @@ class LevelInstance:
         )
 
     def _spawn_cells(self) -> None:
+        assert self._level_structure is not None
         maze = self._level_structure.maze
 
-        height = len(maze)
-        width = len(maze[0])
-
-        cells = [
-            [None for _ in range(width)]
-            for _ in range(height)
-        ]
+        cells: List[List[Cell]] = []
 
         for y, row in enumerate(maze):
+            cell_row: List[Cell] = []
             for x, value in enumerate(row):
-                cells[y][x] = Actors.spawn(
+                cell = Actors.spawn(
                     Cell,
                     position=self._world_position(
                         Vector2(x, y)
@@ -145,20 +144,22 @@ class LevelInstance:
                     S=not (value & 4),
                     W=not (value & 8),
                 )
+                cell_row.append(cell)
+            cells.append(cell_row)
 
         self._link_cells(cells)
 
         self.cells = cells
 
-        for row in cells:
-            for cell in row:
+        for cell_row_built in cells:
+            for cell in cell_row_built:
                 cell.build_geometry()
 
         Log.get("level").info(
             "Level instance cells ready"
         )
 
-    def _link_cells(self, cells) -> None:
+    def _link_cells(self, cells: List[List[Cell]]) -> None:
         height = len(cells)
         width = len(cells[0])
 
@@ -179,6 +180,7 @@ class LevelInstance:
                     cell.east = cells[y][x + 1]
 
     def _spawn_player(self) -> None:
+        assert self._level_structure is not None
         Actors.spawn(
             Player,
             position=self._world_position(
@@ -189,6 +191,7 @@ class LevelInstance:
         )
 
     def _spawn_ghosts(self) -> None:
+        assert self._level_structure is not None
         ghosts = [
             RedGhost,
             BlueGhost,
@@ -208,6 +211,7 @@ class LevelInstance:
             )
 
     def _spawn_pacgums(self) -> None:
+        assert self._level_structure is not None
         for position in self._level_structure.pacgums:
             Actors.spawn(
                 Pacgum,
@@ -225,6 +229,7 @@ class LevelInstance:
             )
 
     def _setup_camera(self) -> None:
+        assert self._level_structure is not None
         width = (
             self._level_structure.width
             * self.TILE_SIZE
@@ -292,16 +297,16 @@ class LevelInstance:
             "Level instance end"
         )
 
-    def _register_callbacks(self, log) -> None:
+    def _register_callbacks(self, log: Any) -> None:
         """Register input callbacks."""
 
-        def on_pause():
+        def on_pause() -> None:
             paused = Actors.toggle_pause()
             log.info(
                 f"Game {'paused' if paused else 'resumed'}."
             )
 
-        def on_quit_to_menu():
+        def on_quit_to_menu() -> None:
             if Actors.paused:
                 Player.quit = True
 
@@ -333,10 +338,10 @@ class LevelInstance:
 
     def _frame(
         self,
-        _param,
-        hud,
-        pause_hud,
-        state,
+        _param: Any,
+        hud: GameplayHUD,
+        pause_hud: PauseHUD,
+        state: Dict[str, Any],
     ) -> None:
         """Process one frame."""
 
@@ -365,7 +370,7 @@ class LevelInstance:
 
         Input.update()
 
-    def _update_transition(self, state) -> None:
+    def _update_transition(self, state: Dict[str, Any]) -> None:
         """Update fade transitions."""
 
         if (
@@ -387,13 +392,13 @@ class LevelInstance:
 
     def _render(
         self,
-        hud,
-        pause_hud,
-        state,
+        hud: GameplayHUD,
+        pause_hud: PauseHUD,
+        state: Dict[str, Any],
     ) -> None:
         """Render current frame."""
 
-        Renderer.render_draw(World)
+        Renderer.render_draw(list(World))
 
         Particles.render(Renderer)
 
@@ -406,7 +411,7 @@ class LevelInstance:
 
         Renderer.render_present()
 
-    def _render_fade(self, state) -> None:
+    def _render_fade(self, state: Dict[str, Any]) -> None:
         """Render fade effects."""
 
         fade_in = state["fade_in"]

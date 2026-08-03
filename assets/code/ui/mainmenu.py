@@ -1,5 +1,7 @@
 """Main menu screen."""
 
+from typing import Any, Callable
+
 from Engine import Assets, Input, Log, Renderer
 from Engine.UISubsystem.uisubsystem import (
     BitmapText,
@@ -29,7 +31,7 @@ class MainMenu:
         self._result: str | None = None
         self._font_texture = Assets.load(BUTTON_FONT_PATH)
 
-        self._fade_in = Transition(650)
+        self._fade_in: Transition | None = Transition(650)
         self._fade_out: Transition | None = None
 
         self._scores = scores
@@ -47,7 +49,7 @@ class MainMenu:
     def _button(
         self,
         label: str,
-        callback,
+        callback: Callable[[], None],
         min_width: int = 220,
         min_height: int = 48,
         font_scale: int = 10
@@ -220,13 +222,13 @@ class MainMenu:
         self._result = result
         self._fade_out = Transition(650)
 
-    def _on_resize(self, win_ptr, width: int, height: int) -> None:
+    def _on_resize(self, win_ptr: Any, width: int, height: int) -> None:
         self.canvas.set_rect(0, 0, width, height)
 
     def show(self) -> str:
         """Runs its own mlx loop until Play/Quit is chosen."""
 
-        def frame(_param):
+        def frame(_param: Any) -> None:
             Assets.update()
 
             Input.process_events()

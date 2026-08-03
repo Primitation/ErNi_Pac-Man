@@ -1,3 +1,5 @@
+from typing import Any
+
 from Engine import AnimatedSpriteComponent, Vector2
 
 
@@ -63,7 +65,7 @@ class Inner_Corner_Component(AnimatedSpriteComponent):
         )
         self._local_rotation = local_rotation
 
-    def on_added(self, actor) -> None:
+    def on_added(self, actor: Any) -> None:
         super().on_added(actor)
 
         background = AnimatedSpriteComponent(

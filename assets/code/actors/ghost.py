@@ -7,9 +7,10 @@ from Engine.ActorSubsystem.Components.animated_sprite_component import (
 from assets.code.components.cheat_components import CheatComponent
 from .actor import Actor
 import random
-from Engine import Vector2, Input
+from Engine import Vector2
 from ..components.movement_components import (
     ChasePlayerGridComponent,
+    ChaseTargetGridComponent,
     GridMovementComponent,
     InkyChaseComponent,
     ClydeChaseComponent,
@@ -32,7 +33,7 @@ class BasicGhost(Actor):
         tag: str = "Actor",
         speed: float = 100.0,
         color_index: int = 0,
-        chase_component: Type[ChasePlayerGridComponent] = (
+        chase_component: Type[ChaseTargetGridComponent] = (
             ChasePlayerGridComponent),
         chase_kwargs: Optional[dict[str, Any]] = None,
     ) -> None:
@@ -46,7 +47,7 @@ class BasicGhost(Actor):
 
         self.movement: GridMovementComponent = self.add_component(
             GridMovementComponent(speed=speed))
-        self.chase: ChasePlayerGridComponent = self.add_component(
+        self.chase: ChaseTargetGridComponent = self.add_component(
             chase_component(**(chase_kwargs or {}))
         )
         facevalue = random.randrange(8)
@@ -127,7 +128,7 @@ class BasicGhost(Actor):
             self.face.enabled = True
 
         if hasattr(self.chase, "set_fleeing"):
-            self.chase.set_fleeing(self.edible)  # type: ignore
+            self.chase.set_fleeing(self.edible)
 
         if self.movement.speed != 0:
             self.movement.speed = self._current_speed()
@@ -139,8 +140,6 @@ class BasicGhost(Actor):
 
     def update(self, dt: float) -> None:
         """Update ghost."""
-        if Input.is_action_triggered("dead"):
-            self.dead(self.animation)
         super().update(dt)
 
     def destroy(self) -> None:

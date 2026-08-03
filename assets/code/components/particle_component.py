@@ -1,3 +1,5 @@
+from typing import Any
+
 from Engine import Component
 from Engine import Particles, Vector2, Log
 
@@ -43,7 +45,7 @@ class ParticleTrailComponent(Component):
         self._start_emitted = False
         self._logger = Log.get("particle_trail")
 
-    def on_added(self, actor) -> None:
+    def on_added(self, actor: Any) -> None:
         super().on_added(actor)
         if self.emit_on_start:
             self._emit_burst()

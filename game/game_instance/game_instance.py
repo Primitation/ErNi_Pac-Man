@@ -85,7 +85,7 @@ class GameInstance:
             Player.end_level = False
             level_name = self._game_mode_normal.current_level
             log.info(f"GameInstance: start normal level {level_name}")
-            level_instance.start(self._current_player, level_name)
+            level_instance.start(self._current_player, str(level_name))
             level_instance = self._game_mode_normal.next_level()
         log.info("GameInstance: end normal levels")
         return not Player.quit

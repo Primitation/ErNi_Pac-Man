@@ -8,7 +8,7 @@ from Engine.LogSubsystem.logsubsystem import Log
 class CheatComponent(Component):
     """Cheat input."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         from assets.code.actors.ghost import BasicGhost
         from assets.code.actors.player import Player
 

@@ -1,5 +1,7 @@
 """Gameplay HUD — bottom-right overlay."""
 
+from typing import Any
+
 from Engine import Assets, Actors
 from Engine.UISubsystem.uisubsystem import HBox, Image, BitmapText
 from assets.code.actors.player import Player
@@ -25,7 +27,7 @@ class GameplayHUD:
     MARGIN = 16
     BACKGROUND_COLOR = 0x88000000
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._font_texture = Assets.load(ARCADE_FONT_PATH)
         self._life_texture = Assets.load(LIFE_ICON_PATH)
 
@@ -69,7 +71,7 @@ class GameplayHUD:
 
         return root
 
-    def render(self, renderer) -> None:
+    def render(self, renderer: Any) -> None:
         root = self._build_root()
         w, h = root.measure()
         x = renderer.width - w - self.MARGIN

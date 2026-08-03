@@ -13,6 +13,8 @@ class OriginMarkerComponent(Component):
 
     def update(self, dt: float) -> None:
         """Emit debug particle."""
+        if self.actor is None:
+            return
         Particles.emit(
             self.actor.position,
             count=1,

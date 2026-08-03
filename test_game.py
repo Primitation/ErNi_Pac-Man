@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 WIDTH, HEIGHT = 1000, 1000
 
 
-def main():
+def main() -> None:
     Renderer.init(WIDTH, HEIGHT, "Engine smoke test")
     Input.init()
 
@@ -35,7 +35,7 @@ def main():
     Log.close()
 
 
-def main_parser():
+def main_parser() -> None:
     game_config: GameConfig = GameConfigParser.parse("config.json")
     print(game_config)
     from time import sleep
@@ -43,7 +43,7 @@ def main_parser():
     sleep(2)
 
 
-def main_scores():
+def main_scores() -> None:
     game_config: GameConfig = GameConfigParser.parse("config.json")
     scores = Scores.load_scores(game_config)
     print(scores.get_top_scores())

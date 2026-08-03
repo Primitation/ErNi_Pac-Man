@@ -2,7 +2,7 @@
 
 
 import json
-from typing import Any, List, Tuple
+from typing import Any, List, Optional, Tuple
 from pydantic import (BaseModel, Field, field_validator)
 from game.levelgen import LevelOptions
 from Engine import Log
@@ -23,15 +23,15 @@ class GameConfig:
         level_max_time: max time for a level.
     """
     def __init__(self,
-                 highscore_filename,
-                 lives,
-                 pacgum,
-                 points_per_pacgum,
-                 points_per_super_pacgum,
-                 points_per_ghost,
-                 seed,
-                 levels_options,
-                 level_max_time) -> None:
+                 highscore_filename: str,
+                 lives: int,
+                 pacgum: int,
+                 points_per_pacgum: int,
+                 points_per_super_pacgum: int,
+                 points_per_ghost: int,
+                 seed: int,
+                 levels_options: List[LevelOptions],
+                 level_max_time: int) -> None:
         """Initilize the game configuration.
 
         Args:
@@ -66,7 +66,7 @@ class GameConfig:
         return self._points_per_super_pacgum
 
     @property
-    def highscore_filename(self) -> int:
+    def highscore_filename(self) -> str:
         """scores saves filename"""
         return self._highscore_filename
 
@@ -136,7 +136,7 @@ class GameConfigModelConstant:
     LOG = Log.get("main")
 
 
-class GameConfigModel(BaseModel):
+class GameConfigModel(BaseModel):  # type: ignore[misc]
     """Model for game config validation for the config file."""
 
     highscore_filename: str = Field(default="save_scores.json")
@@ -175,7 +175,7 @@ class GameConfigModel(BaseModel):
                 f" Use {min_value}.")
             return min_value
 
-    @field_validator("highscore_filename", mode="before")
+    @field_validator("highscore_filename", mode="before")  # type: ignore[misc]
     @classmethod
     def parse_highscore_filename(cls, v: Any) -> str:
         """Returns the string for the filename, or default.
@@ -191,7 +191,7 @@ class GameConfigModel(BaseModel):
                 f" Use {GameConfigModelConstant.DEFAULT_highscore_filename}.")
             return GameConfigModelConstant.DEFAULT_highscore_filename
 
-    @field_validator("lives", mode="before")
+    @field_validator("lives", mode="before")  # type: ignore[misc]
     @classmethod
     def parse_lives(cls, v: Any) -> int:
         """Returns the correct int v or default.
@@ -206,7 +206,7 @@ class GameConfigModel(BaseModel):
             GameConfigModelConstant.MIN_lives,
             "lives")
 
-    @field_validator("pacgum", mode="before")
+    @field_validator("pacgum", mode="before")  # type: ignore[misc]
     @classmethod
     def parse_pacgum(cls, v: Any) -> int:
         """Returns the correct int v or default.
@@ -221,7 +221,7 @@ class GameConfigModel(BaseModel):
             GameConfigModelConstant.MIN_pacgum,
             "pacgum")
 
-    @field_validator("seed", mode="before")
+    @field_validator("seed", mode="before")  # type: ignore[misc]
     @classmethod
     def parse_seed(cls, v: Any) -> int:
         """Returns the correct int v or default.
@@ -240,7 +240,7 @@ class GameConfigModel(BaseModel):
             return GameConfigModelConstant.DEFAULT_seed
 
     @field_validator("points_per_pacgum", "points_per_super_pacgum",
-                     "points_per_ghost", mode="before")
+                     "points_per_ghost", mode="before")  # type: ignore[misc]
     @classmethod
     def parse_points(cls, v: Any) -> int:
         """Returns the correct int v or default.
@@ -255,7 +255,7 @@ class GameConfigModel(BaseModel):
             GameConfigModelConstant.MIN_points,
             "points")
 
-    @field_validator("level_max_time", mode="before")
+    @field_validator("level_max_time", mode="before")  # type: ignore[misc]
     @classmethod
     def parse_level_max_time(cls, v: Any) -> int:
         """Returns the correct int v or default.
@@ -271,7 +271,9 @@ class GameConfigModel(BaseModel):
             "level_max_time")
 
     @staticmethod
-    def _validate_level_entry(level_data: Any) -> Tuple[int, int]:
+    def _validate_level_entry(
+        level_data: Any
+    ) -> Optional[Tuple[int, int]]:
         """Validate a single level entry and return (width, height)."""
         if not isinstance(level_data, dict):
             GameConfigModelConstant.LOG.error(
@@ -309,7 +311,7 @@ class GameConfigModel(BaseModel):
 
         return (width, height)
 
-    @field_validator("level", mode="before")
+    @field_validator("level", mode="before")  # type: ignore[misc]
     @classmethod
     def parse_level(cls, v: Any) -> List[Tuple[int, int]]:
         """Returns the correct List[Tuple[int, int]] v or default.

@@ -1,3 +1,5 @@
+from typing import Any
+
 from Engine import Assets
 from Engine.UISubsystem.uisubsystem import HBox, BitmapText
 from assets.code.ui.font_config import (
@@ -18,7 +20,7 @@ class PauseHUD:
     MARGIN = 16
     BACKGROUND_COLOR = 0x88000000
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._font_texture = Assets.load(ARCADE_FONT_PATH)
 
     def _label(self, text: str) -> BitmapText:
@@ -41,7 +43,7 @@ class PauseHUD:
         root.add(self._label("PAUSE - P RESUME - M MENU"), align="center")
         return root
 
-    def render(self, renderer) -> None:
+    def render(self, renderer: Any) -> None:
         root = self._build_root()
         w, h = root.measure()
         x = (renderer.width - w) // 2

@@ -1,5 +1,6 @@
+# level_options.py
 """Level options for generation."""
-
+from typing import Optional
 from time import time
 import random
 
@@ -13,13 +14,15 @@ class LevelOptions:
         pac_gum_count: the maximum number of pacgums in the maze
         seed (int | None): the maze generator seed (None mean random)
     """
-    def __init__(self,
-                 width: int,
-                 height: int,
-                 pac_gum_count: int,
-                 seed: int | None = None,
-                 level_time: float = 90) -> None:
-        """Initilize a level options.
+    def __init__(
+        self,
+        width: int,
+        height: int,
+        pac_gum_count: int,
+        seed: Optional[int] = None,
+        level_time: float = 90
+    ) -> None:
+        """Initialize a level options.
 
         Args:
             width: the width of the maze.
@@ -30,7 +33,7 @@ class LevelOptions:
         self._width = width
         self._height = height
         self._pac_gum_count = pac_gum_count
-        self._seed = seed
+        self._seed: Optional[int] = seed
         self.level_time = level_time
 
     @property
@@ -59,12 +62,10 @@ class LevelOptions:
         if self._seed is not None:
             return self._seed
         random.seed(int(time() * 1000000))
-        return (self._seed
-                if self._seed is not None
-                else random.randrange(int(time() * 1000000)))
+        return random.randrange(int(time() * 1000000))
 
     @seed.setter
-    def seed(self, seed: int | None) -> None:
+    def seed(self, seed: Optional[int]) -> None:
         """Set the random seed."""
         self._seed = seed
 

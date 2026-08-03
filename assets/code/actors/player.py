@@ -1,3 +1,5 @@
+from typing import Any
+
 from Engine.LogSubsystem.logsubsystem import Log
 from Engine.World.world import World
 from assets.code.actors.ghost import BasicGhost
@@ -39,7 +41,7 @@ class Player(Actor):
         tag: str = "Player",
         speed: float = 100.0,
         static: bool = False,
-    ):
+    ) -> None:
         super().__init__(
             position=position,
             scale=scale,
@@ -70,7 +72,7 @@ class Player(Actor):
         )
 
     @on_end_of_anim(lambda self: self.destroy_after_dead())
-    def dead(self, component):
+    def dead(self, component: Any) -> None:
         component.set_animation(
             "assets/texture/spritesheets/pacman_hd/PacManAssets-PacMan.png",
             frame_width=32,
@@ -127,7 +129,7 @@ class Player(Actor):
     def game_ended() -> bool:
         return Player.end_game or Player.quit or Player.end_level
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
         super().update(dt)
         if self.animation.fps != self.fps:
             self.animation.set_fps(self.fps)
@@ -145,15 +147,16 @@ class Player(Actor):
     def set_player_information(player: PlayerInformation | None) -> None:
         Player.current_player = player
 
-    def destroy_after_dead(self):
+    def destroy_after_dead(self) -> None:
         self.destroy()
         Player.end_game = True
 
-    def destroy(self):
+    def destroy(self) -> None:
         self.logger.debug("destroy")
         super().destroy()
 
-    def _on_collision_begin(self, self_collider, other_collider) -> None:
+    def _on_collision_begin(self, self_collider: Any,
+                            other_collider: Any) -> None:
         if Player.current_player is None:
             Log.get("main").error("Player._on_collision_begin:"
                                   "no player registered !")

@@ -10,6 +10,7 @@ from game.levelgen import LevelOptions
 class GameModeLevels(ABC):
     """Generator of levels."""
 
+    @property
     @abstractmethod
     def current_level(self) -> int:
         """The current level.
