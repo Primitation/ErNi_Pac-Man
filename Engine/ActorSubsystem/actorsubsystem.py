@@ -6,6 +6,7 @@ from typing import TypeVar, Type, Callable, List, Optional, Tuple, Any
 from .. import Log
 from .. import Vector2
 from ..World.world import World
+from .Components.component import Component
 
 
 class Event:
@@ -26,7 +27,8 @@ class Event:
             callback(*args, **kwargs)
 
 
-T = TypeVar("T", bound="AActor")
+T = TypeVar("T", bound="Component")
+TActor = TypeVar("TActor", bound="AActor")
 
 
 class AActor:
@@ -175,7 +177,9 @@ class ActorSubsystem:
     def close(self) -> None:
         pass
 
-    def spawn(self, actor_class: Type[T], *args: Any, **kwargs: Any) -> T:
+    def spawn(
+        self, actor_class: Type[TActor], *args: Any, **kwargs: Any
+    ) -> TActor:
         random_spawn = kwargs.pop("random_spawn", False)
         actor = actor_class(*args, **kwargs)
 

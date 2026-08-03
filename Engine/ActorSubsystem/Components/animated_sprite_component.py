@@ -1,7 +1,7 @@
 # animated_sprite_component.py
-from typing import Optional, Callable, Tuple, Any
+from typing import Optional, Callable, Tuple, Any, Union
 from .component import Component
-from ... import Assets, SpriteSheetKey, Animation
+from ... import Assets, SpriteSheetKey, Animation, Vector2
 
 
 class AnimatedSpriteComponent(Component):
@@ -19,7 +19,7 @@ class AnimatedSpriteComponent(Component):
         loop: bool = True,
         on_complete: Optional[Callable[[], None]] = None,
         enabled: bool = True,
-        local_offset: Tuple[float, float] = (0.0, 0.0),
+        local_offset: Union[Vector2, Tuple[float, float]] = (0.0, 0.0),
         offset_rotates: bool = True,
         center: bool = False,
         local_rotation: float = 0.0,
