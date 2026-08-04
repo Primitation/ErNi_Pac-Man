@@ -7,6 +7,7 @@ class AssetSubsystem:
     """Global asset management system."""
 
     def __init__(self) -> None:
+        """Initialize an asset manager."""
         self._manager = AssetManager()
         self._manager.register(TextureLoader())
         self._manager.register(SpriteSheetLoader())
@@ -14,15 +15,31 @@ class AssetSubsystem:
         self._loading: Set[str] = set()
 
     def init(self, mlx: Any, mlx_ptr: Any) -> None:
-        """Call once, right after mlx_init()."""
+        """Call once, right after mlx_init().
+
+        Args:
+            mlx: the minilibx instance.
+            mlx_ptr: the minilibX initialized instance.
+        """
         Context.bind(mlx, mlx_ptr)
 
     def register(self, loader: Any) -> None:
-        """Register a new asset loader."""
+        """Register a new asset loader.
+
+        Args:
+            loader: a loader.
+        """
         self._manager.register(loader)
 
     def load(self, path: str) -> Any:
-        """Immediately load an asset."""
+        """Immediately load an asset.
+
+        Args:
+            path: the path of the asset.
+
+        Returns:
+            Returns the asset.
+        """
         if path in self._cache:
             return self._cache[path]
 
@@ -31,7 +48,11 @@ class AssetSubsystem:
         return asset
 
     def queue(self, path: str) -> None:
-        """Queue an asset for loading."""
+        """Queue an asset for loading.
+
+        Args:
+            path: the path of the asset.
+        """
         if path in self._cache:
             return
         if path in self._loading:
@@ -51,19 +72,47 @@ class AssetSubsystem:
             self._loading.remove(path)
 
     def get(self, path: str) -> Optional[Any]:
-        """Returns the cached asset, or None."""
+        """Returns the cached asset, or None.
+
+        Args:
+            path: the path of the asset.
+
+        Returns:
+            Returns the cached asset.
+        """
         return self._cache.get(path)
 
     def ready(self, path: str) -> bool:
-        """Returns True when an asset finished loading."""
+        """Returns True when an asset finished loading.
+
+        Args:
+            path: the path of the asset.
+
+        Returns:
+            Returns if the asset is ready or not.
+        """
         return path in self._cache
 
     def loading(self, path: str) -> bool:
-        """Returns True while an asset is being loaded."""
+        """Returns True while an asset is being loaded.
+
+        Args:
+            path: the path of the asset.
+
+        Returns:
+            Returns the asset is loading or not.
+        """
         return path in self._loading
 
     def cached(self, path: str) -> bool:
-        """Returns True when an asset exists in the cache."""
+        """Returns True when an asset exists in the cache.
+
+        Args:
+            path: the path of the asset.
+
+        Returns:
+            Returns the asset is cached or not.
+        """
         return path in self._cache
 
 
