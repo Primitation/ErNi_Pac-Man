@@ -1,0 +1,10 @@
+# itch.toml — read by the itch app to know how to launch the game.
+# Docs: https://itch.io/docs/itch/integrating/manifest.html
+#
+# package.sh copies this into the packaged folder automatically.
+# Not required for a plain zip upload without the itch app, but it's
+# what lets the itch app show a "Play" button that just works.
+
+[[actions]]
+name = "Play"
+path = "run.sh"

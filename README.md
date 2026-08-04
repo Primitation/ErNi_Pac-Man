@@ -47,15 +47,20 @@ make debug       # same, but under `python3 -m pdb`
 python3 pacman.py <config.json>
 ```
 
-Once the window opens, use the keys in the window:
+Once the window opens, use the keys below (also listed in
+[`Controls.md`](Controls.md)):
 
-| Key | Action                   |
-|-----|--------------------------|
-| `w` | Move up                  |
-| `S` | Move down                |
-| `A` | Move left                |
-| `D` | Move right               |
-| `Enter` | Enter the selection  |
+| Key                | Action                     |
+|--------------------|----------------------------|
+| `W`/`A`/`S`/`D` or Arrow Keys | Move Pac-Man    |
+| `P`                | Pause                      |
+| `M`                | Quit to menu                |
+| `Enter` / `Space`  | Confirm (menus)            |
+| `Escape`           | Cancel / quit               |
+
+Cheat keys used for development/testing (invincibility, extra life,
+speed up/down, freeze ghosts, win level, stop time) are also listed in
+[`Controls.md`](Controls.md).
 
 Select instructions in the menu for more gameplay information.
 
@@ -109,14 +114,51 @@ It is saved as a list of list of size two with the name and the score.
 The highscore uses the json module to read and write in the file.
 Using json to save the score is easier implementing.
 
+
 ## Maze Generation
 
-`pacman` use the maze generation from a-maze-ing package by installing it with pip.
-The maze is then used by `game/levelgen/level/gen.py` to generate with the corrects
-arguments in the maze generator initialization and then calls `generate(seed)`.
-The maze is then accessed from the `maze` field of the maze generator instance
-in the format `list[list[int]]` with int as hexadecimals (0 to 15) defined in
-the a-maze-ing project.
+Each level's maze is produced by the assigned `mazegenerator` package
+(the *A-Maze-ing* project), used here as a pure, decoupled dependency —
+`Pac-Man` never touches its internals, only its public `MazeGenerator`
+class:
+
+```python
+from mazegenerator import MazeGenerator
+
+maze_generated = MazeGenerator(
+    size=(width, height),
+    perfect=False,
+    entry_cell=start,
+    exit_cell=end,
+    seed=seed,
+)
+maze = maze_generated.maze  # 2D array of wall bitmasks
+```
+
+This happens in `LevelGenerator.generate()`
+([`game/levelgen/level_gen.py`](game/levelgen/level_gen.py)), which:
+
+1. Calls `MazeGenerator` with the level's configured width/height and a
+   seed (fixed for level 1, from `config.json`; random-ish thereafter),
+   with `perfect=False` so the maze includes a few loops rather than
+   being a strict spanning tree — closer to a real Pac-Man maze than a
+   perfect one.
+2. Reads back `maze`, a 2D grid of wall bitmasks (`W S E N` packed into
+   one hex digit per cell), and hands it to `MazeAnalyzer` to extract the
+   open (non-fully-walled) cells.
+3. Places Pac-Man at the center, one ghost and one super-pacgum at each
+   of the four corners, and scatters regular pacgums across a random
+   sample of the remaining open cells (up to `pacgum` from the config).
+4. Packages all of this into a `LevelStructure`, which is what the
+   rendering/actor side of the game actually consumes.
+
+The generator's own maze-drawing rules (perfect vs. imperfect mazes,
+loop punching, dead-end reduction, the hidden "42" pattern) are entirely
+its own concern — see its own documentation for the algorithm details;
+from `Pac-Man`'s side it is only ever used as an imported library
+(`libs/mazegenerator-2.1.0-py3-none-any.whl`, installed like any other
+dependency), which is exactly the "reusable, decoupled package" contract
+it was built to satisfy.
 
 ## Implementation
 
@@ -220,15 +262,19 @@ The game control and UI logic. Render each frame with update calls between each 
 The project was managed using Notion, which was used as a central platform to organize and track the development process. A dedicated Notion workspace was created to store project information, including tasks and progress tracking.
 
 link:
-TODO
+- [Notion](https://midnight-juniper-97d.notion.site/Pac-Man-40379e40a3a682e19463018f9709c540)
 
 ## Resources
 
 - [MiniLibX prototypes reference (42 docs)](https://harm-smits.github.io/42docs/libs/minilibx/prototypes.html)
 - [`mlx_CLXV` Python bindings source](https://github.com/42school/mlx_CLXV)
-- Python `memoryview` C API docs (used for direct pixel writes into the
-  MiniLibX image buffer)
+- [Pac-Man ghost AI — Pinky, Inky, Blinky, Clyde targeting logic (The Pac-Man Dossier)](https://www.gamedeveloper.com/design/the-pac-man-dossier)
+- `pydantic` documentation (config validation)
+- Classic references on Actor/Component game architecture (any
+  introductory game-engine-design material covering the pattern, as used
+  by engines like Unity/Unreal)
 
-**AI usage.** AI assistance was used to help draft and review parts of
-this README (structuring the configuration reference and algorithm
-explanation from the existing code). No AI-generated code was used.
+**AI usage.** AI assistance (Claude) was used for three specific:
+Drafting the packaging script
+Fast iteration of engine structure
+Help in lint of project

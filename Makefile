@@ -146,6 +146,10 @@ mlx:
 package-install:
 	@$(call spinner,Installing libs package, $(PIP) install libs/*.whl --force-reinstall >/dev/null)
 
+package:
+	$(TITLE) "Packaging for itch.io"
+	@chmod +x package.sh
+	@./package.sh $(VERSION)
 
 run:
 	@printf "$(BLUE)"
