@@ -66,7 +66,7 @@ class GameplayHUD:
             )
         root.add(lives_box, align="center")
 
-        root.add(self._label(f"{score:01d} pts"), align="center")
+        root.add(self._label(f"{score:01d} ,[]"), align="center")
         root.add(self._label(f"{time_left:03d}"), align="center")
 
         return root
