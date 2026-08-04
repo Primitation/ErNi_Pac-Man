@@ -18,7 +18,7 @@ class EndScreen:
     """Call .show() to run the loop."""
 
     MAX_NAME_LENGTH = 10
-    ALLOWED_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ")
+    ALLOWED_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ")
     DEFAULT_NAME = "PLAYER"
 
     def __init__(self, won: bool, score: int):
@@ -35,14 +35,29 @@ class EndScreen:
 
     @staticmethod
     def _build_char_keys() -> Dict[Any, str]:
-        """keycode -> character it types."""
+        """keycode -> character it types (lowercase by default; the
+        letter is upper-cased at input time if Shift is held)."""
         keys = {}
         for ch in "abcdefghijklmnopqrstuvwxyz":
-            keys[Input.KEYS[ch]] = ch.upper()
+            keys[Input.KEYS[ch]] = ch
         for ch in "0123456789":
             keys[Input.KEYS[ch]] = ch
         keys[Input.KEYS["space"]] = " "
         return keys
+
+    @staticmethod
+    def _shift_held() -> bool:
+        """Best-effort check for a held Shift key. Falls back to False
+        (i.e. lowercase) if the InputSubsystem doesn't expose a
+        continuous key-down query or a shift keycode."""
+        is_down = getattr(Input, "is_key_down", None)
+        if is_down is None:
+            return False
+        shift_key = Input.KEYS.get("shift") or Input.KEYS.get("lshift") \
+            or Input.KEYS.get("rshift")
+        if shift_key is None:
+            return False
+        return bool(is_down(shift_key))
 
     def _label(self, text: str, scale: float = 3.0) -> BitmapText:
         return BitmapText(
@@ -98,8 +113,11 @@ class EndScreen:
             self._confirm()
             return
 
+        shift = self._shift_held()
         for keycode, char in self._char_keys.items():
             if Input.is_key_pressed(keycode):
+                if char.isalpha() and shift:
+                    char = char.upper()
                 if (len(self._name) < self.MAX_NAME_LENGTH
                         and char in self.ALLOWED_CHARS):
                     self._name += char

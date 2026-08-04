@@ -11,7 +11,7 @@ from game.game_instance.game_instance import GameInstance
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-WIDTH, HEIGHT = 1000, 1000
+WIDTH, HEIGHT = 1920, 1080
 
 
 def main() -> None:

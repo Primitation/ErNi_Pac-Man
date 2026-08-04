@@ -317,11 +317,14 @@ class BitmapText(Widget):
                 row = index // self.columns
 
                 if is_lower:
-                    gw = max(1, round(cw * self.lowercase_scale))
+                    # Only shrink height (not width) so the glyph still
+                    # fills its cell horizontally — shrinking width too
+                    # left visible gaps between consecutive lowercase
+                    # characters. Sit on the baseline (cell bottom) so
+                    # lowercase reads like real text.
+                    gw = cw
                     gh = max(1, round(ch * self.lowercase_scale))
-                    # Center horizontally in the cell, sit on the baseline
-                    # (cell bottom) so lowercase reads like real text.
-                    gx = draw_x + (cw - gw) // 2
+                    gx = draw_x
                     gy = draw_y + (ch - gh)
                 else:
                     gw, gh = cw, ch
@@ -378,6 +381,8 @@ class Button(Widget):
         color_focused: int = 0xCC4488FF,
         color_disabled: int = 0x44222222,
         text_color: int = 0x00FFFFFF,
+        text_background_color: Optional[int] = None,
+        text_background_padding: int = 4,
         font_texture: Any = None,
         char_width: int = 0,
         char_height: int = 0,
@@ -394,6 +399,8 @@ class Button(Widget):
         self.color_normal = color_normal
         self.color_focused = color_focused
         self.color_disabled = color_disabled
+        self.text_background_color = text_background_color
+        self.text_background_padding = text_background_padding
 
         self._text: Union[Text, BitmapText]
         if font_texture is not None:
@@ -436,6 +443,18 @@ class Button(Widget):
         else:
             color = self.color_normal
         renderer.draw_rect_screen(x, y, w, h, color)
+
+        if self.text_background_color is not None:
+            tw, th = self._text.measure()
+            tx, _ty, _tw, _th = self._text.rect
+            pad = self.text_background_padding
+            bg_x = tx - pad
+            bg_y = y + (h - th) // 2 - pad
+            bg_w = tw + pad * 2
+            bg_h = th + pad * 2
+            renderer.draw_rect_screen(bg_x, bg_y, bg_w, bg_h,
+                                      self.text_background_color)
+
         self._text.render(renderer)
 
     def collect_focusable(self, out: List["Button"]) -> None:
