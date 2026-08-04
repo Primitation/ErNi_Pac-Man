@@ -131,7 +131,7 @@ class GameConfigModelConstant:
     MIN_points = 1
     DEFAULT_seed = 42
     MIN_level_max_time = 30  # seconds per level
-    MIN_LEVELS = 1  # TODO REAL VALUE NEEDED: 10
+    MIN_LEVELS = 10
 
     LOG = Log.get("main")
 
@@ -140,14 +140,17 @@ class GameConfigModel(BaseModel):  # type: ignore[misc]
     """Model for game config validation for the config file."""
 
     highscore_filename: str = Field(default="save_scores.json")
-    level: List[Tuple[int, int]]
-    lives: int = Field(gt=0)
-    pacgum: int
-    points_per_pacgum: int
-    points_per_super_pacgum: int
-    points_per_ghost: int
-    seed: int
-    level_max_time: int
+    level: List[Tuple[int, int]] = Field(default=[(15,15), (15,15), (15,15),
+                                                  (15,15), (15,15), (15,15),
+                                                  (15,15), (15,15), (15,15),
+                                                  (15,15)])
+    lives: int = Field(gt=0, default=3)
+    pacgum: int = Field(default=42)
+    points_per_pacgum: int = Field(default=10)
+    points_per_super_pacgum: int = Field(default=50)
+    points_per_ghost: int = Field(default=200)
+    seed: int = Field(default=42)
+    level_max_time: int = Field(default=90)
 
     @staticmethod
     def check_number(v: Any,
@@ -434,14 +437,15 @@ class GameConfigParser:
             Returns the default list of LevelOptions.
         """
         return [
-            LevelOptions(200, 100, 4, seed=None),
-            LevelOptions(250, 50, 8),
-            LevelOptions(100, 150, 6),
-            LevelOptions(100, 100, 11),
-            LevelOptions(50, 50, 11),
-            LevelOptions(250, 50, 8),
-            LevelOptions(100, 150, 6),
-            LevelOptions(100, 100, 11),
-            LevelOptions(50, 50, 11),
-            LevelOptions(50, 50, 11),
+            LevelOptions(15, 15, 42, seed=None),
+            LevelOptions(15, 15, 42),
+            LevelOptions(15, 15, 42),
+            LevelOptions(15, 15, 42),
+            LevelOptions(15, 15, 42),
+
+            LevelOptions(15, 15, 42),
+            LevelOptions(15, 15, 42),
+            LevelOptions(15, 15, 42),
+            LevelOptions(15, 15, 42),
+            LevelOptions(15, 15, 42),
         ]
