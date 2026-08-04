@@ -259,7 +259,8 @@ class BitmapText(Widget):
         columns: Optional[int] = None,
         spacing: int = 0,
         scale: float = 1.0,
-        color: Optional[int] = None
+        color: Optional[int] = None,
+        lowercase_scale: float = 0.72
     ):
         super().__init__()
         self.text = text
@@ -271,12 +272,28 @@ class BitmapText(Widget):
         self.spacing = spacing
         self.scale = scale
         self.color = color
+        self.lowercase_scale = lowercase_scale
         self._index = {ch: i for i, ch in enumerate(charset)}
 
     @property
     def cell_size(self) -> Tuple[int, int]:
         return (max(1, round(self.char_width * self.scale)),
                 max(1, round(self.char_height * self.scale)))
+
+    def _glyph_index(self, char: str) -> Tuple[Optional[int], bool]:
+        """Resolve a character to a (glyph_index, is_synthesized_lowercase)
+        pair. If `char` isn't in the charset but its uppercase form is,
+        reuse the uppercase glyph and flag it so render() draws it
+        scaled down."""
+        index = self._index.get(char)
+        if index is not None:
+            return index, False
+        upper = char.upper()
+        if upper != char:
+            index = self._index.get(upper)
+            if index is not None:
+                return index, True
+        return None, False
 
     def measure(self) -> Tuple[int, int]:
         cw, ch = self.cell_size
@@ -294,20 +311,32 @@ class BitmapText(Widget):
         draw_x = x
 
         for char in self.text:
-            index = self._index.get(char)
+            index, is_lower = self._glyph_index(char)
             if index is not None:
                 col = index % self.columns
                 row = index // self.columns
+
+                if is_lower:
+                    gw = max(1, round(cw * self.lowercase_scale))
+                    gh = max(1, round(ch * self.lowercase_scale))
+                    # Center horizontally in the cell, sit on the baseline
+                    # (cell bottom) so lowercase reads like real text.
+                    gx = draw_x + (cw - gw) // 2
+                    gy = draw_y + (ch - gh)
+                else:
+                    gw, gh = cw, ch
+                    gx, gy = draw_x, draw_y
+
                 renderer.draw_texture_region_screen(
                     self.font_texture,
                     col * self.char_width,
                     row * self.char_height,
                     self.char_width,
                     self.char_height,
-                    draw_x,
-                    draw_y,
-                    cw,
-                    ch,
+                    gx,
+                    gy,
+                    gw,
+                    gh,
                 )
             draw_x += cw + self.spacing
 

@@ -1,5 +1,6 @@
 # renderersubsystem.py (complete)
 import ctypes
+import time
 import numpy as np
 from typing import Tuple, Optional, List, Callable, Any, Dict, Union, cast
 from mlx import Mlx
@@ -257,6 +258,15 @@ class RendererSubsystem:
         ticks = 0
         while _sprites_pending() and ticks < max_wait_ticks:
             Assets.update()
+            # A tight loop here only spins the interpreter — it doesn't
+            # give the background loader thread any real wall-clock time
+            # to actually read/decode textures from disk. On a cold cache
+            # (typically the very first level of a run, before anything
+            # has been loaded yet) that starves the loader thread and the
+            # wait loop can burn through all max_wait_ticks in a few
+            # milliseconds without a single sprite finishing, so we sleep
+            # a little each tick to yield real time to the loader thread.
+            time.sleep(0.001)
             ticks += 1
 
         if ticks >= max_wait_ticks and _sprites_pending():
@@ -278,6 +288,18 @@ class RendererSubsystem:
                 draw_list.append((actor, component))
 
         draw_list.sort(key=lambda pair: getattr(pair[1], 'render_layer', 0))
+
+        if static_actors and not draw_list:
+            self._logger.error(
+                "bake(): %d static actor(s) were present but NONE had a "
+                "loaded sprite — the baked background will be solid "
+                "background_color=0x%08X (this is the 'black bake' bug: "
+                "the loader thread never got real time to load assets "
+                "before bake() ran; make sure something has primed the "
+                "sprite components — e.g. an Actors.update(0) call — "
+                "before Renderer.bake() is invoked).",
+                len(static_actors), background_color,
+            )
 
         for actor, component in draw_list:
             sprite = component.sprite

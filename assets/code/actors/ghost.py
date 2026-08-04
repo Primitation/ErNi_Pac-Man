@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Optional, Type, Any
+from threading import Timer
 
 from Engine.ActorSubsystem.Components.animated_sprite_component import (
     AnimatedSpriteComponent)
@@ -18,6 +19,7 @@ from ..components.movement_components import (
 
 
 EDIBLEGHOST_INDEX = 32
+DEADGHOST_INDEX = 28
 
 FRIGHTENED_SPEED_MULTIPLIER = 0.5
 
@@ -69,8 +71,10 @@ class BasicGhost(Actor):
         self.color_index: int = color_index
 
         self._edible: bool = False
+        self._dead: bool = False
         self._base_speed: float = self.movement.speed
         self.add_component(CheatComponent())
+        self._dead_timer: Timer | None = None
 
         self.animation: AnimatedSpriteComponent = self.add_component(
             AnimatedSpriteComponent(
@@ -88,6 +92,28 @@ class BasicGhost(Actor):
         )
 
     @property
+    def dead(self) -> bool:
+        return self._dead
+
+    @dead.setter
+    def dead(self, value: bool) -> None:
+        if self._dead == value:
+            return
+        if self._dead_timer:
+            self._dead_timer.cancel()
+            self._dead_timer = None
+
+        self._dead = value
+        if value:
+            self._dead_timer = Timer(
+                5,
+                lambda: setattr(self, "dead", False)
+            )
+            self._dead_timer.start()
+
+        self.update_ghost_mode()
+
+    @property
     def edible(self) -> bool:
         return self._edible
 
@@ -102,7 +128,7 @@ class BasicGhost(Actor):
 
     def update_ghost_mode(self) -> None:
         """Update ghost appearance and behavior."""
-        if self.edible:
+        if self.edible and not self.dead:
             self.animation.set_animation(
                 "assets/texture/spritesheets"
                 "/pacman_hd/PacManAssets-Ghosts.png",
@@ -125,6 +151,22 @@ class BasicGhost(Actor):
                 loop=True,
                 start_frame=self.color_index
             )
+            self.face.enabled = True
+        if self.dead:
+            self.animation.set_animation(
+                "assets/texture/spritesheets"
+                "/pacman_hd/PacManAssets-Ghosts.png",
+                frame_width=32,
+                frame_height=32,
+                frame_count=8,
+                fps=4,
+                loop=True,
+                start_frame=DEADGHOST_INDEX
+            )
+            self.movement.enabled = False
+            self.face.enabled = False
+        else:
+            self.movement.enabled = True
             self.face.enabled = True
 
         if hasattr(self.chase, "set_fleeing"):

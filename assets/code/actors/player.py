@@ -172,6 +172,7 @@ class Player(Actor):
             if self._is_super_pacman():
                 Player.current_player.score_info.eat_ghost()
                 # TODO: temporary respawning
+                other_collider.owner.dead = True
                 other_collider.owner.position.x = (
                     other_collider.owner._start_position.x)
                 other_collider.owner.position.y = (
