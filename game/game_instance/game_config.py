@@ -140,10 +140,10 @@ class GameConfigModel(BaseModel):  # type: ignore[misc]
     """Model for game config validation for the config file."""
 
     highscore_filename: str = Field(default="save_scores.json")
-    level: List[Tuple[int, int]] = Field(default=[(15,15), (15,15), (15,15),
-                                                  (15,15), (15,15), (15,15),
-                                                  (15,15), (15,15), (15,15),
-                                                  (15,15)])
+    level: List[Tuple[int, int]] = Field(default=[(15, 15), (15, 15), (15, 15),
+                                                  (15, 15), (15, 15), (15, 15),
+                                                  (15, 15), (15, 15), (15, 15),
+                                                  (15, 15)])
     lives: int = Field(gt=0, default=3)
     pacgum: int = Field(default=42)
     points_per_pacgum: int = Field(default=10)
