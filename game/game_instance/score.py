@@ -98,7 +98,7 @@ class Scores:
                                   f" {game_config.highscore_filename}")
 
     def add_score(self, name: str, score: int) -> None:
-        """Adds a player name and score.
+        """Adds a player name and score and store the highscore.
 
         Args:
             name: the player name.

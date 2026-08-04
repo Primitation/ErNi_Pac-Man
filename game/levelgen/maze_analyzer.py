@@ -15,7 +15,7 @@ class MazeAnalyzer:
 
         Args:
             maze: maze wall format as bits 0 open and 1 closed of (W S E N).
-
+            ignore_cells: ignore the cells in the list.
         Returns:
             Returns the cells with at least a wall open.
         """

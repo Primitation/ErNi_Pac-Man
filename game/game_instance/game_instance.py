@@ -1,49 +1,11 @@
 """Game instance."""
 
-from typing import List, Tuple
-
 from Engine.LogSubsystem.logsubsystem import Log
 from assets.code.actors.player import Player
 from game.game_instance.score import Scores
 from .player_information import PlayerInformation
 from .game_config import GameConfig
 from .game_mode import GameModeNormalLevels
-
-
-class AskUI:
-    @staticmethod
-    def menu() -> str:  # temporary return type
-        msg = "Menu = start/s, highscores/h, instructions/i, exit/e:\n"
-        log = Log.get("main")
-        log.warning(msg)
-        inv = input()
-        while inv not in ("start", "highscores", "instructions",
-                          "exit", "s", "h", "i", "e"):
-            log.warning(msg)
-            inv = input()
-        d = {"i": "instructions", "s": "start", "h": "highscores", "e": "exit"}
-        if inv in d:
-            inv = d[inv]
-        return inv
-
-    @staticmethod
-    def ask_name(message: str, score: int) -> str:
-        # TODO: check <= 10 characters, letters/digit only
-        print(message)
-        return input(f"Player name for the score: {score}\n")
-
-    @staticmethod
-    def view_scores(names_scores: List[Tuple[str, int]]) -> None:
-        print("\n".join([
-            f"{str(i + 1)}. {name_score[0]} - {name_score[1]} pts"
-            for i, name_score in enumerate(names_scores)
-        ]))
-        input("Enter for exit highscores page:\n")
-
-    @staticmethod
-    def view_instructions(message: str) -> None:
-        print(message)
-        input("Enter for exit instructions page:\n")
 
 
 class GameInstance:
@@ -59,7 +21,6 @@ class GameInstance:
         self._game_mode_normal = GameModeNormalLevels(config.levels_options)
         self._scores = Scores.load_scores(config)
 
-        # TODO load here ? or not ?
         self._game_mode_normal.reset()
         level_instance = self._game_mode_normal.next_level()
         while level_instance is not None:
@@ -91,7 +52,6 @@ class GameInstance:
         return not Player.quit
 
     def page_menu(self) -> None:
-        from assets.code.ui.mainmenu import MainMenu
         """Menu page.
 
         Main page.
@@ -102,23 +62,8 @@ class GameInstance:
         Out:
             exit program
         """
-        """
-        exit_menu = False
-        while not exit_menu:
-            self.log.success("GameInstance: Menu")
-            next_page = AskUI.menu()  # TODO: show menu in UI !
-            if next_page == "start":
-                normal_end = self.page_current_normal_levels()
-                if normal_end:
-                    self.page_player_name_for_score()
-            elif next_page == "instructions":
-                self.page_instructions()
-            elif next_page == "highscores":
-                self.page_scores()
-            elif next_page == "exit":
-                self._scores.save_scores(self._config)
-                exit_menu = True
-        """
+        from assets.code.ui.mainmenu import MainMenu
+
         while True:
             result = MainMenu(self._scores).show()
             self.log.info(f"Menu closed with result: {result}")
@@ -131,21 +76,6 @@ class GameInstance:
             else:
                 break  # "quit" or window closed some other way
 
-    def page_instructions(self) -> None:
-        """Instruction page.
-
-        In:
-            Menu
-        Access:
-            None
-        Out:
-            Menu
-        """
-        self.log.success("GameInstance: Instructions")
-        instructions = "Instructions here"  # TODO: instruction text
-        AskUI.view_instructions(instructions)
-        # Returns to menu
-
     def page_current_normal_levels(self) -> bool:
         """Normal current level page.
 
@@ -154,25 +84,13 @@ class GameInstance:
         In:
             Menu
         Access:
-            Pause  #TODO
+            Pause
         Out:
             Menu
         """
         self.log.success("GameInstance: Normal level")
         # Returns to menu
         return self._start_normal_levels()
-
-    def page_pause(self) -> None:
-        """Pause page.
-
-        In:
-            ingame # TODO
-        Access:
-            None
-        Out:
-            in-game (current_normal_levels)
-        """
-        pass
 
     def page_player_name_for_score(self) -> None:
         """Player score + ask name. (and victory text if wins)
@@ -191,18 +109,4 @@ class GameInstance:
         player_score = self._current_player.score_info.score
         player_name = EndScreen(won, player_score).show()
         self._scores.add_score(player_name, player_score)
-        # Returns to Menu
-
-    def page_scores(self) -> None:
-        """Page for the scores.
-
-        In:
-            Menu
-        Access:
-            None
-        Out:
-            Menu
-        """
-        self.log.success("GameInstance: HighScores")
-        AskUI.view_scores(self._scores.get_top_scores(10))
         # Returns to Menu
