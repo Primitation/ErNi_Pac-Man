@@ -1,3 +1,28 @@
-# Placeholder — didn't want to guess which enums you need (input
-# keys? collision layers? asset types?). Tell me and I'll fill this
-# in and wire it into Types/__init__.py.
+from enum import Enum, auto
+
+
+class GameState(Enum):
+    """Game state enumeration."""
+    MENU = auto()
+    PLAYING = auto()
+    PAUSED = auto()
+    GAME_OVER = auto()
+    LEVEL_COMPLETE = auto()
+
+
+class CollisionLayer(Enum):
+    """Collision layers."""
+    DEFAULT = 0
+    PLAYER = 1
+    WALL = 2
+    ENEMY = 3
+    TRIGGER = 4
+    FLOOR = 5
+
+
+class AssetType(Enum):
+    """Asset types."""
+    TEXTURE = auto()
+    SPRITE_SHEET = auto()
+    SOUND = auto()
+    FONT = auto()

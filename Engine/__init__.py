@@ -1,10 +1,10 @@
 from .Types import Vector2, Vector3, Quaternion, Euler, Color
 from .World.world import World
 from .LogSubsystem.logsubsystem import Log, log_timing
+from .CollisionSubsystem.collisionsubsystem import Collision
 from .AssetSubsystem.assetsubsystem import Assets
 from .AssetSubsystem.loader import SpriteSheetKey, Animation
 from .ActorSubsystem.actorsubsystem import Actors, AActor, on_end_of_anim
-from .CollisionSubsystem.collisionsubsystem import Collision
 from .ActorSubsystem.Components import (
     SpriteComponent, AnimatedSpriteComponent,
     ColliderComponent, Component)

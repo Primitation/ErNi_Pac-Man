@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from Engine import AActor, Vector2
 from ..components.wall_components import (
     Wall_Component,
@@ -18,22 +20,22 @@ class Cell(AActor):
         S: bool = True,
         E: bool = True,
         W: bool = True,
-    ):
+    ) -> None:
         super().__init__(
             position=position,
             scale=Vector2(1, 1),
             static=True,
         )
 
-        self.north: Cell | None = None
-        self.south: Cell | None = None
-        self.east: Cell | None = None
-        self.west: Cell | None = None
+        self.north: Optional[Cell] = None
+        self.south: Optional[Cell] = None
+        self.east: Optional[Cell] = None
+        self.west: Optional[Cell] = None
 
-        self.open_north = N
-        self.open_south = S
-        self.open_east = E
-        self.open_west = W
+        self.open_north: bool = N
+        self.open_south: bool = S
+        self.open_east: bool = E
+        self.open_west: bool = W
 
         sides = {
             "N": (N, 180),
@@ -47,32 +49,33 @@ class Cell(AActor):
                 self.add_component(Wall_Component(rotation))
 
     @property
-    def has_north_wall(self):
+    def has_north_wall(self) -> bool:
         return not self.open_north
 
     @property
-    def has_east_wall(self):
+    def has_east_wall(self) -> bool:
         return not self.open_east
 
     @property
-    def has_south_wall(self):
+    def has_south_wall(self) -> bool:
         return not self.open_south
 
     @property
-    def has_west_wall(self):
+    def has_west_wall(self) -> bool:
         return not self.open_west
 
     @staticmethod
-    def has_neighbor_wall(cell, wall):
+    def has_neighbor_wall(cell: Optional[Cell], wall: str) -> bool:
         """
         Missing neighbors are considered walls.
         """
         if cell is None:
             return True
 
-        return getattr(cell, wall)
+        return bool(getattr(cell, wall))
 
-    def build_geometry(self):
+    def build_geometry(self) -> None:
+        """Build wall geometry for this cell."""
 
         # Outer (convex) NE corner
         if (

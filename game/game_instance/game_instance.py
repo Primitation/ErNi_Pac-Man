@@ -85,7 +85,7 @@ class GameInstance:
             Player.end_level = False
             level_name = self._game_mode_normal.current_level
             log.info(f"GameInstance: start normal level {level_name}")
-            level_instance.start(self._current_player, level_name)
+            level_instance.start(self._current_player, str(level_name))
             level_instance = self._game_mode_normal.next_level()
         log.info("GameInstance: end normal levels")
         return not Player.quit
@@ -122,7 +122,7 @@ class GameInstance:
         while True:
             result = MainMenu(self._scores).show()
             self.log.info(f"Menu closed with result: {result}")
- 
+
             if result == "play":
                 normal_end = self.page_current_normal_levels()
                 if normal_end:
@@ -184,12 +184,12 @@ class GameInstance:
         Out:
             Menu
         """
+        from assets.code.ui.end_screen import EndScreen
+
         self.log.success("GameInstance: Enter player name for score saving:")
-        message_for_player = ("Winner\n"
-                              if self._current_player.is_alive()
-                              else "Well played\n")
+        won = self._current_player.is_alive()
         player_score = self._current_player.score_info.score
-        player_name = AskUI.ask_name(message_for_player, player_score)
+        player_name = EndScreen(won, player_score).show()
         self._scores.add_score(player_name, player_score)
         # Returns to Menu
 

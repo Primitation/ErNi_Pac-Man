@@ -1,5 +1,3 @@
-
-
 from typing import Any
 
 from Engine.ActorSubsystem.Components.component import Component
@@ -7,11 +5,10 @@ from Engine.InputSubsystem.inputsubsystem import Input
 from Engine.LogSubsystem.logsubsystem import Log
 
 
-
 class CheatComponent(Component):
     """Cheat input."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         from assets.code.actors.ghost import BasicGhost
         from assets.code.actors.player import Player
 
@@ -20,7 +17,7 @@ class CheatComponent(Component):
         self.ghost: BasicGhost | None = None
         self._log = Log.get("main")
 
-    def on_added(self, actor: Any):
+    def on_added(self, actor: Any) -> None:
         from assets.code.actors.ghost import BasicGhost
         from assets.code.actors.player import Player
 
@@ -30,9 +27,10 @@ class CheatComponent(Component):
         if isinstance(actor, Player):
             self.player = actor
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
         from assets.code.actors.player import Player
         from Engine.ActorSubsystem.actorsubsystem import Actors
+
         if Input.is_action_triggered("invinsible"):
             if self.player:
                 self.player.invinsible = not self.player.invinsible
@@ -41,29 +39,28 @@ class CheatComponent(Component):
         if Input.is_action_triggered("level win"):
             if self.player:
                 Player.end_level = True
-                self._log.info(f"Cheat: Win level")
+                self._log.info("Cheat: Win level")
 
         if Input.is_action_triggered("ghost freeze"):
             if self.ghost:
                 self.ghost.freeze_input()
-                self._log.info(f"Cheat: Activate/Deactivate freeze")
+                self._log.info("Cheat: Activate/Deactivate freeze")
 
         if Input.is_action_triggered("extra live"):
-            if self.player:
+            if self.player and Player.current_player:
                 Player.current_player.add_live()
-                self._log.info(f"Cheat: Add live")
+                self._log.info("Cheat: Add live")
 
         if Input.is_action_triggered("increase speed"):
             if self.player:
                 self.player.speed_up()
-                self._log.info(f"Cheat: speed up")
+                self._log.info("Cheat: speed up")
 
         if Input.is_action_triggered("decrease speed"):
             if self.player:
                 self.player.speed_down()
-                self._log.info(f"Cheat: speed down")
+                self._log.info("Cheat: speed down")
 
         if Input.is_action_triggered("time stop"):
-            if self.player:
-                Actors.time_stop = not Actors.time_stop
-                self._log.info(f"Cheat: Time stop: {Actors.time_stop}")
+            Actors.time_stop = not Actors.time_stop
+            self._log.info(f"Cheat: Time stop: {Actors.time_stop}")

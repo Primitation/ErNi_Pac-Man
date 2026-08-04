@@ -1,15 +1,12 @@
 from typing import Tuple
-
-from .actor import Actor
 from Engine import Vector2, AActor
 from Engine import AnimatedSpriteComponent
-from ..components.origin_marker_component import OriginMarkerComponent
 
 
 class Wall(AActor):
     """A wall Actor."""
 
-    local_offset_scaling: int = 1
+    local_offset_scaling: float = 1.0
 
     def __init__(
         self,
@@ -41,16 +38,16 @@ class Wall(AActor):
             )
         )
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
         super().update(dt)
 
-    def destroy(self):
+    def destroy(self) -> None:
         self.logger.debug("destroy")
         super().destroy()
 
-    @staticmethod
-    def local_offset_scaling(scale: float = 1) -> None:
-        Wall.local_offset_scaling = scale
+    @classmethod
+    def set_local_offset_scaling(cls, scale: float = 1) -> None:
+        cls.local_offset_scaling = scale
 
 
 class WallNorth(Wall):

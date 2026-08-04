@@ -1,88 +1,59 @@
+# logsubsystem.py
 from .logger import Logger, LogMode
 import time
 import functools
+from typing import Any, Optional, Callable, TypeVar, cast
 
 
 class LogSubsystem:
+    """Global logging system."""
 
-    def __init__(self):
-
+    def __init__(self) -> None:
         self._logger = Logger()
 
-    def get(self, name: str):
-
+    def get(self, name: str) -> Any:
         return self._logger.get(name)
 
-    def verbose(self):
+    def verbose(self) -> None:
+        self._logger.set_mode(LogMode.DEBUG)
 
-        self._logger.set_mode(
-            LogMode.DEBUG
-        )
+    def normal(self) -> None:
+        self._logger.set_mode(LogMode.RELEASE)
 
-    def normal(self):
+    def errors(self) -> None:
+        self._logger.set_mode(LogMode.QUIET)
 
-        self._logger.set_mode(
-            LogMode.RELEASE
-        )
-
-    def errors(self):
-
-        self._logger.set_mode(
-            LogMode.QUIET
-        )
-
-    def enable_console(self):
-
+    def enable_console(self) -> None:
         self._logger.enable_console()
 
-    def disable_console(self):
-
+    def disable_console(self) -> None:
         self._logger.disable_console()
 
-    def enable_file(self, file: str = "logs/latest.log"):
-
+    def enable_file(self, file: str = "logs/latest.log") -> None:
         self._logger.enable_file(file)
 
-    def disable_file(self):
-
+    def disable_file(self) -> None:
         self._logger.disable_file()
 
-    def close(self):
-
+    def close(self) -> None:
         self._logger.close()
 
 
-def log_timing(label=None, logger_attr="_logger", every=300):
-    """Decorator for subsystem update()/render() methods — logs, at
-    DEBUG level, how long the wrapped call took in milliseconds.
+F = TypeVar('F', bound=Callable[..., Any])
 
-    Usage:
-        class RendererSubsystem:
-            @log_timing(every=60)
-            def render(self, world):
-                ...
 
-    label:
-        What shows up in the log line. Defaults to the wrapped
-        method's own name.
+def log_timing(label: Optional[str] = None,
+               logger_attr: str = "_logger",
+               every: int = 300) -> Callable[[F], F]:
+    """Decorator for subsystem update()/render() methods."""
 
-    logger_attr:
-        Attribute name on self holding a Log logger.
-
-    every:
-        How often to log the timing result. Defaults to 1, meaning
-        every call is logged. Set this higher to print the average
-        timing over that number of calls.
-    """
-
-    def decorator(func):
+    def decorator(func: F) -> F:
         name = label or func.__name__
-
         counter_name = f"_log_timing_{func.__name__}_counter"
         total_name = f"_log_timing_{func.__name__}_total"
 
         @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
             start = time.perf_counter()
 
             try:
@@ -98,23 +69,16 @@ def log_timing(label=None, logger_attr="_logger", every=300):
 
                 if counter >= every:
                     logger = getattr(self, logger_attr, None)
-
                     if logger is not None:
                         average_ms = total / counter
-
-                        logger.debug(
-                            f"{name} average took "
-                            f"{average_ms:.3f} ms "
-                            f"({counter} calls)"
-                        )
-
+                        logger.debug(f"{name} average took {average_ms:.3f} "
+                                     f"ms ({counter} calls)")
                     setattr(self, counter_name, 0)
                     setattr(self, total_name, 0.0)
 
-        return wrapper
+        return cast(F, wrapper)
 
     return decorator
 
 
-# Global logging system
 Log = LogSubsystem()

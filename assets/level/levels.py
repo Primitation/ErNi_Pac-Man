@@ -1,26 +1,38 @@
-from Engine import World, AActor, Actors, Vector2
+from __future__ import annotations
+
 from abc import ABC
-from ..code.player import Player
+from typing import Any, Dict, List, Tuple, Type
+
+from Engine import World, Actors, Vector2
+from ..code.actors.player import Player
 
 
 class Level(ABC):
-    actors: AActor = []
+    """Base class for level definitions."""
 
-    def load(self):
+    def __init__(self) -> None:
+        self.actors: List[Tuple[Type[Any], Dict[str, Any]]] = []
+
+    def load(self) -> None:
         World.clear()
         Actors.clear()
         self._spawn_actors()
 
-    def _spawn_actors(self):
+    def _spawn_actors(self) -> None:
         """Spawn all actors from the actors list"""
         for actor_class, kwargs in self.actors:
             Actors.spawn(actor_class, **kwargs)
 
-    def add_actor(self, actor_class: type, **kwargs):
+    def add_actor(self, actor_class: Type[Any],
+                  **kwargs: Any) -> None:
         """Helper method to add an actor to be spawned"""
         self.actors.append((actor_class, kwargs))
 
 
-class Level_1(Level):
-    super.add_actor(Player, Vector2(0, 0), Vector2(0.25, 0.25),
-                   "assets.texture.pacman.png")
+class Level1(Level):
+    """First level."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.add_actor(Player, position=Vector2(0, 0),
+                       velocity=Vector2(0, 0), scale=Vector2(0.25, 0.25))

@@ -2,7 +2,7 @@
 
 
 import json
-from typing import Any, List, Tuple
+from typing import Any, List, Optional, Tuple
 from pydantic import (BaseModel, Field, field_validator)
 from game.levelgen import LevelOptions
 from Engine import Log
@@ -23,15 +23,15 @@ class GameConfig:
         level_max_time: max time for a level.
     """
     def __init__(self,
-                 highscore_filename,
-                 lives,
-                 pacgum,
-                 points_per_pacgum,
-                 points_per_super_pacgum,
-                 points_per_ghost,
-                 seed,
-                 levels_options,
-                 level_max_time) -> None:
+                 highscore_filename: str,
+                 lives: int,
+                 pacgum: int,
+                 points_per_pacgum: int,
+                 points_per_super_pacgum: int,
+                 points_per_ghost: int,
+                 seed: int,
+                 levels_options: List[LevelOptions],
+                 level_max_time: int) -> None:
         """Initilize the game configuration.
 
         Args:
@@ -66,7 +66,7 @@ class GameConfig:
         return self._points_per_super_pacgum
 
     @property
-    def highscore_filename(self) -> int:
+    def highscore_filename(self) -> str:
         """scores saves filename"""
         return self._highscore_filename
 
@@ -131,23 +131,26 @@ class GameConfigModelConstant:
     MIN_points = 1
     DEFAULT_seed = 42
     MIN_level_max_time = 30  # seconds per level
-    MIN_LEVELS = 1  # TODO REAL VALUE NEEDED: 10
+    MIN_LEVELS = 10
 
     LOG = Log.get("main")
 
 
-class GameConfigModel(BaseModel):
+class GameConfigModel(BaseModel):  # type: ignore[misc]
     """Model for game config validation for the config file."""
 
     highscore_filename: str = Field(default="save_scores.json")
-    level: List[Tuple[int, int]]
-    lives: int = Field(gt=0)
-    pacgum: int
-    points_per_pacgum: int
-    points_per_super_pacgum: int
-    points_per_ghost: int
-    seed: int
-    level_max_time: int
+    level: List[Tuple[int, int]] = Field(default=[(15, 15), (15, 15), (15, 15),
+                                                  (15, 15), (15, 15), (15, 15),
+                                                  (15, 15), (15, 15), (15, 15),
+                                                  (15, 15)])
+    lives: int = Field(gt=0, default=3)
+    pacgum: int = Field(default=42)
+    points_per_pacgum: int = Field(default=10)
+    points_per_super_pacgum: int = Field(default=50)
+    points_per_ghost: int = Field(default=200)
+    seed: int = Field(default=42)
+    level_max_time: int = Field(default=90)
 
     @staticmethod
     def check_number(v: Any,
@@ -175,7 +178,7 @@ class GameConfigModel(BaseModel):
                 f" Use {min_value}.")
             return min_value
 
-    @field_validator("highscore_filename", mode="before")
+    @field_validator("highscore_filename", mode="before")  # type: ignore[misc]
     @classmethod
     def parse_highscore_filename(cls, v: Any) -> str:
         """Returns the string for the filename, or default.
@@ -191,7 +194,7 @@ class GameConfigModel(BaseModel):
                 f" Use {GameConfigModelConstant.DEFAULT_highscore_filename}.")
             return GameConfigModelConstant.DEFAULT_highscore_filename
 
-    @field_validator("lives", mode="before")
+    @field_validator("lives", mode="before")  # type: ignore[misc]
     @classmethod
     def parse_lives(cls, v: Any) -> int:
         """Returns the correct int v or default.
@@ -206,7 +209,7 @@ class GameConfigModel(BaseModel):
             GameConfigModelConstant.MIN_lives,
             "lives")
 
-    @field_validator("pacgum", mode="before")
+    @field_validator("pacgum", mode="before")  # type: ignore[misc]
     @classmethod
     def parse_pacgum(cls, v: Any) -> int:
         """Returns the correct int v or default.
@@ -221,7 +224,7 @@ class GameConfigModel(BaseModel):
             GameConfigModelConstant.MIN_pacgum,
             "pacgum")
 
-    @field_validator("seed", mode="before")
+    @field_validator("seed", mode="before")  # type: ignore[misc]
     @classmethod
     def parse_seed(cls, v: Any) -> int:
         """Returns the correct int v or default.
@@ -240,7 +243,7 @@ class GameConfigModel(BaseModel):
             return GameConfigModelConstant.DEFAULT_seed
 
     @field_validator("points_per_pacgum", "points_per_super_pacgum",
-                     "points_per_ghost", mode="before")
+                     "points_per_ghost", mode="before")  # type: ignore[misc]
     @classmethod
     def parse_points(cls, v: Any) -> int:
         """Returns the correct int v or default.
@@ -255,7 +258,7 @@ class GameConfigModel(BaseModel):
             GameConfigModelConstant.MIN_points,
             "points")
 
-    @field_validator("level_max_time", mode="before")
+    @field_validator("level_max_time", mode="before")  # type: ignore[misc]
     @classmethod
     def parse_level_max_time(cls, v: Any) -> int:
         """Returns the correct int v or default.
@@ -270,7 +273,48 @@ class GameConfigModel(BaseModel):
             GameConfigModelConstant.MIN_level_max_time,
             "level_max_time")
 
-    @field_validator("level", mode="before")
+    @staticmethod
+    def _validate_level_entry(
+        level_data: Any
+    ) -> Optional[Tuple[int, int]]:
+        """Validate a single level entry and return (width, height)."""
+        if not isinstance(level_data, dict):
+            GameConfigModelConstant.LOG.error(
+                f"Not a dict: {level_data}. Ignored.")
+            return None
+
+        if (GameConfigModelConstant.WIDTH not in level_data
+                or GameConfigModelConstant.HEIGHT not in level_data):
+            GameConfigModelConstant.LOG.error(
+                f"Level without keys {GameConfigModelConstant.WIDTH} or "
+                f"{GameConfigModelConstant.HEIGHT}. Ignored.")
+            return None
+
+        try:
+            width = int(level_data[GameConfigModelConstant.WIDTH])
+            height = int(level_data[GameConfigModelConstant.HEIGHT])
+        except Exception:
+            GameConfigModelConstant.LOG.error(
+                f"Invalid width={level_data[GameConfigModelConstant.WIDTH]}, "
+                f"height={level_data[GameConfigModelConstant.HEIGHT]}. "
+                "Ignored.")
+            return None
+
+        if width < GameConfigModelConstant.MIN_width:
+            GameConfigModelConstant.LOG.error(
+                f"Width too small: {width}. Use "
+                f"{GameConfigModelConstant.MIN_width}.")
+            width = GameConfigModelConstant.MIN_width
+
+        if height < GameConfigModelConstant.MIN_height:
+            GameConfigModelConstant.LOG.error(
+                f"Height too small: {height}. Use "
+                f"{GameConfigModelConstant.MIN_height}.")
+            height = GameConfigModelConstant.MIN_height
+
+        return (width, height)
+
+    @field_validator("level", mode="before")  # type: ignore[misc]
     @classmethod
     def parse_level(cls, v: Any) -> List[Tuple[int, int]]:
         """Returns the correct List[Tuple[int, int]] v or default.
@@ -280,61 +324,23 @@ class GameConfigModel(BaseModel):
         Returns:
             Returns v if valid or default.
         """
-        try:
-            levels_options: List[Tuple[int, int]] = []
-            levels_data = v
-            if isinstance(levels_data, list):
-                for level_data in levels_data:
-                    if isinstance(level_data, dict):
-                        if (GameConfigModelConstant.WIDTH in level_data
-                                and GameConfigModelConstant.HEIGHT
-                                in level_data):
-                            width_base = (
-                                level_data[GameConfigModelConstant.WIDTH]
-                            )
-                            height_base = (
-                                level_data[GameConfigModelConstant.HEIGHT]
-                            )
-                            try:
-                                width = int(width_base)
-                                height = int(height_base)
-                            except Exception:
-                                GameConfigModelConstant.LOG.error(
-                                    f"Invalid width={width_base},"
-                                    f" height={height_base}. Ignored.")
-                                continue
-                            if width < GameConfigModelConstant.MIN_width:
-                                GameConfigModelConstant.LOG.error(
-                                    f"Width too small: {width}. Use "
-                                    f"{GameConfigModelConstant.MIN_width}.")
-                                width = GameConfigModelConstant.MIN_width
-                            if height < GameConfigModelConstant.MIN_height:
-                                GameConfigModelConstant.LOG.error(
-                                    f"Height too small: {height}. Use "
-                                    f"{GameConfigModelConstant.MIN_height}.")
-                                height = GameConfigModelConstant.MIN_height
-
-                            levels_options.append((width, height))
-                        else:
-                            GameConfigModelConstant.LOG.error(
-                                f"Level without keys "
-                                f"{GameConfigModelConstant.WIDTH} or "
-                                f"{GameConfigModelConstant.HEIGHT}. Ignored.")
-                            continue
-                    else:
-                        GameConfigModelConstant.LOG.error(
-                            f"Not a dict: {level_data}. Ignored.")
-                        continue
-            else:
-                GameConfigModelConstant.LOG.error(
-                    f"Not a list: {levels_data}. Ignored.")
-                raise ValueError("Bad Json, use default.")
-            return levels_options
-
-        except Exception:
+        if not isinstance(v, list):
             GameConfigModelConstant.LOG.error(
-                    f"Invalids level options. Use default.")
-            return []  # Default by GameConfigParser
+                f"Not a list: {v}. Ignored.")
+            raise ValueError("Bad Json, use default.")
+
+        levels_options: List[Tuple[int, int]] = []
+        for level_data in v:
+            result = GameConfigModel._validate_level_entry(level_data)
+            if result is not None:
+                levels_options.append(result)
+
+        if not levels_options:
+            GameConfigModelConstant.LOG.error(
+                "No valid level options found. Use default.")
+            raise ValueError("No valid levels, use default.")
+
+        return levels_options
 
 
 class GameConfigParser:
@@ -354,7 +360,7 @@ class GameConfigParser:
                 json_data = json.load(f)
         except Exception:
             GameConfigModelConstant.LOG.error(
-                f"Invalid game config json file. Use default.")
+                "Invalid game config json file. Use default.")
             return GameConfigParser.default_game_config()
 
         try:
@@ -431,14 +437,15 @@ class GameConfigParser:
             Returns the default list of LevelOptions.
         """
         return [
-            LevelOptions(200, 100, 4, seed=None),
-            LevelOptions(250, 50, 8),
-            LevelOptions(100, 150, 6),
-            LevelOptions(100, 100, 11),
-            LevelOptions(50, 50, 11),
-            LevelOptions(250, 50, 8),
-            LevelOptions(100, 150, 6),
-            LevelOptions(100, 100, 11),
-            LevelOptions(50, 50, 11),
-            LevelOptions(50, 50, 11),
+            LevelOptions(15, 15, 42, seed=None),
+            LevelOptions(15, 15, 42),
+            LevelOptions(15, 15, 42),
+            LevelOptions(15, 15, 42),
+            LevelOptions(15, 15, 42),
+
+            LevelOptions(15, 15, 42),
+            LevelOptions(15, 15, 42),
+            LevelOptions(15, 15, 42),
+            LevelOptions(15, 15, 42),
+            LevelOptions(15, 15, 42),
         ]

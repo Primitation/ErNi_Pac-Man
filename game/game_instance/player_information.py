@@ -1,5 +1,7 @@
 """Current player."""
 
+from typing import Optional
+
 from .game_config import GameConfig
 from .score import Score
 
@@ -8,7 +10,7 @@ class PlayerInformation:
     """Player information in the game."""
     def __init__(self,
                  config: GameConfig,
-                 score: Score = None) -> None:
+                 score: Optional[Score] = None) -> None:
         """Initialize a player with a score and lives.
 
         Args:

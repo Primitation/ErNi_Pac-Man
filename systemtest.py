@@ -11,9 +11,10 @@ Smoke test for the mlx engine:
 import os
 import sys
 import time
+from typing import Any
 
-from Engine import Renderer, Assets, Actors, Log, \
-                   World, Collision, Input, Vector2, Particles
+from Engine import (Renderer, Assets, Actors, Log,
+                    World, Collision, Input, Vector2, Particles)
 from assets.code.actors.player import Player
 
 
@@ -23,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 WIDTH, HEIGHT = 1600, 900
 
 
-def main():
+def main() -> None:
 
     log = Log.get("main")
     log.info("Booting smoke test...")
@@ -41,7 +42,7 @@ def main():
         scale=Vector2(1.5, 1.5),
     )
 
-    def on_pause():
+    def on_pause() -> None:
         paused = Actors.toggle_pause()
         log.info(f"Game {'paused' if paused else 'resumed'}.")
 
@@ -55,9 +56,9 @@ def main():
     fps_timer = 0.0
     fps_frames = 0
     fps = 0
-    Renderer.bake(World)
+    Renderer.bake(list(World))
 
-    def frame(_param):
+    def frame(_param: Any) -> None:
 
         nonlocal last_time
         nonlocal fps_timer
@@ -93,7 +94,7 @@ def main():
         if not Actors.paused:
             Collision.update()
             Particles.update(dt)
-        Renderer.render_draw(World)
+        Renderer.render_draw(list(World))
         Particles.render(Renderer)
         Renderer.render_present()
 
