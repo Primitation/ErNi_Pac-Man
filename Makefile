@@ -145,7 +145,6 @@ mlx:
 
 package-install:
 	@$(call spinner,Installing libs package, $(PIP) install libs/*.whl --force-reinstall >/dev/null)
-	@$(call spinner,Installing others package, $(PIP) install *.whl --force-reinstall >/dev/null)
 
 
 run:
