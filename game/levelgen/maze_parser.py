@@ -29,6 +29,21 @@ class MazeData:
                  cells: List[List[int]],
                  start: Dict[Position, int], end: Dict[Position, int],
                  path: Set[Tuple[int, int]]) -> None:
+        """Initialize the information of the maze.
+
+        Args:
+            width: the number of cells in the width.
+            height: the number of cells in the height.
+            cells:
+                The 2D array (height) (width) with cells as
+                byte (West South East North) with North as LSD
+                with 0 open and 1 closed.
+            start:
+                The starting cell position with keys (width height).
+            end:
+                The ending cell position with keys (width height).
+            path: The path from start to end
+        """
         self._width = width
         self._height = height
         self._cells = cells

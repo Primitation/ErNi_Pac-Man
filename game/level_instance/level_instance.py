@@ -31,6 +31,11 @@ class LevelInstance:
     TILE_SIZE = 42
 
     def __init__(self, level_options: LevelOptions) -> None:
+        """Initialize a level instance.
+
+        Args:
+            level_options: the options for this level.
+        """
         self._level_options = level_options
         self._level_structure: Optional[LevelStructure] = None
         self._name = None
@@ -53,6 +58,11 @@ class LevelInstance:
         Log.get("level").info("Level instance load ready")
 
     def _world_position(self, position: Vector2) -> Vector2:
+        """Returns the world position for this level instance.
+
+        Returns:
+            Returns the world position for this level instance.
+        """
         return Vector2(
             position.x * self.TILE_SIZE,
             position.y * self.TILE_SIZE,
@@ -63,7 +73,12 @@ class LevelInstance:
         player_information: PlayerInformation,
         level_name: str,
     ) -> None:
-        """Initialize and start level."""
+        """Initialize and start level.
+
+        Args:
+            player_information: the level information.
+            level_name: the name of the level.
+        """
 
         self._prepare_level(
             player_information,
@@ -85,6 +100,12 @@ class LevelInstance:
         player_information: PlayerInformation,
         level_name: str,
     ) -> None:
+        """Prepare the level.
+
+        Args:
+            player_information: the level information.
+            level_name: the name of the level.
+        """
         if self._level_structure is None:
             self.load()
 
@@ -116,6 +137,7 @@ class LevelInstance:
         Collision.init(width, height)
 
     def _spawn_level(self) -> None:
+        """Spawns the actors in the level."""
         self._spawn_cells()
         self._spawn_player()
         self._spawn_ghosts()
@@ -126,6 +148,7 @@ class LevelInstance:
         )
 
     def _spawn_cells(self) -> None:
+        """Spawns the cells in the level."""
         assert self._level_structure is not None
         maze = self._level_structure.maze
 
@@ -160,6 +183,10 @@ class LevelInstance:
         )
 
     def _link_cells(self, cells: List[List[Cell]]) -> None:
+        """Links the cells to each others.
+
+        Args:
+            cells: the cells to link."""
         height = len(cells)
         width = len(cells[0])
 
@@ -180,6 +207,7 @@ class LevelInstance:
                     cell.east = cells[y][x + 1]
 
     def _spawn_player(self) -> None:
+        """Spawns the player."""
         assert self._level_structure is not None
         Actors.spawn(
             Player,
@@ -191,6 +219,7 @@ class LevelInstance:
         )
 
     def _spawn_ghosts(self) -> None:
+        """Spawns the ghosts."""
         assert self._level_structure is not None
         ghosts = [
             RedGhost,
@@ -211,6 +240,7 @@ class LevelInstance:
             )
 
     def _spawn_pacgums(self) -> None:
+        """Spawns the pacgums."""
         assert self._level_structure is not None
         for position in self._level_structure.pacgums:
             Actors.spawn(
@@ -229,6 +259,7 @@ class LevelInstance:
             )
 
     def _setup_camera(self) -> None:
+        """Setup the camera."""
         assert self._level_structure is not None
         width = (
             self._level_structure.width
@@ -343,7 +374,14 @@ class LevelInstance:
         pause_hud: PauseHUD,
         state: Dict[str, Any],
     ) -> None:
-        """Process one frame."""
+        """Process one frame.
+
+        Args:
+            _param: parameters (ignored)
+            hud: gameplay hud.
+            pause_hud: pause hud.
+            state: state in the level.
+        """
 
         self._update_transition(state)
 
@@ -371,7 +409,11 @@ class LevelInstance:
         Input.update()
 
     def _update_transition(self, state: Dict[str, Any]) -> None:
-        """Update fade transitions."""
+        """Update fade transitions.
+
+        Args:
+            state: state in the level.
+        """
 
         if (
             Player.game_ended()
@@ -380,7 +422,11 @@ class LevelInstance:
             state["fade_out"] = Transition(650)
 
     def _update_game(self, dt: float) -> None:
-        """Update gameplay."""
+        """Update gameplay.
+
+        Args:
+            dt: difference time from the previous update.
+        """
 
         Input.process_actions()
 
@@ -396,7 +442,13 @@ class LevelInstance:
         pause_hud: PauseHUD,
         state: Dict[str, Any],
     ) -> None:
-        """Render current frame."""
+        """Render current frame.
+
+        Args:
+            hud: gameplay hud.
+            pause_hud: pause hud.
+            state: state in the level.
+        """
 
         Renderer.render_draw(list(World))
 
@@ -412,7 +464,11 @@ class LevelInstance:
         Renderer.render_present()
 
     def _render_fade(self, state: Dict[str, Any]) -> None:
-        """Render fade effects."""
+        """Render fade effects.
+
+        Args:
+            state: state in the level.
+        """
 
         fade_in = state["fade_in"]
         fade_out = state["fade_out"]
