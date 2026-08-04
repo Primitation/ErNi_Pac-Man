@@ -18,7 +18,7 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
-exclude = "^(minilibx-linux/|.venv/|libs/)"
+exclude = "^(minilibx-linux/|.venv/|libs/|dist/)"
 
 [[tool.mypy.overrides]]
 module = "numpy"
@@ -89,7 +89,8 @@ exclude = [
     "Pac_man.egg-info",
     "logs",
     "docs",
-    "minilibx-linux"
+    "minilibx-linux",
+    "dist"
 ]
 ignore = [
     "E203",
