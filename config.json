@@ -1,4 +1,6 @@
+# Comment 1
 {
+# comment 2
     "highscore_filename":"save_scores.json",
     "lives":4,
     "pacgum":"100",
@@ -9,6 +11,7 @@
     "seed":"42",
     "level":
         [
+# Comment 3
             {
                 "width":"20",
                 "height":"20"
