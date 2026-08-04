@@ -110,7 +110,7 @@ install: banner mlx
 
 	@$(call spinner,Installing MLX,$(PIP) install $(MLX_DIR)/*.whl >/dev/null)
 
-	@$(MAKE) package-install
+	@$(MAKE) -s package-install
 
 	@printf "\n$(GREEN)🗝  The maze is ready. Good luck!$(RESET)\n"
 
@@ -144,7 +144,8 @@ mlx:
 
 
 package-install:
-	@$(call spinner,Installing mazgen package, $(PIP) install libs/*.whl --force-reinstall >/dev/null)
+	@$(call spinner,Installing libs package, $(PIP) install libs/*.whl --force-reinstall >/dev/null)
+	@$(call spinner,Installing others package, $(PIP) install *.whl --force-reinstall >/dev/null)
 
 
 run:
@@ -154,11 +155,11 @@ run:
 	@printf "╚══════════════════════════════════════╝\n"
 	@printf "$(RESET)"
 
-	@$(PYTHON) test_game.py
+	@$(PYTHON) pacman.py config.json
 
 debug:
 	$(TITLE) "Debug mode"
-	$(PYTHON) -m pdb a_maze_ing.py config.txt
+	$(PYTHON) -m pdb pacman.py config.json
 
 lint:
 	$(TITLE) "Running lint checks"
@@ -186,12 +187,11 @@ clean:
 	@if [ -d "$(MLX_DIR)" ]; then \
 		$(MAKE) -C $(MLX_DIR) clean; \
 	fi
-	rm -f maze.txt
+	rm -f save_scores.json
 	$(SUCCESS) "Clean complete!"
 
 fclean: clean
 	$(TITLE) "Full clean"
-	rm -rf output.txt
 	rm -rf minilibx-linux
 	rm -f *.whl
 	rm -f *.tar.gz
