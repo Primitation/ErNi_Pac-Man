@@ -110,7 +110,7 @@ install: banner mlx
 
 	@$(call spinner,Installing MLX,$(PIP) install $(MLX_DIR)/*.whl >/dev/null)
 
-	@$(MAKE) package-install
+	@$(MAKE) -s package-install
 
 	@printf "\n$(GREEN)🗝  The maze is ready. Good luck!$(RESET)\n"
 
@@ -154,7 +154,7 @@ run:
 	@printf "╚══════════════════════════════════════╝\n"
 	@printf "$(RESET)"
 
-	@$(PYTHON) test_game.py
+	@$(PYTHON) pacman.py
 
 debug:
 	$(TITLE) "Debug mode"

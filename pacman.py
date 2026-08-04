@@ -1,12 +1,5 @@
 """
-Smoke test for the mlx engine:
-- RendererSubsystem
-- AssetSubsystem
-- ActorSubsystem
-- World
-- Sprite loading
-- Actor ticking
-- Rendering
+Pacman Game Python Launcher
 """
 import os
 import sys
@@ -24,7 +17,7 @@ WIDTH, HEIGHT = 1000, 1000
 
 
 def main() -> None:
-    Renderer.init(WIDTH, HEIGHT, "Engine smoke test")
+    Renderer.init(WIDTH, HEIGHT, "Pacman - MLX")
     Input.init()
 
     game_config = GameConfigParser.parse("config.json")
@@ -39,7 +32,6 @@ def main_parser() -> None:
     game_config: GameConfig = GameConfigParser.parse("config.json")
     print(game_config)
     from time import sleep
-    # TODO: wait others threads before quitting
     sleep(2)
 
 
@@ -53,6 +45,4 @@ def main_scores() -> None:
 
 
 if __name__ == "__main__":
-    # main_parser()
-    # main_scores()
     main()
