@@ -357,10 +357,12 @@ class GameConfigParser:
         """
         try:
             with open(config_filename) as f:
-                json_data = json.load(f)
-        except Exception:
+                json_data = json.loads(
+                    "\n".join(filter(lambda line: line and line[0] != "#",
+                                     f.readlines())))
+        except Exception as e:
             GameConfigModelConstant.LOG.error(
-                "Invalid game config json file. Use default.")
+                f"Invalid game config json file. Use default. {e}")
             return GameConfigParser.default_game_config()
 
         try:
