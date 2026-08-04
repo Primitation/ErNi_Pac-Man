@@ -110,7 +110,7 @@ install: banner mlx
 
 	@$(call spinner,Installing MLX,$(PIP) install $(MLX_DIR)/*.whl >/dev/null)
 
-	@$(MAKE) package-install
+	@$(MAKE) -s package-install
 
 	@printf "\n$(GREEN)🗝  The maze is ready. Good luck!$(RESET)\n"
 

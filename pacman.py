@@ -1,12 +1,5 @@
 """
-Smoke test for the mlx engine:
-- RendererSubsystem
-- AssetSubsystem
-- ActorSubsystem
-- World
-- Sprite loading
-- Actor ticking
-- Rendering
+Pacman Game Python Launcher
 """
 import os
 import sys
@@ -23,7 +16,7 @@ WIDTH, HEIGHT = 1000, 1000
 
 def main() -> None:
     """The main."""
-    Renderer.init(WIDTH, HEIGHT, "Engine smoke test")
+    Renderer.init(WIDTH, HEIGHT, "Pacman - MLX")
     Input.init()
 
     game_config = GameConfigParser.parse(sys.argv[1])
