@@ -24,6 +24,21 @@ class ColliderComponent(Component):
         width: Optional[float] = None,
         height: Optional[float] = None,
     ) -> None:
+        """Initialize a collider component.
+
+        Args:
+            get_rect: callable function for the hitbox.
+            tag: tag.
+            collides_with: type to collide with.
+            blocking: block the path by collision.
+            bounce: bounce on collision distance.
+            static: is the actor static.
+            enabled: is the component enabled.
+            offset_x: offset on x.
+            offset_y: offset on y.
+            width: width.
+            height: height.
+            """
         self._collider: Optional["Collider"] = None
         self._get_rect_override = get_rect
         self.tag = tag
@@ -40,6 +55,11 @@ class ColliderComponent(Component):
         super().__init__(enabled)
 
     def on_added(self, actor: Any) -> None:
+        """Register on added actor.
+
+        Args:
+            actor: an actor with this collider component.
+        """
         super().on_added(actor)
 
         self._collider = Collision.register(
@@ -54,7 +74,10 @@ class ColliderComponent(Component):
         )
 
     def _find_sprite_component(self) -> Optional[Any]:
-        """Find the first component that has a get_rect method."""
+        """Find the first component that has a get_rect method.
+
+        Returns:
+            Returns the first component that has a get_rect method."""
         if self.actor is None:
             return None
 
@@ -66,6 +89,11 @@ class ColliderComponent(Component):
         return None
 
     def _default_get_rect(self) -> "Rect":
+        """Returns the default rect.
+
+        Returns:
+            Returns the default rect.
+        """
         sprite = self._find_sprite_component()
 
         if sprite is not None:
@@ -102,36 +130,47 @@ class ColliderComponent(Component):
 
     @property
     def collider(self) -> Optional["Collider"]:
+        """The collider."""
         return self._collider
 
     @property
     def on_begin_overlap(self) -> "Signal":
+        """Signal on begin overlap."""
         assert self._collider is not None, \
             "ColliderComponent has not been added to an actor yet"
         return self._collider.on_begin_overlap
 
     @property
     def on_end_overlap(self) -> "Signal":
+        """Signal on end overlap."""
         assert self._collider is not None, \
             "ColliderComponent has not been added to an actor yet"
         return self._collider.on_end_overlap
 
     def rect(self) -> "Rect":
+        """Returns the collider hitbox.
+
+        Returns:
+            Returns the rect.
+        """
         assert self._collider is not None, \
             "ColliderComponent has not been added to an actor yet"
         return self._collider.rect()
 
     @property
     def enabled(self) -> bool:
+        """Component enable or not."""
         return self._enabled
 
     @enabled.setter
     def enabled(self, value: bool) -> None:
+        """Set the enabled."""
         self._enabled = value
         if self._collider is not None:
             self._collider.enabled = value
 
     def destroy(self) -> None:
+        """Destroy the component."""
         if self._collider is not None:
             Collision.unregister(self._collider)
             self._collider = None

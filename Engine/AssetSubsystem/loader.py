@@ -15,19 +15,44 @@ class AssetLoader(ABC):
 
     @abstractmethod
     def can_load(self, path: Any) -> bool:
+        """Returns True if the asset can load.
+
+        Args:
+            path: the path of the asset.
+
+        Returns:
+            Returns True if the asset can load, False otherwise.
+        """
         pass
 
     @abstractmethod
     def load(self, path: Any) -> Any:
-        """Runs on the WORKER thread."""
+        """Runs on the WORKER thread.
+
+        Args:
+            path: the path of the asset.
+
+        Returns:
+            Returns the asset.
+        """
         pass
 
     def finalize(self, raw: Any) -> Any:
-        """Runs on the MAIN thread."""
+        """Runs on the MAIN thread.
+
+        Args:
+            raw: the path or spritesheet.
+
+        Returns:
+            Returns texture."""
         return raw
 
     def placeholder(self) -> Any:
-        """Fallback asset when load()/finalize() raises."""
+        """Fallback asset when load()/finalize() raises.
+
+        Returns:
+            Returns a placeholder.
+        """
         return None
 
 
@@ -35,15 +60,27 @@ class MlxContext:
     """Holds the single Mlx() instance + mlx_ptr."""
 
     def __init__(self) -> None:
+        """Initialize the minilibx context."""
         self.mlx: Optional[Any] = None
         self.mlx_ptr: Optional[Any] = None
 
     def bind(self, mlx: Any, mlx_ptr: Any) -> None:
+        """Bind the context to mlx and init mlx_ptr.
+
+        Args:
+            mlx: the minilibx instance.
+            mlx_ptr: the minilibX initialized instance.
+        """
         self.mlx = mlx
         self.mlx_ptr = mlx_ptr
 
     @property
     def ready(self) -> bool:
+        """Context ready.
+
+        Returns:
+            Returns if the context is ready or not.
+        """
         return self.mlx is not None and self.mlx_ptr is not None
 
 
@@ -63,6 +100,17 @@ class Texture:
         line_size: int,
         endian: int,
     ) -> None:
+        """Initialize a texture information.
+
+        Args:
+            img: the image.
+            width: the width.
+            height: the height.
+            data: the data as array.
+            the bpp: the bits per pixel.
+            line_size: the size of a line for the image.
+            endian: the endian type.
+        """
         self.img = img
         self.width = width
         self.height = height
@@ -77,13 +125,37 @@ class TextureLoader(AssetLoader):
     """mlx decodes PNG and XPM formats."""
 
     def can_load(self, path: Any) -> bool:
+        """Can load or not the loader.
+
+        Args:
+            path: the path of the asset.
+
+        Returns:
+            Returns if it can load.
+        """
         return isinstance(path, str) \
             and path.lower().endswith((".png", ".xpm"))
 
     def load(self, path: Any) -> Any:
+        """Load the texture or key.
+
+        Args:
+            path: the path of the asset or key.
+
+        Returns:
+            Returns the texture path or key.
+        """
         return path
 
     def finalize(self, path: Any) -> Optional[Texture]:
+        """Finalize the load.
+
+        Args:
+            path: the path of the asset or key.
+
+        Returns:
+            Returns the texture.
+        """
         if not Context.ready:
             raise RuntimeError(
                 "MLX asset loading used before Context.bind(mlx, mlx_ptr) "
@@ -110,7 +182,11 @@ class TextureLoader(AssetLoader):
         return Texture(img, width, height, data, bpp, line_size, endian)
 
     def placeholder(self) -> Optional[Texture]:
-        """Classic magenta/black 'missing texture' checkerboard."""
+        """Classic magenta/black 'missing texture' checkerboard.
+
+        Returns:
+            Returns the placeholder texture.
+        """
         if not Context.ready:
             return None
 
@@ -158,6 +234,13 @@ class Animation:
 
     def __init__(self, frames: List[Texture], fps: float = 10.0,
                  loop: bool = True) -> None:
+        """Initialize the animation.
+
+        Args:
+            frames: the animation frames.
+            fps: the fps for the animation.
+            loop: loop or not the animation.
+        """
         self.frames = frames
         self.loop = loop
         self.fps: float = fps
@@ -165,10 +248,23 @@ class Animation:
         self.set_fps(fps)
 
     def set_fps(self, fps: float) -> None:
+        """Set the fps.
+
+        Args:
+            fps: the new fps.
+        """
         self.fps = fps
         self.frame_duration = (1000.0 / fps) if fps > 0 else 0.0
 
     def frame_at(self, elapsed_ms: float) -> Optional[Texture]:
+        """Get the frame at after elapsed_ms.
+
+        Args:
+            elapsed_ms: elapsed time as ms.
+
+        Returns:
+            Returns the texture after elapsed_ms.
+        """
         if not self.frames:
             return None
         if self.frame_duration <= 0:
@@ -181,6 +277,14 @@ class Animation:
         return self.frames[index]
 
     def finished(self, elapsed_ms: float) -> bool:
+        """Is finished.
+
+        Args:
+            elapsed_ms: elapsed time as ms.
+
+        Returns:
+            Returns if the animation is finished after elapsed_ms.
+        """
         if self.loop or not self.frames:
             return False
         return elapsed_ms >= self.frame_duration * len(self.frames)
@@ -190,12 +294,35 @@ class SpriteSheetLoader(AssetLoader):
     """Slices one sprite-sheet image into frames."""
 
     def can_load(self, key: Any) -> bool:
+        """Can load.
+
+        Args:
+            key: pathname or key.
+
+        Returns:
+            Returns if can load.
+        """
         return isinstance(key, SpriteSheetKey)
 
     def load(self, key: SpriteSheetKey) -> SpriteSheetKey:
+        """Returns key.
+
+        Args:
+            key: a spritesheet key.
+        Returns:
+            Returns key.
+        """
         return key
 
     def finalize(self, key: SpriteSheetKey) -> List[Texture]:
+        """Finalize the load.
+
+        Args:
+            key: a spritesheet key.
+
+        Returns:
+            Returns the textures.
+        """
         if not Context.ready:
             raise RuntimeError(
                 "MLX asset loading used before Context.bind(mlx, mlx_ptr) "
@@ -265,7 +392,11 @@ class SpriteSheetLoader(AssetLoader):
         return frames
 
     def placeholder(self) -> Optional[List[Texture]]:
-        """A single-frame magenta/black placeholder list."""
+        """A single-frame magenta/black placeholder list.
+
+        Returns:
+            Returns the textures.
+        """
         if not Context.ready:
             return None
 
@@ -300,6 +431,7 @@ class AssetManager:
     """Manages asset loading with threading."""
 
     def __init__(self) -> None:
+        """Initialize an asset manager."""
         self._loaders: List[AssetLoader] = []
         self._cache: Dict[str, Any] = {}
         self._pending: Set[str] = set()
@@ -314,9 +446,22 @@ class AssetManager:
         self._worker.start()
 
     def register(self, loader: AssetLoader) -> None:
+        """Register a loader.
+
+        Args:
+            loader: an asset loader.
+        """
         self._loaders.append(loader)
 
     def _find_loader(self, path: Any) -> AssetLoader:
+        """Find a loader from a path.
+
+        Args:
+            path: a asset path or key.
+
+        Returns:
+            Returns a loader for the specific path or key.
+        """
         for loader in self._loaders:
             if loader.can_load(path):
                 return loader
@@ -324,7 +469,14 @@ class AssetManager:
         raise ValueError(f"No loader registered for: {path}")
 
     def load(self, path: str) -> Any:
-        """Synchronous, blocking load."""
+        """Synchronous, blocking load.
+
+        Args:
+            path: an asset filename or key.
+
+        Returns:
+            Returns the texture loaded.
+        """
         with self._lock:
             if path in self._cache:
                 return self._cache[path]
@@ -344,7 +496,11 @@ class AssetManager:
         return asset
 
     def queue(self, path: str) -> None:
-        """Queue an asset load."""
+        """Queue an asset load.
+
+        Args:
+            path: an asset path or key.
+        """
         with self._lock:
             if path in self._cache:
                 return
@@ -356,6 +512,7 @@ class AssetManager:
         self._in_queue.put((path, loader))
 
     def _run(self) -> None:
+        """Run the loading."""
         while True:
             path, loader = self._in_queue.get()
             try:
@@ -386,13 +543,45 @@ class AssetManager:
                 self._pending.discard(path)
 
     def get(self, path: str) -> Any:
+        """Get the cached for the path.
+
+        Args:
+            path: an asset path or key.
+
+        Returns:
+            Returns the textures.
+        """
         return self._cache.get(path)
 
     def ready(self, path: str) -> bool:
+        """Is it ready for the path.
+
+        Args:
+            path: an asset path or key.
+
+        Returns:
+            Returns if ready.
+        """
         return path in self._cache
 
     def loading(self, path: str) -> bool:
+        """Is it loading for the path.
+
+        Args:
+            path: an asset path or key.
+
+        Returns:
+            Returns if loading.
+        """
         return path in self._pending
 
     def cached(self, path: str) -> bool:
+        """Get if cached for the path.
+
+        Args:
+            path: an asset path or key.
+
+        Returns:
+            Returns if cached.
+        """
         return path in self._cache

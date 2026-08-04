@@ -26,6 +26,26 @@ class AnimatedSpriteComponent(Component):
         scale: Tuple[float, float] = (1.0, 1.0),
         render_layer: int = 0,
     ) -> None:
+        """Initialize a animated sprite component.
+
+        Args:
+            path: the image path.
+            frame_width: the frame width.
+            frame_height: the frame height.
+            frame_count: the frame count.
+            columns: the columns.
+            start_frame: the starting frame in the image.
+            fps: the fps for the animation.
+            loop: loop the images.
+            on_complete: callable on complete.
+            enabled: enable the component.
+            local_offset: replace the sprite from the current position.
+            offset_rotates: rotate on the offset.
+            center: put the sprite center in the position.
+            local_rotation: local rotation.
+            scale: scale of the sprite.
+            render_layer: render layer priority.
+        """
         super().__init__(enabled, local_scale=scale, render_layer=render_layer)
 
         self._key: Optional[SpriteSheetKey] = None
@@ -57,7 +77,19 @@ class AnimatedSpriteComponent(Component):
         loop: bool = True,
         on_complete: Optional[Callable[[], None]] = None,
     ) -> None:
-        """Switch to a different sheet/slicing/clip."""
+        """Switch to a different sheet/slicing/clip.
+
+        Args:
+            path: the image path.
+            frame_width: the frame width.
+            frame_height: the frame height.
+            frame_count: the frame count.
+            columns: the columns.
+            start_frame: the starting frame in the image.
+            fps: the fps for the animation.
+            loop: loop the images.
+            on_complete: callable on complete.
+        """
         self._key = SpriteSheetKey(
             path, frame_width, frame_height, frame_count, columns, start_frame
         )
@@ -73,16 +105,22 @@ class AnimatedSpriteComponent(Component):
 
     @property
     def fps(self) -> float:
+        """The sprite fps."""
         return self._fps
 
     def set_fps(self, fps: float) -> None:
-        """Change playback speed in place."""
+        """Change playback speed in place.
+
+        Args:
+            fps: the new fps.
+        """
         self._fps = fps
         if self._animation is not None:
             self._animation.set_fps(fps)
 
     @property
     def sprite(self) -> Optional[Any]:
+        """The sprite."""
         if self._animation is None and self._key is not None:
             frames = Assets.get(self._key)  # type: ignore[arg-type]
             if frames is None:
@@ -94,16 +132,22 @@ class AnimatedSpriteComponent(Component):
 
     @property
     def width(self) -> int:
+        """The width."""
         sprite = self.sprite
         return sprite.width if sprite is not None else 0
 
     @property
     def height(self) -> int:
+        """The height."""
         sprite = self.sprite
         return sprite.height if sprite is not None else 0
 
     def get_world_position(self) -> Tuple[float, float]:
-        """Get world position with centering support."""
+        """Get world position with centering support.
+
+        Returns:
+            Returns world position with centering support.
+        """
         x, y = super().get_world_position()
 
         if self.center and self.actor is not None:
@@ -116,7 +160,11 @@ class AnimatedSpriteComponent(Component):
         return (x, y)
 
     def get_rect(self) -> Tuple[float, float, float, float]:
-        """Rect (x, y, width, height) from the actor's position."""
+        """Rect (x, y, width, height) from the actor's position.
+
+        Returns:
+            Rect (x, y, width, height) from the actor's position.
+        """
         world_pos = self.get_world_position()
         world_scale = self.get_world_scale()
         width = self.width * world_scale.x
@@ -124,7 +172,11 @@ class AnimatedSpriteComponent(Component):
         return (world_pos[0], world_pos[1], width, height)
 
     def update(self, dt: float) -> None:
-        """Update animation."""
+        """Update animation.
+
+        Args:
+            dt: time for update.
+        """
         self._time += dt
 
         if (

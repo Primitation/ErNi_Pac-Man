@@ -18,7 +18,8 @@ class EndScreen:
     """Call .show() to run the loop."""
 
     MAX_NAME_LENGTH = 10
-    ALLOWED_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ")
+    ALLOWED_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                        "abcdefghijklmnopqrstuvwxyz0123456789 ")
     DEFAULT_NAME = "PLAYER"
 
     def __init__(self, won: bool, score: int):

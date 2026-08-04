@@ -37,6 +37,25 @@ class Particle:
         fps: float = 10.0,
         loop: bool = True,
     ) -> None:
+        """Initialize a particle.
+
+        Args:
+            position: position.
+            velocity: velocity.
+            color: color code.
+            size: size.
+            life: current particle life.
+            gravity: gravity.
+            fade: if fades over time.
+            rotation: rotation.
+            angular_velocity: angular_velocity.
+            face_velocity: if face velocity.
+            sprite_path: the sprite path.
+            scale: scale.
+            animation_key: a sprite sheet key.
+            fps: fps.
+            loop: Animation loop.
+        """
         self.position = position
         self.velocity = velocity
         self.color = color
@@ -90,6 +109,11 @@ class ParticleSubsystem:
     """One-shot particle bursts for visual feedback."""
 
     def __init__(self, max_particles: int = 2000) -> None:
+        """Initialize a particles subsystem.
+
+        Args:
+            max_particles: the max particles in the subsystem.
+        """
         self._particles: List[Particle] = []
         self.max_particles = max_particles
         self._logger = Log.get("particles")
@@ -113,7 +137,25 @@ class ParticleSubsystem:
         angular_velocity: Tuple[float, float] = (0.0, 0.0),
         face_velocity: bool = False,
     ) -> None:
-        """Spawn a one-shot burst of particles."""
+        """Spawn a one-shot burst of particles.
+
+        Args:
+            position: position.
+            count: count.
+            color: color code.
+            speed: speed.
+            life: current particle life.
+            direction: direction.
+            spread: spread.
+            gravity: gravity.
+            fade: if fades over time.
+            sprite: the sprite.
+            animation: animation.
+            scale: scale.
+            rotation: rotation.
+            angular_velocity: angular velocity.
+            face_velocity: face velocity.
+        """
         if len(self._particles) >= self.max_particles:
             return
 
@@ -180,7 +222,11 @@ class ParticleSubsystem:
 
     @log_timing()
     def update(self, dt: float) -> None:
-        """Call once per frame, dt in ms."""
+        """Updates. Call once per frame, dt in ms.
+
+        Args:
+            dt: time for the update.
+        """
         seconds = dt / 1000.0
         alive: List[Particle] = []
 
@@ -207,7 +253,11 @@ class ParticleSubsystem:
         self._particles = alive
 
     def render(self, renderer: Any) -> None:
-        """Call once per frame."""
+        """Render the particles. Call once per frame.
+
+        Args:
+            renderer: the renderer.
+        """
         for particle in self._particles:
             sprite = particle.sprite
 
@@ -255,6 +305,7 @@ class ParticleSubsystem:
 
     @property
     def count(self) -> int:
+        """Number of particles in the subsystem."""
         return len(self._particles)
 
 
