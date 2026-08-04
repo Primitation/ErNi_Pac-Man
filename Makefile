@@ -98,7 +98,7 @@ install: banner mlx
 	@printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
 	@printf "$(RESET)"
 
-	@test -d $(VENV) || python3 -m venv $(VENV)
+	@test -d $(VENV) || python3 -m venv --copies $(VENV)
 
 	@$(PIP) install --upgrade pip >/dev/null
 
