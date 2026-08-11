@@ -19,8 +19,17 @@ class Cell(AActor):
         N: bool = True,
         S: bool = True,
         E: bool = True,
-        W: bool = True,
+        W: bool = True
     ) -> None:
+        """Initialize call.
+
+        Args:
+            position: position
+            N: N
+            S: S
+            E: E
+            W: W
+        """
         super().__init__(
             position=position,
             scale=Vector2(1, 1),
@@ -50,24 +59,50 @@ class Cell(AActor):
 
     @property
     def has_north_wall(self) -> bool:
+        """Test if has north wall.
+
+        Returns:
+            Returns if has north wall.
+        """
         return not self.open_north
 
     @property
     def has_east_wall(self) -> bool:
+        """Test if has east wall.
+
+        Returns:
+            Returns if has east wall.
+        """
         return not self.open_east
 
     @property
     def has_south_wall(self) -> bool:
+        """Test if has south wall.
+
+        Returns:
+            Returns if has south wall.
+        """
         return not self.open_south
 
     @property
     def has_west_wall(self) -> bool:
+        """Test if has west wall.
+
+        Returns:
+            Returns if has west wall.
+        """
         return not self.open_west
 
     @staticmethod
     def has_neighbor_wall(cell: Optional[Cell], wall: str) -> bool:
-        """
-        Missing neighbors are considered walls.
+        """Missing neighbors are considered walls.
+
+        Args:
+            cell: cell
+            wall: wall
+
+        Returns:
+            Returns missing neighbors are considered walls.
         """
         if cell is None:
             return True

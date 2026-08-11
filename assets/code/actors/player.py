@@ -29,6 +29,7 @@ class Player(Actor):
 
     @property
     def fps(self) -> int:
+        """fps"""
         if self.movement.is_moving:
             return self._fps
         return 0
@@ -40,8 +41,18 @@ class Player(Actor):
         scale: Vector2,
         tag: str = "Player",
         speed: float = 100.0,
-        static: bool = False,
+        static: bool = False
     ) -> None:
+        """Initialize player.
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            tag: tag
+            speed: speed
+            static: static
+        """
         super().__init__(
             position=position,
             scale=scale,
@@ -73,6 +84,11 @@ class Player(Actor):
 
     @on_end_of_anim(lambda self: self.destroy_after_dead())
     def dead(self, component: Any) -> None:
+        """Action on dead.
+
+        Args:
+            component: component
+        """
         component.set_animation(
             "assets/texture/spritesheets/pacman_hd/PacManAssets-PacMan.png",
             frame_width=32,
@@ -85,19 +101,27 @@ class Player(Actor):
 
     @property
     def invinsible(self) -> bool:
+        """Returns if invinsible.
+
+        Returns:
+            Returns if invinsible.
+        """
         return self._invinsible
 
     @invinsible.setter
     def invinsible(self, value: bool) -> None:
+        """Invinsible setter."""
         self._invinsible = value
         self.change_ghosts_mode()
 
     @property
     def super_pacman(self) -> bool:
+        """Super pacman property."""
         return self._super_pacman
 
     @super_pacman.setter
     def super_pacman(self, value: bool) -> None:
+        """Super pacman setter."""
         if self._super_pacman_timer:
             self._super_pacman_timer.cancel()
             self._super_pacman_timer = None
@@ -114,6 +138,7 @@ class Player(Actor):
         self.change_ghosts_mode()
 
     def change_ghosts_mode(self) -> None:
+        """Chenge ghosts mode."""
         edible = self.super_pacman or self.invinsible
 
         ghosts = World.find_all(BasicGhost)
@@ -127,9 +152,20 @@ class Player(Actor):
 
     @staticmethod
     def game_ended() -> bool:
+        """Returns if game ended.
+
+        Returns:
+            Returns if game ended.
+        """
         return Player.end_game or Player.quit or Player.end_level
 
     def update(self, dt: float) -> None:
+        """Updates.
+
+        Args:
+            dt: dt time
+        """
+
         super().update(dt)
         if self.animation.fps != self.fps:
             self.animation.set_fps(self.fps)
@@ -138,25 +174,48 @@ class Player(Actor):
             Player.end_level = True
 
     def _super_pacman_time(self) -> float:
-        return 10  # TODO: super pacmann time: here 10 seconds
+        """Returns super pacman time.
+
+        Returns:
+            Returns super pacman time.
+        """
+        return 10
 
     def _is_super_pacman(self) -> bool:
+        """Returns if is super pacman.
+
+        Returns:
+            Returns if is super pacman.
+        """
         return (self.super_pacman or self.invinsible)
 
     @staticmethod
     def set_player_information(player: PlayerInformation | None) -> None:
+        """Set player information.
+
+        Args:
+            player: player
+        """
         Player.current_player = player
 
     def destroy_after_dead(self) -> None:
+        """Destroy after dead."""
         self.destroy()
         Player.end_game = True
 
     def destroy(self) -> None:
+        """Destroy the player."""
         self.logger.debug("destroy")
         super().destroy()
 
     def _on_collision_begin(self, self_collider: Any,
                             other_collider: Any) -> None:
+        """Actions on collision.
+
+        Args:
+            self_collider: self collider
+            other_collider: other collider
+        """
         if Player.current_player is None:
             Log.get("main").error("Player._on_collision_begin:"
                                   "no player registered !")
@@ -193,8 +252,10 @@ class Player(Actor):
                              f"{Player.current_player.score_info.score}.")
 
     def speed_up(self) -> None:
+        """Speed up the player."""
         self.movement.speed += self._base_speed * 0.1
 
     def speed_down(self) -> None:
+        """Speed down the player."""
         self.movement.speed = max(
             0, self.movement.speed - self._base_speed * 0.1)

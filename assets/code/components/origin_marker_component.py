@@ -6,13 +6,24 @@ class OriginMarkerComponent(Component):
     """Debug dot at actor position."""
 
     def __init__(self, color: int = 0xFFFF0000, size: float = 6.0,
-                 enabled: bool = True):
+                 enabled: bool = True) -> None:
+        """Initialize origin marker.
+
+        Args:
+            color: color
+            size: size
+            enabled: enabled
+        """
         super().__init__(enabled)
         self.color = color
         self.size = size
 
     def update(self, dt: float) -> None:
-        """Emit debug particle."""
+        """Emit debug particle.
+
+        Args:
+            dt: dt
+        """
         if self.actor is None:
             return
         Particles.emit(

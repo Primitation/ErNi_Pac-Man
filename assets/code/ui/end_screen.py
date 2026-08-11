@@ -22,7 +22,13 @@ class EndScreen:
                         "abcdefghijklmnopqrstuvwxyz0123456789 ")
     DEFAULT_NAME = "PLAYER"
 
-    def __init__(self, won: bool, score: int):
+    def __init__(self, won: bool, score: int) -> None:
+        """Initialize end screen.
+
+        Args:
+            won: won
+            score: score
+        """
         self._logger = Log.get("menu")
         self._font_texture = Assets.load(ARCADE_FONT_PATH)
         self._won = won
@@ -37,7 +43,11 @@ class EndScreen:
     @staticmethod
     def _build_char_keys() -> Dict[Any, str]:
         """keycode -> character it types (lowercase by default; the
-        letter is upper-cased at input time if Shift is held)."""
+        letter is upper-cased at input time if Shift is held).
+
+        Returns:
+            Returns build char keys.
+        """
         keys = {}
         for ch in "abcdefghijklmnopqrstuvwxyz":
             keys[Input.KEYS[ch]] = ch
@@ -50,7 +60,10 @@ class EndScreen:
     def _shift_held() -> bool:
         """Best-effort check for a held Shift key. Falls back to False
         (i.e. lowercase) if the InputSubsystem doesn't expose a
-        continuous key-down query or a shift keycode."""
+        continuous key-down query or a shift keycode.
+
+        Returns:
+            Returns shift held."""
         is_down = getattr(Input, "is_key_down", None)
         if is_down is None:
             return False
@@ -61,6 +74,15 @@ class EndScreen:
         return bool(is_down(shift_key))
 
     def _label(self, text: str, scale: float = 3.0) -> BitmapText:
+        """Returns label.
+
+        Args:
+            text: text
+            scale: scale
+
+        Returns:
+            Returns label.
+        """
         return BitmapText(
             text,
             self._font_texture,
@@ -72,6 +94,12 @@ class EndScreen:
         )
 
     def _build_root(self) -> VBox:
+        """Returns build root.
+
+        Returns:
+            Returns build root.
+        """
+
         root = VBox(spacing=20, justify="center", background_color=0xFF000000)
 
         title = "WINNER" if self._won else "GAME OVER"
@@ -99,6 +127,7 @@ class EndScreen:
         return root
 
     def _handle_text_input(self) -> None:
+        """Handle text input."""
         if self._fade_out is not None:
             return
 
@@ -125,13 +154,22 @@ class EndScreen:
                 break
 
     def _confirm(self) -> None:
+        """Comfirm action."""
         self._result = self._name.strip() or self.DEFAULT_NAME
         self._fade_out = Transition(650)
 
     def show(self) -> str:
-        """Runs its own mlx loop until Enter/Escape confirms a name."""
+        """Runs its own mlx loop until Enter/Escape confirms a name.
+
+        Returns:
+            Returns name."""
 
         def frame(_param: Any) -> None:
+            """Update frame.
+
+            Args:
+                _param: parameter
+            """
             Assets.update()
 
             Input.process_events()

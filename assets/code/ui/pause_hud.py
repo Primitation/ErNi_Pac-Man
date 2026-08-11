@@ -21,9 +21,18 @@ class PauseHUD:
     BACKGROUND_COLOR = 0x88000000
 
     def __init__(self) -> None:
+        """Initialize pause hud."""
         self._font_texture = Assets.load(ARCADE_FONT_PATH)
 
     def _label(self, text: str) -> BitmapText:
+        """Label.
+
+        Args:
+            text: text
+
+        Returns:
+            Returns label.
+        """
         return BitmapText(
             text,
             self._font_texture,
@@ -35,6 +44,11 @@ class PauseHUD:
         )
 
     def _build_root(self) -> HBox:
+        """Returns build root.
+
+        Returns:
+            Returns build root.
+        """
         root = HBox(
             spacing=self.SPACING,
             padding=self.PADDING,
@@ -44,6 +58,11 @@ class PauseHUD:
         return root
 
     def render(self, renderer: Any) -> None:
+        """Render.
+
+        Args:
+            renderer: renderer
+        """
         root = self._build_root()
         w, h = root.measure()
         x = (renderer.width - w) // 2

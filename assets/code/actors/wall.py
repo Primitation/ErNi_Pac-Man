@@ -18,7 +18,19 @@ class Wall(AActor):
         frame_width: int = 48,
         frame_height: int = 8,
         local_offset: Tuple[int, int] = (0, -20)
-    ):
+    ) -> None:
+        """Initialize wall.
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            local_rotation: local rotation
+            tag: tag
+            frame_width: frame width
+            frame_height: frame height
+            local_offset: local offset
+        """
         super().__init__(
             position=position,
             scale=scale,
@@ -39,14 +51,25 @@ class Wall(AActor):
         )
 
     def update(self, dt: float) -> None:
+        """Updates.
+
+        Args:
+            dt: dt time.
+        """
         super().update(dt)
 
     def destroy(self) -> None:
+        """Destroy."""
         self.logger.debug("destroy")
         super().destroy()
 
     @classmethod
     def set_local_offset_scaling(cls, scale: float = 1) -> None:
+        """Set local offset scaling
+
+        Args:
+            scale: scale
+        """
         cls.local_offset_scaling = scale
 
 
@@ -57,7 +80,15 @@ class WallNorth(Wall):
         velocity: Vector2,
         scale: Vector2,
         tag: str = "WallNorth"
-    ):
+    ) -> None:
+        """Initialize wall north
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            tag: tag
+        """
         super().__init__(
             position=position,
             scale=scale,
@@ -74,7 +105,15 @@ class WallEast(Wall):
         velocity: Vector2,
         scale: Vector2,
         tag: str = "WallNorth"
-    ):
+    ) -> None:
+        """Initialize wall east
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            tag: tag
+        """
         super().__init__(
             position=position,
             scale=scale,
@@ -94,7 +133,15 @@ class WallSouth(Wall):
         velocity: Vector2,
         scale: Vector2,
         tag: str = "WallNorth"
-    ):
+    ) -> None:
+        """Initialize wall south
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            tag: tag
+        """
         super().__init__(
             position=position,
             scale=scale,
@@ -111,7 +158,15 @@ class WallWest(Wall):
         velocity: Vector2,
         scale: Vector2,
         tag: str = "WallNorth"
-    ):
+    ) -> None:
+        """Initialize wall west
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            tag: tag
+        """
         super().__init__(
             position=position,
             scale=scale,

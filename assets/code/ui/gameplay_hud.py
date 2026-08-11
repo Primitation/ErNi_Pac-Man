@@ -28,10 +28,19 @@ class GameplayHUD:
     BACKGROUND_COLOR = 0x88000000
 
     def __init__(self) -> None:
+        """Initialize gameplay hud"""
         self._font_texture = Assets.load(ARCADE_FONT_PATH)
         self._life_texture = Assets.load(LIFE_ICON_PATH)
 
     def _label(self, text: str) -> BitmapText:
+        """Returns text label.
+
+        Args:
+            text: text
+
+        Returns:
+            Returns text label.
+        """
         return BitmapText(
             text,
             self._font_texture,
@@ -43,6 +52,11 @@ class GameplayHUD:
         )
 
     def _build_root(self) -> HBox:
+        """Returns build root.
+
+        Returns:
+            Returns build root.
+        """
         player = Player.current_player
         lives = player.lives if player is not None else 0
         score = player.score_info.score if player is not None else 0
@@ -72,6 +86,12 @@ class GameplayHUD:
         return root
 
     def render(self, renderer: Any) -> None:
+        """Render.
+
+        Args:
+            renderer: renderer
+        """
+
         root = self._build_root()
         w, h = root.measure()
         x = renderer.width - w - self.MARGIN

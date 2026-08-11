@@ -9,6 +9,7 @@ class CheatComponent(Component):
     """Cheat input."""
 
     def __init__(self) -> None:
+        """Initialize cheat  component."""
         from assets.code.actors.ghost import BasicGhost
         from assets.code.actors.player import Player
 
@@ -18,6 +19,11 @@ class CheatComponent(Component):
         self._log = Log.get("main")
 
     def on_added(self, actor: Any) -> None:
+        """On added to actor.
+
+        Args:
+            actor: actor
+        """
         from assets.code.actors.ghost import BasicGhost
         from assets.code.actors.player import Player
 
@@ -28,6 +34,11 @@ class CheatComponent(Component):
             self.player = actor
 
     def update(self, dt: float) -> None:
+        """Updates
+
+        Args:
+            dt: dt time.
+        """
         from assets.code.actors.player import Player
         from Engine.ActorSubsystem.actorsubsystem import Actors
 

@@ -12,8 +12,16 @@ class Entity(Actor):
         position: Vector2,
         velocity: Vector2,
         scale: Vector2,
-        tag: str = "Actor",
+        tag: str = "Actor"
     ) -> None:
+        """Initialize entity
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            tag: tag
+        """
         super().__init__(
             position=position,
             scale=scale,

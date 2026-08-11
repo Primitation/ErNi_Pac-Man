@@ -37,8 +37,20 @@ class BasicGhost(Actor):
         color_index: int = 0,
         chase_component: Type[ChaseTargetGridComponent] = (
             ChasePlayerGridComponent),
-        chase_kwargs: Optional[dict[str, Any]] = None,
+        chase_kwargs: Optional[dict[str, Any]] = None
     ) -> None:
+        """Initialize basic ghost.
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            tag: tag
+            speed: speed
+            color_index: color index
+            chase_component: chase component
+            chase_kwargs: chase kwargs
+        """
         super().__init__(
             position=position,
             scale=scale,
@@ -93,10 +105,12 @@ class BasicGhost(Actor):
 
     @property
     def dead(self) -> bool:
+        """Is dead property."""
         return self._dead
 
     @dead.setter
     def dead(self, value: bool) -> None:
+        """Is dead setter."""
         if self._dead == value:
             return
         if self._dead_timer:
@@ -115,10 +129,12 @@ class BasicGhost(Actor):
 
     @property
     def edible(self) -> bool:
+        """Is edible property."""
         return self._edible
 
     @edible.setter
     def edible(self, value: bool) -> None:
+        """Is edible setter."""
         if self._edible == value:
             return
 
@@ -176,12 +192,22 @@ class BasicGhost(Actor):
             self.movement.speed = self._current_speed()
 
     def _current_speed(self) -> float:
+        """Returns speed.
+
+        Returns:
+            Returns speed.
+        """
         if self.edible:
             return self._base_speed * FRIGHTENED_SPEED_MULTIPLIER
         return self._base_speed
 
     def update(self, dt: float) -> None:
-        """Update ghost."""
+        """Update ghost.
+
+        Args:
+            dt: dt
+        """
+
         super().update(dt)
 
     def destroy(self) -> None:
@@ -197,7 +223,11 @@ class BasicGhost(Actor):
             self.movement.speed = 0
 
     def set_chase_target(self, target: Any) -> None:
-        """Retarget who this ghost is chasing."""
+        """Retarget who this ghost is chasing.
+
+        Args:
+            target: target
+        """
         self.chase.set_target(target)
 
 
@@ -210,8 +240,17 @@ class RedGhost(BasicGhost):
         velocity: Vector2,
         scale: Vector2,
         tag: str = "Actor",
-        speed: float = 100.0,
+        speed: float = 100.0
     ) -> None:
+        """Initialize ghost.
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            tag: tag
+            speed: speed
+        """
         super().__init__(
             position=position,
             scale=scale,
@@ -231,8 +270,18 @@ class BlueGhost(BasicGhost):
         scale: Vector2,
         tag: str = "Actor",
         speed: float = 100.0,
-        pivot: Optional[Any] = None,
+        pivot: Optional[Any] = None
     ) -> None:
+        """Initialize ghost.
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            tag: tag
+            speed: speed
+            pivot: pivot
+        """
         super().__init__(
             position=position,
             scale=scale,
@@ -244,7 +293,11 @@ class BlueGhost(BasicGhost):
         )
 
     def set_pivot(self, pivot: Any) -> None:
-        """Wire up the pivot ghost."""
+        """Wire up the pivot ghost.
+
+        Args:
+            pivot: pivot
+        """
         self.chase.set_pivot(pivot)  # type: ignore
 
 
@@ -257,8 +310,17 @@ class YellowGhost(BasicGhost):
         velocity: Vector2,
         scale: Vector2,
         tag: str = "Actor",
-        speed: float = 100.0,
+        speed: float = 100.0
     ) -> None:
+        """Initialize ghost.
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            tag: tag
+            speed: speed
+        """
         super().__init__(
             position=position,
             scale=scale,
@@ -278,8 +340,17 @@ class PinkGhost(BasicGhost):
         velocity: Vector2,
         scale: Vector2,
         tag: str = "Actor",
-        speed: float = 100.0,
+        speed: float = 100.0
     ) -> None:
+        """Initialize ghost.
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            tag: tag
+            speed: speed
+        """
         super().__init__(
             position=position,
             scale=scale,
