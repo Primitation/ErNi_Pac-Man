@@ -6,7 +6,12 @@ from Engine import AnimatedSpriteComponent, Vector2
 class Wall_Component(AnimatedSpriteComponent):
     """Sprite drawn on a closed side of a cell."""
 
-    def __init__(self, local_rotation: float = 0):
+    def __init__(self, local_rotation: float = 0) -> None:
+        """Initialize wall component.
+
+        Args:
+            local_rotation: local rotation
+        """
         super().__init__(
             frame_width=16,
             frame_height=16,
@@ -27,6 +32,11 @@ class Corner_Component(AnimatedSpriteComponent):
     """Outer (convex) corner sprite."""
 
     def __init__(self, local_rotation: float = 0):
+        """Initialize corner component.
+
+        Args:
+            local_rotation: local rotation
+        """
         super().__init__(
             frame_width=8,
             frame_height=8,
@@ -49,6 +59,11 @@ class Inner_Corner_Component(AnimatedSpriteComponent):
     BACKGROUND_START_FRAME = 392
 
     def __init__(self, local_rotation: float = 0):
+        """Initialize inner corner component.
+
+        Args:
+            local_rotation: local rotation
+        """
         super().__init__(
             frame_width=8,
             frame_height=8,
@@ -66,6 +81,11 @@ class Inner_Corner_Component(AnimatedSpriteComponent):
         self._local_rotation = local_rotation
 
     def on_added(self, actor: Any) -> None:
+        """Action on added.
+
+        Args:
+            actor: actor
+        """
         super().on_added(actor)
 
         background = AnimatedSpriteComponent(
@@ -89,6 +109,11 @@ class Empty_Wall_Component(AnimatedSpriteComponent):
     """Sprite drawn on an open side of a cell."""
 
     def __init__(self, local_rotation: float = 0):
+        """Initialize empty wall component.
+
+        Args:
+            local_rotation: local rotation
+        """
         super().__init__(
             frame_width=16,
             frame_height=16,

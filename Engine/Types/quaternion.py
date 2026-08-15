@@ -9,21 +9,46 @@ if TYPE_CHECKING:
 
 
 class Quaternion:
-    """w + xi + yj + zk."""
+    """Quaternion
+
+    w + xi + yj + zk.
+    """
 
     __slots__ = ("w", "x", "y", "z")
 
     def __init__(self, w: float = 1.0, x: float = 0.0,
                  y: float = 0.0, z: float = 0.0) -> None:
+        """Initialize Quaternion.
+
+        Args:
+            w: w
+            x: x
+            y: y
+            z: z
+        """
         self.w = w
         self.x = x
         self.y = y
         self.z = z
 
     def __repr__(self) -> str:
+        """String representation
+
+        Returns:
+            Returns string representation.
+        """
         return f"Quaternion({self.w}, {self.x}, {self.y}, {self.z})"
 
     def __eq__(self, other: object) -> bool:
+        """Test equality
+
+        Args:
+            other: other
+
+        Returns:
+            Returns if equals to other.
+        """
+
         return (
             isinstance(other, Quaternion)
             and self.w == other.w
@@ -34,14 +59,37 @@ class Quaternion:
 
     @overload
     def __mul__(self, other: "Quaternion") -> "Quaternion":
+        """Returns multiplication.
+
+        Args:
+            other: other to multiply.
+
+        Returns:
+            Returns multiplication.
+        """
         ...
 
     @overload
     def __mul__(self, other: Vector3) -> Vector3:
+        """Returns multiplication.
+
+        Args:
+            other: other to multiply.
+
+        Returns:
+            Returns multiplication.
+        """
         ...
 
     def __mul__(self, other: Any) -> Union["Quaternion", Vector3]:
-        """Quaternion * Quaternion = combined rotation."""
+        """Quaternion * Quaternion = combined rotation.
+
+        Args:
+            other: other to multiply.
+
+        Returns:
+            Returns multiplication.
+        """
         if isinstance(other, Quaternion):
             return Quaternion(
                 w=self.w * other.w - self.x * other.x
@@ -60,20 +108,43 @@ class Quaternion:
         return NotImplemented
 
     def _rotate_vector(self, v: Vector3) -> Vector3:
+        """Rotate vector.
+
+        Args:
+            v: vector
+
+        Returns:
+            Returns rotated vector
+        """
         qv = Quaternion(0.0, v.x, v.y, v.z)
         result = self * qv * self.conjugate()
         return Vector3(result.x, result.y, result.z)
 
     def conjugate(self) -> "Quaternion":
+        """Returns conjugate.
+
+        Returns:
+            Returns conjugate.
+        """
         return Quaternion(self.w, -self.x, -self.y, -self.z)
 
     def length(self) -> float:
+        """Returns length.
+
+        Returns:
+            Returns length.
+        """
         return math.sqrt(
             self.w * self.w + self.x * self.x
             + self.y * self.y + self.z * self.z
         )
 
     def normalize(self) -> "Quaternion":
+        """Returns normalize.
+
+        Returns:
+            Returns normalize.
+        """
         length = self.length()
         if length == 0:
             return Quaternion()
@@ -83,6 +154,11 @@ class Quaternion:
         )
 
     def to_euler(self) -> "Euler":
+        """Returns to euler.
+
+        Returns:
+            Returns to euler.
+        """
         """Returns an Euler in radians."""
         from .euler import Euler
 
@@ -104,6 +180,15 @@ class Quaternion:
 
     @classmethod
     def from_axis_angle(cls, axis: Vector3, angle: float) -> "Quaternion":
+        """From axis with angle.
+
+        Args:
+            axis: axis
+            angle: angle
+
+        Returns:
+            Returns Quaternion axis with angle applied.
+        """
         half = angle * 0.5
         s = math.sin(half)
         return cls(
@@ -115,4 +200,9 @@ class Quaternion:
 
     @classmethod
     def identity(cls) -> "Quaternion":
+        """Quaternion identity.
+
+        Returns:
+            Returns Quaternion identity.
+        """
         return cls(1.0, 0.0, 0.0, 0.0)

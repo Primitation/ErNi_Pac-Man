@@ -22,8 +22,34 @@ class ParticleTrailComponent(Component):
         offset_rotates: bool = True,
         emit_direction: str = "backward",
         emit_on_start: bool = False,
-        emit_on_stop: bool = False,
-    ):
+        emit_on_stop: bool = False
+    ) -> None:
+        """Initialize particle trail.
+
+        Args:
+            interval: interval
+            count: count
+            color: color
+            speed: speed
+            float]=(10.0: float]=(10.0
+            30.0): 30.0)
+            size: size
+            float]=(2.0: float]=(2.0
+            4.0): 4.0)
+            life: life
+            float]=(0.15: float]=(0.15
+            0.5): 0.5)
+            spread: spread
+            min_speed: min speed
+            enabled: enabled
+            local_offset: local offset
+            float]=(0.0: float]=(0.0
+            0.0): 0.0)
+            offset_rotates: offset rotates
+            emit_direction: emit direction
+            emit_on_start: emit on start
+            emit_on_stop: emit on stop
+        """
         super().__init__(enabled)
 
         self.interval = interval
@@ -46,12 +72,21 @@ class ParticleTrailComponent(Component):
         self._logger = Log.get("particle_trail")
 
     def on_added(self, actor: Any) -> None:
+        """Actions on added.
+
+        Args:
+            actor: actor
+        """
         super().on_added(actor)
         if self.emit_on_start:
             self._emit_burst()
 
     def _get_emit_angle(self) -> float:
-        """Get the angle for particle emission."""
+        """Get the angle for particle emission.
+
+        Returns:
+            Returns the angle for particle emission.
+        """
         actor = self.actor
         if actor is None:
             return 0.0
@@ -97,7 +132,11 @@ class ParticleTrailComponent(Component):
         )
 
     def update(self, dt: float) -> None:
-        """Update trail emission."""
+        """Update trail emission.
+
+        Args:
+            dt: dt
+        """
         actor = self.actor
         velocity = getattr(actor, "velocity", None)
 

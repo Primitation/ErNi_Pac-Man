@@ -15,8 +15,17 @@ class Pacgum(Actor):
         velocity: Vector2,
         scale: Vector2,
         tag: str = "Pacgum",
-        speed: float = 100.0,
+        speed: float = 100.0
     ) -> None:
+        """Initialize pacgum.
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            tag: tag
+            speed: speed
+        """
         super().__init__(
             position=position,
             scale=scale,
@@ -38,14 +47,27 @@ class Pacgum(Actor):
 
     def _on_collision_begin(self, self_collider: Any,
                             other_collider: Any) -> None:
+        """Action on collision.
+
+        Args:
+            self_collider: self collider
+            other_collider: other collider
+        """
         from .player import Player
         if isinstance(other_collider.owner, Player):
             self.destroy()
 
     def update(self, dt: float) -> None:
+        """Updates
+
+        Args:
+            dt: dt time
+        """
+
         super().update(dt)
 
     def destroy(self) -> None:
+        """Destroy."""
         self.logger.debug("destroy")
         super().destroy()
 
@@ -59,8 +81,18 @@ class SuperPacgum(Actor):
         velocity: Vector2,
         scale: Vector2,
         tag: str = "Pacgum",
-        speed: float = 100.0,
+        speed: float = 100.0
     ) -> None:
+        """Initialize superpacgum.
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            tag: tag
+            speed: speed
+        """
+
         super().__init__(
             position=position,
             scale=scale,
@@ -82,13 +114,25 @@ class SuperPacgum(Actor):
 
     def _on_collision_begin(self, self_collider: Any,
                             other_collider: Any) -> None:
+        """Action on collision.
+
+        Args:
+            self_collider: self collider
+            other_collider: other collider
+        """
         from .player import Player
         if isinstance(other_collider.owner, Player):
             self.destroy()
 
     def update(self, dt: float) -> None:
+        """Updates
+
+        Args:
+            dt: dt time
+        """
         super().update(dt)
 
     def destroy(self) -> None:
+        """Destroy."""
         self.logger.debug("destroy")
         super().destroy()

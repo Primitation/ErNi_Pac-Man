@@ -18,6 +18,17 @@ class Actor(AActor):
         tag: str = "Actor",
         collision: Optional[List[str]] = None
     ) -> None:
+        """Initialize actor
+
+        Args:
+            position: position
+            velocity: velocity
+            scale: scale
+            static: static
+            tag: tag
+            collision: collision
+        """
+
         super().__init__(
             position=position,
             scale=scale,
@@ -45,7 +56,10 @@ class Actor(AActor):
         self._collider.on_end_overlap.bind(self._on_collision_end)
 
     def get_rect(self) -> tuple[float, float, float, float]:
-        """Return collider rect as (x, y, width, height)."""
+        """Returns collider rect as (x, y, width, height).
+
+        Returns:
+            Returns collider rect as (x, y, width, height)."""
 
         sprite_component = (
             self.get_component(SpriteComponent)
@@ -69,16 +83,30 @@ class Actor(AActor):
 
     def _on_collision_begin(self, self_collider: ColliderComponent,
                             other_collider: ColliderComponent) -> None:
-        """Called when overlap starts."""
+        """Called when overlap starts.
+
+        Args:
+            self_collider: self collider
+            other_collider: other collider
+        """
         pass
 
     def _on_collision_end(self, self_collider: ColliderComponent,
                           other_collider: ColliderComponent) -> None:
-        """Called when overlap stops."""
+        """Called when overlap stops.
+
+        Args:
+            self_collider: self collider
+            other_collider: other collider
+        """
         pass
 
     def update(self, dt: float) -> None:
-        """Update position"""
+        """Update position
+
+        Args:
+            dt: dt time
+        """
         if not self.static:
             self.position += (
                 self.velocity * (dt / 1000)
@@ -89,7 +117,11 @@ class Actor(AActor):
         super().destroy()
 
     def set_collider(self, collider: ColliderComponent) -> None:
-        """Swap in a different ColliderComponent for this actor."""
+        """Swap in a different ColliderComponent for this actor.
+
+        Args:
+            collider: collider
+        """
         self.remove_component(self._collider)
         self._collider = self.add_component(collider)
         self._collider.on_begin_overlap.bind(self._on_collision_begin)

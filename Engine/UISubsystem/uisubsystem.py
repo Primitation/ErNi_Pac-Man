@@ -17,26 +17,52 @@ class Widget:
     """Base class for anything placed in the UI tree."""
 
     def __init__(self) -> None:
+        """Initialize widget."""
         self.rect: Tuple[int, int, int, int] = (0, 0, 0, 0)
         self.visible: bool = True
 
     def measure(self) -> Tuple[int, int]:
-        """Return this widget's own desired (width, height)."""
+        """Return this widget's own desired (width, height).
+
+        Returns:
+            Return this widget's own desired (width, height).
+        """
         return (0, 0)
 
     def arrange(self, x: int, y: int, w: int, h: int) -> None:
-        """Called by the parent with the space it decided to give."""
+        """Called by the parent with the space it decided to give.
+
+        Args:
+            x: x
+            y: y
+            w: w
+            h: h
+        """
         self.rect = (x, y, w, h)
 
     def render(self, renderer: Any) -> None:
+        """Render.
+
+        Args:
+            renderer: renderer
+        """
         pass
 
     def collect_focusable(self, out: List["Button"]) -> None:
-        """Containers recurse into children; Button appends itself."""
+        """Containers recurse into children; Button appends itself.
+
+        Args:
+            out: out
+        """
         pass
 
     @property
     def center(self) -> Tuple[float, float]:
+        """Returns center.
+
+        Returns:
+            Returns center.
+        """
         x, y, w, h = self.rect
         return (x + w / 2.0, y + h / 2.0)
 
@@ -51,7 +77,16 @@ class Box(Widget):
         spacing: int = 0,
         justify: str = "start",
         background_color: Optional[int] = None
-    ):
+    ) -> None:
+        """Initialize Box widget.
+
+        Args:
+            orientation: orientation
+            padding: padding
+            spacing: spacing
+            justify: justify
+            background_color: background color
+        """
         super().__init__()
         assert orientation in ("horizontal", "vertical")
         self.orientation = orientation
@@ -63,17 +98,37 @@ class Box(Widget):
 
     def add(self, widget: Widget, weight: float = 0.0,
             align: str = "stretch") -> Widget:
-        """align: 'start' | 'center' | 'end' | 'stretch'."""
+        """Add widget in the box.
+
+        Args:
+            widget: widget
+            weight: weight
+            align: align 'start' | 'center' | 'end' | 'stretch'
+
+        Returns:
+            Returns widget.
+        """
         self._children.append((widget, weight, align))
         return widget
 
     def remove(self, widget: Widget) -> None:
+        """Remove widget.
+
+        Args:
+            widget: widget
+        """
         self._children = [c for c in self._children if c[0] is not widget]
 
     def clear(self) -> None:
+        """Clear widgets."""
         self._children.clear()
 
     def measure(self) -> Tuple[int, int]:
+        """Returns measure.
+
+        Returns:
+            Returns measure size.
+        """
         if not self._children:
             return (self.padding * 2, self.padding * 2)
 
@@ -98,6 +153,14 @@ class Box(Widget):
         return (cross_max, main_total)
 
     def arrange(self, x: int, y: int, w: int, h: int) -> None:
+        """Arrange widgets with size.
+
+        Args:
+            x: x
+            y: y
+            w: w
+            h: h
+        """
         self.rect = (x, y, w, h)
 
         visible = [(widget, weight, align) for widget, weight, align
@@ -167,6 +230,11 @@ class Box(Widget):
             cursor += main_size + self.spacing + extra_gap
 
     def render(self, renderer: Any) -> None:
+        """Render.
+
+        Args:
+            renderer: renderer
+        """
         if not self.visible:
             return
         if self.background_color is not None:
@@ -177,6 +245,11 @@ class Box(Widget):
                 widget.render(renderer)
 
     def collect_focusable(self, out: List["Button"]) -> None:
+        """Collect focusable.
+
+        Args:
+            out: out
+        """
         if not self.visible:
             return
         for widget, _weight, _align in self._children:
@@ -192,7 +265,17 @@ class HBox(Box):
         spacing: int = 0,
         justify: str = "start",
         background_color: Optional[int] = None
-    ):
+    ) -> None:
+        """Innitialize HBox.
+
+        Args:
+            def__init__(self: def__init__(self
+            padding: padding
+            spacing: spacing
+            justify: justify
+            background_color: background_color
+        """
+
         super().__init__("horizontal", padding, spacing, justify,
                          background_color)
 
@@ -206,7 +289,15 @@ class VBox(Box):
         spacing: int = 0,
         justify: str = "start",
         background_color: Optional[int] = None
-    ):
+    ) -> None:
+        """Initialize VBox.
+
+        Args:
+            padding: padding
+            spacing: spacing
+            justify: justify
+            background_color: background color
+        """
         super().__init__("vertical", padding, spacing, justify,
                          background_color)
 
@@ -214,11 +305,22 @@ class VBox(Box):
 class Spacer(Widget):
     """Empty widget for spacing."""
 
-    def __init__(self, width: int = 0, height: int = 0):
+    def __init__(self, width: int = 0, height: int = 0) -> None:
+        """Initialize Spacer.
+
+        Args:
+            width: width
+            height: height
+        """
         super().__init__()
         self._size = (width, height)
 
     def measure(self) -> Tuple[int, int]:
+        """Returns measure.
+
+        Returns:
+            Returns measures.
+        """
         return self._size
 
 
@@ -227,7 +329,15 @@ class Text(Widget):
 
     def __init__(self, text: str, color: int = 0x00FFFFFF,
                  char_width: int = CHAR_WIDTH,
-                 char_height: int = CHAR_HEIGHT):
+                 char_height: int = CHAR_HEIGHT) -> None:
+        """Initialize text.
+
+        Args:
+            text: text
+            color: color
+            char_width: char width
+            char_height: char height
+        """
         super().__init__()
         self.text = text
         self.color = color
@@ -235,9 +345,19 @@ class Text(Widget):
         self.char_height = char_height
 
     def measure(self) -> Tuple[int, int]:
+        """Returns measure.
+
+        Returns:
+            Returns measures.
+        """
         return (len(self.text) * self.char_width, self.char_height)
 
     def render(self, renderer: Any) -> None:
+        """Render.
+
+        Args:
+            renderer: renderer
+        """
         if not self.visible or not self.text:
             return
         x, y, w, h = self.rect
@@ -261,7 +381,21 @@ class BitmapText(Widget):
         scale: float = 1.0,
         color: Optional[int] = None,
         lowercase_scale: float = 0.72
-    ):
+    ) -> None:
+        """Initialize bitmap text
+
+        Args:
+            text: text
+            font_texture: font texture
+            char_width: char width
+            char_height: char height
+            charset: charset
+            columns: columns
+            spacing: spacing
+            scale: scale
+            color: color
+            lowercase_scale: lowercase scale
+        """
         super().__init__()
         self.text = text
         self.font_texture = font_texture
@@ -277,6 +411,11 @@ class BitmapText(Widget):
 
     @property
     def cell_size(self) -> Tuple[int, int]:
+        """Returns cell size.
+
+        Returns:
+            Returns cell size.
+        """
         return (max(1, round(self.char_width * self.scale)),
                 max(1, round(self.char_height * self.scale)))
 
@@ -284,7 +423,14 @@ class BitmapText(Widget):
         """Resolve a character to a (glyph_index, is_synthesized_lowercase)
         pair. If `char` isn't in the charset but its uppercase form is,
         reuse the uppercase glyph and flag it so render() draws it
-        scaled down."""
+        scaled down.
+
+        Args:
+            char: char
+
+        Returns:
+            Returns glyph index result.
+        """
         index = self._index.get(char)
         if index is not None:
             return index, False
@@ -296,6 +442,11 @@ class BitmapText(Widget):
         return None, False
 
     def measure(self) -> Tuple[int, int]:
+        """Returns measure.
+
+        Returns:
+            Returns measures.
+        """
         cw, ch = self.cell_size
         n = len(self.text)
         if n == 0:
@@ -303,6 +454,11 @@ class BitmapText(Widget):
         return (n * cw + (n - 1) * self.spacing, ch)
 
     def render(self, renderer: Any) -> None:
+        """Render.
+
+        Args:
+            renderer: renderer
+        """
         if not self.visible or not self.text or self.font_texture is None:
             return
         x, y, w, h = self.rect
@@ -348,18 +504,35 @@ class Image(Widget):
     """Image widget drawn from a texture."""
 
     def __init__(self, texture: Any, width: Optional[int] = None,
-                 height: Optional[int] = None):
+                 height: Optional[int] = None) -> None:
+        """Initialize image.
+
+        Args:
+            texture: texture
+            width: width
+            height: height
+        """
         super().__init__()
         self.texture = texture
         self._width = width
         self._height = height
 
     def measure(self) -> Tuple[int, int]:
+        """Returns measure.
+
+        Returns:
+            Returns measures.
+        """
         w = self._width if self._width is not None else self.texture.width
         h = self._height if self._height is not None else self.texture.height
         return (w, h)
 
     def render(self, renderer: Any) -> None:
+        """Render.
+
+        Args:
+            renderer: renderer
+        """
         if not self.visible or self.texture is None:
             return
         x, y, w, h = self.rect
@@ -389,7 +562,30 @@ class Button(Widget):
         charset: str = "",
         columns: Optional[int] = None,
         font_scale: float = 1.0
-    ):
+    ) -> None:
+        """Iniitialize button.
+
+        Args:
+            label: label
+            callback: callback
+            None]]=None: None]]=None
+            min_width: min width
+            min_height: min height
+            padding: padding
+            enabled: enabled
+            color_normal: color normal
+            color_focused: color focused
+            color_disabled: color disabled
+            text_color: text color
+            text_background_color: text background color
+            text_background_padding: text background padding
+            font_texture: font texture
+            char_width: char width
+            char_height: char height
+            charset: charset
+            columns: columns
+            font_scale: font scale
+        """
         super().__init__()
         self.callback = callback
         self.enabled = enabled
@@ -415,24 +611,45 @@ class Button(Widget):
 
     @property
     def label(self) -> str:
+        """label"""
         return self._text.text
 
     @label.setter
     def label(self, value: str) -> None:
+        """label"""
         self._text.text = value
 
     def measure(self) -> Tuple[int, int]:
+        """Returns measure.
+
+        Returns:
+            Returns measures.
+        """
         tw, th = self._text.measure()
         return (max(self.min_width, tw + self.padding * 2),
                 max(self.min_height, th + self.padding * 2))
 
     def arrange(self, x: int, y: int, w: int, h: int) -> None:
+        """Arrange with new size.
+
+        Args:
+            x: x
+            y: y
+            w: w
+            h: h
+        """
+
         self.rect = (x, y, w, h)
         tw, th = self._text.measure()
         text_x = x + max(self.padding, (w - tw) // 2)
         self._text.arrange(text_x, y, w, h)
 
     def render(self, renderer: Any) -> None:
+        """Render.
+
+        Args:
+            renderer: renderer
+        """
         if not self.visible:
             return
         x, y, w, h = self.rect
@@ -458,10 +675,16 @@ class Button(Widget):
         self._text.render(renderer)
 
     def collect_focusable(self, out: List["Button"]) -> None:
+        """Collect focusable.
+
+        Args:
+            out: out
+        """
         if self.visible and self.enabled:
             out.append(self)
 
     def activate(self) -> None:
+        """Activate callback."""
         if self.enabled and self.callback is not None:
             self.callback()
 
@@ -470,7 +693,15 @@ class Canvas:
     """Top-level UI surface: owns a screen-space rect and one root widget."""
 
     def __init__(self, x: int = 0, y: int = 0, width: int = 0,
-                 height: int = 0):
+                 height: int = 0) -> None:
+        """Initialize canvas.
+
+        Args:
+            x: x
+            y: y
+            width: width
+            height: height
+        """
         self._logger = Log.get("ui")
         self.x, self.y, self.width, self.height = x, y, width, height
         self.root: Optional[Widget] = None
@@ -479,14 +710,28 @@ class Canvas:
         self._input: Optional["InputSubsystem"] = None
 
     def _ensure_input(self) -> None:
+        """Ensure input."""
         if self._input is None:
             from .. import Input
             self._input = Input
 
     def set_root(self, widget: Widget) -> None:
+        """Set root widget.
+
+        Args:
+            widget: widget.
+        """
         self.root = widget
 
     def set_rect(self, x: int, y: int, width: int, height: int) -> None:
+        """Set rect.
+
+        Args:
+            x: x
+            y: y
+            width: width
+            height: height
+        """
         self.x, self.y, self.width, self.height = x, y, width, height
 
     _DIRECTIONS = {
@@ -498,7 +743,17 @@ class Canvas:
 
     def _find_neighbor(self, buttons: List[Button], current: Button,
                        direction: Tuple[float, float]) -> Optional[Button]:
-        """Closest enabled button roughly in `direction` from `current`."""
+        """Closest enabled button roughly in `direction` from `current`.
+
+        Args:
+            buttons: buttons
+            current: current
+            direction: direction
+            float]: float]
+
+        Returns:
+            Returns closest enabled button roughly in direction from current.
+        """
         dx, dy = direction
         cx, cy = current.center
         best, best_score = None, float("inf")
@@ -520,7 +775,7 @@ class Canvas:
         return best
 
     def update(self) -> None:
-        """Call once per frame, after Input.process_events()."""
+        """Ipdates. Call once per frame, after Input.process_events()."""
         if not self.visible or self.root is None:
             return
 
@@ -549,6 +804,11 @@ class Canvas:
             b.focused = (b is self._focused)
 
     def render(self, renderer: Any) -> None:
+        """Render.
+
+        Args:
+            renderer: renderer
+        """
         if not self.visible or self.root is None:
             return
         self.root.measure()

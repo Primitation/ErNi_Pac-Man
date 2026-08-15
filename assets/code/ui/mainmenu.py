@@ -26,7 +26,12 @@ from assets.code.ui.screen_transition import PacmanTransition as Transition
 class MainMenu:
     """Call .show() to run the menu loop."""
 
-    def __init__(self, scores: Scores):
+    def __init__(self, scores: Scores) -> None:
+        """Initialize main menu.
+
+        Args:
+            scores: scores
+        """
         self._logger = Log.get("menu")
         self._result: str | None = None
         self._font_texture = Assets.load(BUTTON_FONT_PATH)
@@ -54,6 +59,19 @@ class MainMenu:
         min_height: int = 48,
         font_scale: int = 10
     ) -> Button:
+        """Button.
+
+        Args:
+            label: label
+            callback: callback
+            None]: None]
+            min_width: min width
+            min_height: min height
+            font_scale: font scale
+
+        Returns:
+            Returns button.
+        """
         return Button(
             label,
             callback=callback,
@@ -70,6 +88,15 @@ class MainMenu:
         )
 
     def _label(self, text: str, text_scale: float = 2.0) -> BitmapText:
+        """Label.
+
+        Args:
+            text: text
+            text_scale: text scale
+
+        Returns:
+            Returns label.
+        """
         return BitmapText(
             text,
             self._font_texture,
@@ -81,6 +108,11 @@ class MainMenu:
         )
 
     def _build_menu_root(self) -> VBox:
+        """Build menu root.
+
+        Returns:
+            Returns build menu root.
+        """
         root = VBox(spacing=24, justify="center", background_color=0xFF000000)
 
         root.add(
@@ -101,6 +133,11 @@ class MainMenu:
         return root
 
     def _build_options_root(self) -> VBox:
+        """Build options root.
+
+        Returns:
+            Returns build options root.
+        """
         root = VBox(spacing=20, justify="center")
         root.add(
             Text("OPTIONS", color=0x00FFEE55, char_width=10, char_height=18),
@@ -134,6 +171,11 @@ class MainMenu:
         return root
 
     def _build_scores_root(self) -> VBox:
+        """Build scores root.
+
+        Returns:
+            Returns build scores root.
+        """
         root = VBox(spacing=20, justify="center", background_color=0xFF000000)
         root.add(self._label("SCORES", text_scale=10.0), align="center")
         text_scale = 7.0
@@ -153,6 +195,11 @@ class MainMenu:
         return root
 
     def _build_instructions_root(self) -> VBox:
+        """Build instructions root.
+
+        Returns:
+            Returns build instructions root.
+        """
         root = VBox(spacing=20, justify="center", background_color=0xFF000000)
         root.add(self._label("INSTRUCTIONS", text_scale=8.0), align="center")
         instructions = [
@@ -185,50 +232,75 @@ class MainMenu:
     sfx_volume = 80
 
     def _on_music_down(self) -> None:
+        """Action on music down."""
         self.music_volume = max(0, self.music_volume - 10)
         self._music_label.text = f"Music: {self.music_volume}%"
 
     def _on_music_up(self) -> None:
+        """Action on music up."""
         self.music_volume = min(100, self.music_volume + 10)
         self._music_label.text = f"Music: {self.music_volume}%"
 
     def _on_sfx_down(self) -> None:
+        """Action on sfx down."""
         self.sfx_volume = max(0, self.sfx_volume - 10)
         self._sfx_label.text = f"SFX:   {self.sfx_volume}%"
 
     def _on_sfx_up(self) -> None:
+        """Action on sfx up."""
         self.sfx_volume = min(100, self.sfx_volume + 10)
         self._sfx_label.text = f"SFX:   {self.sfx_volume}%"
 
     def _on_options(self) -> None:
+        """Action on options button."""
         self.canvas.set_root(self._options_root)
 
     def _on_scores(self) -> None:
+        """Action on scores button."""
         self.canvas.set_root(self._scores_root)
 
     def _on_instructions(self) -> None:
+        """Action on instructions button."""
         self.canvas.set_root(self._instructions_root)
 
     def _on_back(self) -> None:
+        """Action on back button."""
         self.canvas.set_root(self._menu_root)
 
     def _on_play(self) -> None:
+        """Action on play button."""
         self._close("play")
 
     def _on_quit(self) -> None:
+        """Action on quit button."""
         self._close("quit")
 
     def _close(self, result: str) -> None:
+        """Close.
+
+        Args:
+            result: result type.
+        """
         self._result = result
         self._fade_out = Transition(650)
 
     def _on_resize(self, win_ptr: Any, width: int, height: int) -> None:
+        """Action on resize."""
         self.canvas.set_rect(0, 0, width, height)
 
     def show(self) -> str:
-        """Runs its own mlx loop until Play/Quit is chosen."""
+        """Runs its own mlx loop until Play/Quit is chosen.
+
+        Returns:
+            Returns string show.
+        """
 
         def frame(_param: Any) -> None:
+            """Frame update.
+
+            Args:
+                _param: parameter
+            """
             Assets.update()
 
             Input.process_events()
