@@ -49,7 +49,7 @@ cat > "$DIST_DIR/run.sh" << 'EOF'
 # the game manually from the extracted folder.
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
-exec "$DIR/.venv/bin/python" "$DIR/pacman.py" "$@"
+exec "$DIR/.venv/bin/python" "$DIR/pacman.py" "$DIR/config.json" "$@"
 EOF
 chmod +x "$DIST_DIR/run.sh"
 
