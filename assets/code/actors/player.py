@@ -228,6 +228,8 @@ class Player(Actor):
             Player.current_player.score_info.eat_super_pacgum()
             self.super_pacman = True
         elif isinstance(other_collider.owner, BasicGhost):
+            if other_collider.owner.dead:
+                return
             if self._is_super_pacman():
                 Player.current_player.score_info.eat_ghost()
                 # TODO: temporary respawning

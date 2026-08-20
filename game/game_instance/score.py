@@ -70,7 +70,7 @@ class Scores:
                 scores = json.load(f)
             if isinstance(scores, list):
                 scores_list: List[Tuple[str, int]] = [
-                    (player, int(score))
+                    (player, max(0, int(score)))
                     for player, score in scores
                 ]
                 return Scores(scores_list)
@@ -104,7 +104,7 @@ class Scores:
             name: the player name.
             score: the player score.
         """
-        self._scores.append((name, score))
+        self._scores.append((name, max(0, score)))
         if len(self._scores) > self.MAX_SAVE_SCORES:
             self.get_top_scores(self.MAX_SAVE_SCORES)
 

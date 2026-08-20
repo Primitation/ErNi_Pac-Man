@@ -174,7 +174,7 @@ class BasicGhost(Actor):
                 "/pacman_hd/PacManAssets-Ghosts.png",
                 frame_width=32,
                 frame_height=32,
-                frame_count=8,
+                frame_count=4,
                 fps=4,
                 loop=True,
                 start_frame=DEADGHOST_INDEX
