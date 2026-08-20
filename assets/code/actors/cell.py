@@ -113,7 +113,6 @@ class Cell(AActor):
     def build_geometry(self) -> None:
         """Build wall geometry for this cell."""
 
-
         if (
             self.has_north_wall
             and self.has_south_wall
