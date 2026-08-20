@@ -27,10 +27,15 @@ class GameplayHUD:
     MARGIN = 16
     BACKGROUND_COLOR = 0x88000000
 
-    def __init__(self) -> None:
-        """Initialize gameplay hud"""
+    def __init__(self, level_name: int) -> None:
+        """Initialize gameplay hud
+
+        Args:
+            level_name: level name
+        """
         self._font_texture = Assets.load(ARCADE_FONT_PATH)
         self._life_texture = Assets.load(LIFE_ICON_PATH)
+        self.level_name = level_name
 
     def _label(self, text: str) -> BitmapText:
         """Returns text label.
@@ -61,6 +66,7 @@ class GameplayHUD:
         lives = player.lives if player is not None else 0
         score = player.score_info.score if player is not None else 0
         time_left = max(0, int(Actors.remaining_time))
+        level_name = self.level_name
 
         root = HBox(
             spacing=self.SPACING,
@@ -81,7 +87,8 @@ class GameplayHUD:
         root.add(lives_box, align="center")
 
         root.add(self._label(f"{score:01d} ,[]"), align="center")
-        root.add(self._label(f"{time_left:03d}"), align="center")
+        root.add(self._label(f"time:{time_left:03d}"), align="center")
+        root.add(self._label(f"level:{level_name:03d}"), align="center")
 
         return root
 

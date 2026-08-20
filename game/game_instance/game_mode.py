@@ -45,8 +45,9 @@ class GameModeNormalLevels(GameModeLevels):
         """
         self._curr_level = 0
         self._pregenerated_levels = [
-            LevelInstance(level_option)
-            for level_option in levels_options
+            LevelInstance(level_option, level_name + 1)
+            for level_name, level_option
+            in enumerate(levels_options)
         ]
 
     @property

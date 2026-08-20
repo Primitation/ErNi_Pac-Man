@@ -30,15 +30,16 @@ class LevelInstance:
 
     TILE_SIZE = 42
 
-    def __init__(self, level_options: LevelOptions) -> None:
+    def __init__(self, level_options: LevelOptions, name: int) -> None:
         """Initialize a level instance.
 
         Args:
             level_options: the options for this level.
+            name: level name
         """
         self._level_options = level_options
         self._level_structure: Optional[LevelStructure] = None
-        self._name = None
+        self._name = name
         self.cells: List[List[Cell]] = []
 
     def load(self) -> None:
@@ -292,7 +293,7 @@ class LevelInstance:
 
         log = Log.get("main")
 
-        hud = GameplayHUD()
+        hud = GameplayHUD(self._name)
         pause_hud = PauseHUD()
 
         state = {
