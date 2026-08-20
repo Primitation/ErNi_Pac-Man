@@ -322,7 +322,6 @@ class InputSubsystem:
 
     def _setup_input(self) -> None:
         """Setup the inputs."""
-        self.bind_action("quit", [self.KEYS["escape"]])
         self.bind_action("confirm", [self.KEYS["enter"], self.KEYS["space"]])
         self.bind_action("cancel", [self.KEYS["escape"]])
         self.bind_action("up", [self.KEYS["up"], self.KEYS["w"]])
