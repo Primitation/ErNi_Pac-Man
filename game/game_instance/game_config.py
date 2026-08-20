@@ -378,7 +378,7 @@ class GameConfigParser:
                 for width, height in levels_options_tuple
             ]
             if len(levels_options) < GameConfigModelConstant.MIN_LEVELS:
-                GameConfigModelConstant.LOG.error(
+                GameConfigModelConstant.LOG.warning(
                     f"No enough levels: {len(levels_options)}. Add default to "
                     f"{GameConfigModelConstant.MIN_LEVELS} levels.")
                 levels_options.extend(
