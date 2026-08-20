@@ -42,9 +42,9 @@ make build      # (re)build the package for game release
 ### Running
 
 ```sh
-make run        # runs `pacman.py config.json` inside the venv
+make run        # runs `pac-man.py config.json` inside the venv
 make debug       # same, but under `python3 -m pdb`
-python3 pacman.py <config.json>
+python3 pac-man.py <config.json>
 ```
 
 Once the window opens, use the keys below (also listed in
