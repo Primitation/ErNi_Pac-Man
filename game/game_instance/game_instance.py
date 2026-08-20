@@ -1,5 +1,6 @@
 """Game instance."""
 
+from Engine import Input
 from Engine.LogSubsystem.logsubsystem import Log
 from assets.code.actors.player import Player
 from game.game_instance.score import Scores
@@ -20,6 +21,9 @@ class GameInstance:
         self._current_player = PlayerInformation(config)
         self._game_mode_normal = GameModeNormalLevels(config.levels_options)
         self._scores = Scores.load_scores(config)
+        self._should_exit = False
+
+        Input.on_close(self._request_exit)
 
         self._game_mode_normal.reset()
         level_instance = self._game_mode_normal.next_level()
@@ -28,6 +32,17 @@ class GameInstance:
             level_instance = self._game_mode_normal.next_level()
         self._game_mode_normal.reset()
         self.log = Log.get("main")
+
+    def _request_exit(self) -> None:
+        """React to the window being destroyed (OS close button).
+
+        Called from the Input subsystem's DESTROY_NOTIFY hook. Flags
+        every loop in the game (level loop, menu loop) to stop instead
+        of trying to keep using a window that no longer exists.
+        """
+        self.log.info("GameInstance: window destroyed, exiting game")
+        self._should_exit = True
+        Player.quit = True
 
     def _start_normal_levels(self) -> bool:
         """Initialize the game and start.
@@ -42,7 +57,8 @@ class GameInstance:
         log = Log.get("main")
         log.info("GameInstance: start normal levels")
         level_instance = self._game_mode_normal.next_level()
-        while (not Player.quit and level_instance is not None
+        while (not self._should_exit and not Player.quit
+               and level_instance is not None
                and self._current_player.is_alive()):
             Player.end_level = False
             level_name = self._game_mode_normal.current_level
@@ -65,13 +81,13 @@ class GameInstance:
         """
         from assets.code.ui.mainmenu import MainMenu
 
-        while True:
+        while not self._should_exit:
             result = MainMenu(self._scores).show()
             self.log.info(f"Menu closed with result: {result}")
 
             if result == "play":
                 normal_end = self.page_current_normal_levels()
-                if normal_end:
+                if normal_end and not self._should_exit:
                     self.page_player_name_for_score()
                 # falls back into the while loop -> menu shows again
             else:

@@ -123,7 +123,6 @@ class MainMenu:
 
         buttons = VBox(spacing=12, justify="center")
         buttons.add(self._button("PLAY", self._on_play), align="center")
-        buttons.add(self._button("OPTIONS", self._on_options), align="center")
         buttons.add(self._button("SCORES", self._on_scores), align="center")
         buttons.add(self._button("INSTRUCTIONS", self._on_instructions),
                     align="center")
