@@ -1,5 +1,6 @@
 """Game instance."""
 
+from Engine import Input
 from Engine.LogSubsystem.logsubsystem import Log
 from assets.code.actors.player import Player
 from game.game_instance.score import Scores
@@ -21,6 +22,8 @@ class GameInstance:
         self._game_mode_normal = GameModeNormalLevels(config.levels_options)
         self._scores = Scores.load_scores(config)
 
+        Input.on_close(self._request_exit)
+
         self._game_mode_normal.reset()
         level_instance = self._game_mode_normal.next_level()
         while level_instance is not None:
@@ -28,6 +31,16 @@ class GameInstance:
             level_instance = self._game_mode_normal.next_level()
         self._game_mode_normal.reset()
         self.log = Log.get("main")
+
+    def _request_exit(self) -> None:
+        """React to the window being destroyed (OS close button).
+
+        Called from the Input subsystem's DESTROY_NOTIFY hook. Flags
+        every loop in the game (level loop, menu loop) to stop instead
+        of trying to keep using a window that no longer exists.
+        """
+        self.log.info("GameInstance: window destroyed, exiting game")
+        Player.quit = True
 
     def _start_normal_levels(self) -> bool:
         """Initialize the game and start.
