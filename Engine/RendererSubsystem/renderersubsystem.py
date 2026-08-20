@@ -358,6 +358,8 @@ class RendererSubsystem:
             for component in components:
                 if getattr(component, 'sprite', None) is None:
                     continue
+                if getattr(component, 'enabled', False) is False:
+                    continue
                 draw_list.append((actor, component))
 
         draw_list.sort(key=lambda pair: getattr(pair[1], 'render_layer', 0))
@@ -835,6 +837,8 @@ class RendererSubsystem:
                 continue
             for component in components:
                 if getattr(component, 'sprite', None) is None:
+                    continue
+                if getattr(component, 'enabled', False) is False:
                     continue
                 draw_list.append((actor, component))
 
