@@ -31,7 +31,7 @@ rm -rf "$ROOT_DIR/dist"
 mkdir -p "$DIST_DIR"
 
 echo "==> [3/5] Copying application source and assets"
-cp -r "$ROOT_DIR/pacman.py"   "$DIST_DIR/"
+cp -r "$ROOT_DIR/pac-man.py"   "$DIST_DIR/"
 cp -r "$ROOT_DIR/config.json" "$DIST_DIR/"
 cp -r "$ROOT_DIR/Engine"      "$DIST_DIR/"
 cp -r "$ROOT_DIR/game"        "$DIST_DIR/"
@@ -49,7 +49,7 @@ cat > "$DIST_DIR/run.sh" << 'EOF'
 # the game manually from the extracted folder.
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
-exec "$DIR/.venv/bin/python" "$DIR/pacman.py" "$DIR/config.json" "$@"
+exec "$DIR/.venv/bin/python" "$DIR/pac-man.py" "$DIR/config.json" "$@"
 EOF
 chmod +x "$DIST_DIR/run.sh"
 

@@ -158,11 +158,11 @@ run:
 	@printf "╚══════════════════════════════════════╝\n"
 	@printf "$(RESET)"
 
-	@$(PYTHON) pacman.py config.json
+	@$(PYTHON) pac-man.py config.json
 
 debug:
 	$(TITLE) "Debug mode"
-	$(PYTHON) -m pdb pacman.py config.json
+	$(PYTHON) -m pdb pac-man.py config.json
 
 lint:
 	$(TITLE) "Running lint checks"
@@ -182,7 +182,7 @@ lint:
 
 clean:
 	$(TITLE) "Cleaning project"
-	rm -rf */__pycache__
+	find . -type d -name __pycache__ -exec rm -r {} \+
 	rm -rf .mypy_cache
 	rm -rf dist
 	rm -rf build
