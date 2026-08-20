@@ -76,6 +76,7 @@ class GameInstance:
                 # falls back into the while loop -> menu shows again
             else:
                 break  # "quit" or window closed some other way
+        self._scores.save_scores(self._config)
 
     def page_current_normal_levels(self) -> bool:
         """Normal current level page.
