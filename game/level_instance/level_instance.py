@@ -89,7 +89,7 @@ class LevelInstance:
         self._setup_camera()
 
         Renderer.bake(list(World))
-
+        Actors.paused = False
         self._run_game_loop()
 
         World.clear()
