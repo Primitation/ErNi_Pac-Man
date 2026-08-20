@@ -42,7 +42,8 @@ class GameInstance:
         log = Log.get("main")
         log.info("GameInstance: start normal levels")
         level_instance = self._game_mode_normal.next_level()
-        while not Player.quit and level_instance is not None:
+        while (not Player.quit and level_instance is not None
+               and self._current_player.is_alive()):
             Player.end_level = False
             level_name = self._game_mode_normal.current_level
             log.info(f"GameInstance: start normal level {level_name}")
