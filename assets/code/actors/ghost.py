@@ -183,7 +183,6 @@ class BasicGhost(Actor):
             self.face.enabled = False
         else:
             self.movement.enabled = True
-            self.face.enabled = True
 
         if hasattr(self.chase, "set_fleeing"):
             self.chase.set_fleeing(self.edible)

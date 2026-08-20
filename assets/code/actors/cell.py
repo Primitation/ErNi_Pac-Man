@@ -7,6 +7,7 @@ from ..components.wall_components import (
     Wall_Component,
     Corner_Component,
     Inner_Corner_Component,
+    AnimatedSpriteComponent,
 )
 
 
@@ -111,6 +112,26 @@ class Cell(AActor):
 
     def build_geometry(self) -> None:
         """Build wall geometry for this cell."""
+
+
+        if (
+            self.has_north_wall
+            and self.has_south_wall
+            and self.has_east_wall
+            and self.has_west_wall
+        ):
+            self.add_component(AnimatedSpriteComponent(
+                        frame_width=16,
+                        frame_height=16,
+                        center=True,
+                        scale=(3, 3),
+                        frame_count=1,
+                        start_frame=20,
+                        loop=False,
+                        path="assets/texture/spritesheets/pacman_hd/"
+                             "PacManAssets_Map_TileSet.png",
+                        render_layer=5
+                    ))
 
         # Outer (convex) NE corner
         if (
